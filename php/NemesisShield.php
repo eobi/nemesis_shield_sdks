@@ -112,24 +112,37 @@ class NemesisShield
         return [false, null];
     }
 
-    /** Call at the START of a request. Returns true (and emits a 403) if the request is blocked. */
-    public static function guard(string $token, ?string $method = null, ?string $path = null, ?array $query = null, ?bool $authed = null): bool
+    /**
+     * Non-echoing decision for framework middleware (Laravel/Symfony): returns [block(bool),
+     * reason(?string)]. Records the blocked attempt when it blocks.
+     */
+    public static function verdict(string $token, string $method, string $path, array $query, bool $authed): array
     {
-        $method = $method ?? ($_SERVER['REQUEST_METHOD'] ?? 'GET');
-        $path = $path ?? strtok($_SERVER['REQUEST_URI'] ?? '/', '?');
-        $query = $query ?? ($_GET ?? []);
-        $authed = $authed ?? (isset($_SERVER['HTTP_AUTHORIZATION']) || isset($_SESSION['user']) || isset($_COOKIE['session']));
         $policy = self::policy($token);
         if (($policy['mode'] ?? 'observe') === 'enforce') {
             $sk = self::buildSketch($method, $path, $query, $authed, 0);
             [$block, $reason] = self::decide($policy, $sk['shape']);
             if ($block) {
                 self::send($token, [self::buildSketch($method, $path, $query, $authed, 403)]);
-                http_response_code(403);
-                header('content-type: application/json');
-                echo json_encode(['error' => 'blocked_by_nemesis_shield', 'reason' => $reason]);
-                return true;
+                return [true, $reason];
             }
+        }
+        return [false, null];
+    }
+
+    /** Call at the START of a request (raw PHP). Returns true (and emits a 403) if blocked. */
+    public static function guard(string $token, ?string $method = null, ?string $path = null, ?array $query = null, ?bool $authed = null): bool
+    {
+        $method = $method ?? ($_SERVER['REQUEST_METHOD'] ?? 'GET');
+        $path = $path ?? strtok($_SERVER['REQUEST_URI'] ?? '/', '?');
+        $query = $query ?? ($_GET ?? []);
+        $authed = $authed ?? (isset($_SERVER['HTTP_AUTHORIZATION']) || isset($_SESSION['user']) || isset($_COOKIE['session']));
+        [$block, $reason] = self::verdict($token, $method, $path, $query, $authed);
+        if ($block) {
+            http_response_code(403);
+            header('content-type: application/json');
+            echo json_encode(['error' => 'blocked_by_nemesis_shield', 'reason' => $reason]);
+            return true;
         }
         return false;
     }
