@@ -23,6 +23,7 @@ Nemesis is unreachable, your app is completely unaffected.
 | **.NET / C#** | `NemesisShield.cs` | ASP.NET Core middleware → [`dotnet/`](dotnet/) |
 | **Rust** | `nemesis-shield` | axum (tower) / actix-web middleware → [`rust/`](rust/) |
 | **Edge / Supabase** (Deno TS) | `nemesis-shield.ts` | `withShield()` for Supabase Edge Functions / Deno / CF Workers / Vercel Edge → [`edge/`](edge/) |
+| **Supabase direct DB API** | Cloudflare Worker | reverse-proxy that guards `supabase.from()` (PostgREST) — off-baseline table/verb/auth blocked before your DB → [`cloudflare-supabase-proxy/`](cloudflare-supabase-proxy/) |
 
 ### Front-end (browser)
 

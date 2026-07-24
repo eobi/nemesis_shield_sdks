@@ -1,0 +1,13 @@
+{
+  "name": "nemesis-supabase-proxy",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cloudflare Worker that guards Supabase's direct DB API (PostgREST) with Nemesis Shield positive-security.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^3"
+  }
+}
