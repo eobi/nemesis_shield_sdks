@@ -23,6 +23,19 @@ Nemesis is unreachable, your app is completely unaffected.
 | **.NET / C#** | `NemesisShield.cs` | ASP.NET Core middleware → [`dotnet/`](dotnet/) |
 | **Rust** | `nemesis-shield` | axum (tower) / actix-web middleware → [`rust/`](rust/) |
 
+### Front-end (browser)
+
+The back-end SDKs above protect the server. The **browser SDK** protects the *other* half — the
+client-side attacks a WAF and a backend never see: **Magecart/skimmers, script injection, data
+exfiltration, and form-jacking**. It learns which script origins load and which endpoints the page
+calls, then blocks anything off-baseline — a learned CSP you approve in the console.
+
+| Front-end | Package | Integration |
+|---|---|---|
+| **React · Angular · Vue · jQuery · plain JS** | `@nemesis-shield/browser` | one `<script data-token>` tag, or `NemesisShield.init({token})` → [`browser/`](browser/) |
+
+One SDK covers every framework — they all share the same browser primitives.
+
 ## Get a token
 
 1. Sign up at **[shield.nemesislabs.xyz](https://shield.nemesislabs.xyz)** (free, no card).
