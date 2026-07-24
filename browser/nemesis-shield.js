@@ -1,28 +1,35 @@
 /*!
- * Nemesis Shield — Browser SDK (client-side runtime protection).
+ * Nemesis Shield — Browser SDK (client-side runtime protection for checkout / payment pages).
  *
- * Learns your page's normal CLIENT-SIDE behavior — which script origins load, which origins the page
- * calls (fetch/XHR/beacon), and where forms submit — then in enforce mode BLOCKS deviations:
- * Magecart/skimmer scripts injected from unapproved origins, data exfiltration to rogue endpoints,
- * and form-jacking. A learned, per-app allow-list — like a CSP the app owner curates in the console.
+ * Learns your page's normal CLIENT-SIDE behavior, then in enforce mode:
  *
- * Works with React, Angular, Vue, jQuery, and plain JavaScript — it hooks the browser primitives
- * (fetch / XMLHttpRequest / sendBeacon / DOM mutations / form submit), which every framework shares.
- * Fail-open (never breaks the page), privacy-preserving (ships only origins + event shapes, never
- * payloads or DOM content), first-party traffic is always allowed.
+ *   BLOCKS (prevents the attack)
+ *     - data exfiltration to un-approved origins across EVERY channel skimmers use:
+ *       fetch, XMLHttpRequest, sendBeacon, image beacons (new Image().src), WebSocket, EventSource
+ *     - Magecart / sideloaded scripts + iframes injected from un-approved origins
+ *     - form-jacking: a form (esp. a payment form) re-pointed to submit to an attacker origin
  *
- *   <!-- drop-in on any site (raw JS, jQuery, legacy Angular.js, server-rendered) -->
+ *   DETECTS + ALERTS (reports a finding — PCI DSS 4.0.1 §11.6.1 tamper detection)
+ *     - inline <script> injection / change (content fingerprint not in the approved inventory)
+ *     - hidden input fields injected into a payment form (overlay skimmer)
+ *     - clickjacking: the page rendered inside an un-approved frame ancestor
+ *
+ *   INVENTORY (PCI DSS 4.0.1 §6.4.3 — authorize + integrity + inventory of every script)
+ *     - every external script origin and every inline-script fingerprint is reported to the console
+ *
+ * Even when an inline skimmer manages to run, its stolen data cannot leave: every exfil channel to an
+ * un-approved origin is blocked. A learned, per-app allow-list — like a CSP the owner curates in the
+ * console. Works with React, Angular, Vue, jQuery, and plain JS (shared browser primitives).
+ * Fail-open (never breaks the page), privacy-preserving (origins + shapes only, never payloads),
+ * first-party traffic always allowed.
+ *
  *   <script src="nemesis-shield.js" data-token="nsk_your_app_token"></script>
- *
- *   // or in a bundled app (React/Vue/Angular), once at bootstrap:
- *   import NemesisShield from "@nemesis-shield/browser";
- *   NemesisShield.init({ token: import.meta.env.VITE_NEMESIS_TOKEN });
+ *   // or, in a bundled app:  NemesisShield.init({ token, frameBust: true });
  */
 (function (root, factory) {
   var mod = factory();
   if (typeof module === "object" && module.exports) module.exports = mod;
   if (root) root.NemesisShield = mod;
-  // Auto-init when included as <script src=... data-token=...>
   try {
     if (typeof document !== "undefined") {
       var cs = document.currentScript;
@@ -55,7 +62,8 @@
   }
 
   // Client-side event -> a sketch that flows through the SAME server pipeline as backend requests.
-  // "route" carries the scheme: script://<origin>, connect://<origin>, form://<origin>.
+  // "route" carries the channel: connect://<origin>, script://<origin>, inline://<fp>,
+  // form://<origin>, payform://<origin>, field://<origin>, frame://<origin>.
   function shapeOf(kind, origin) {
     var K = kind.toUpperCase();
     var route = kind + "://" + origin;
@@ -63,16 +71,33 @@
     return { route: route, method: K, shape: fnv1a(canon) };
   }
 
+  var PAY_RE = /card|cc[-_ ]?num|cardnumber|cvv|cvc|ccv|security ?code|expir|exp[-_ ]?date/i;
+  function isPaymentField(el) {
+    try {
+      var ac = (el.getAttribute("autocomplete") || "").toLowerCase();
+      if (ac.indexOf("cc-") === 0) return true;
+      if (el.type === "password") return true;
+      var n = (el.name || "") + " " + (el.id || "") + " " + (el.getAttribute("placeholder") || "");
+      return PAY_RE.test(n);
+    } catch (e) {
+      return false;
+    }
+  }
+  function isPaymentForm(form) {
+    try {
+      var ins = form.getElementsByTagName("input");
+      for (var i = 0; i < ins.length; i++) if (isPaymentField(ins[i])) return true;
+    } catch (e) {}
+    return false;
+  }
+
   function createShield(opts) {
     opts = opts || {};
     var env = opts.env || (typeof window !== "undefined" ? window : globalThis);
     var token = opts.token || env.NEMESIS_TOKEN || "";
     var endpoint = opts.endpoint || DEFAULT_ENDPOINT;
-    var selfOrigin = (
-      opts.selfOrigin ||
-      (env.location && env.location.origin) ||
-      ""
-    ).toLowerCase();
+    var frameBust = !!opts.frameBust;
+    var selfOrigin = (opts.selfOrigin || (env.location && env.location.origin) || "").toLowerCase();
     var fetchImpl = opts.fetch || (env.fetch ? env.fetch.bind(env) : null);
 
     var state = { mode: "observe", shapes: {}, knownBad: {}, haveBaseline: false };
@@ -91,7 +116,6 @@
         state.knownBad[s] = 1;
       });
     }
-
     function decide(shape) {
       var per = state.shapes[shape];
       if (per === "allow") return null;
@@ -100,7 +124,6 @@
       if (state.haveBaseline) return "off-baseline: unapproved behavior";
       return null;
     }
-
     function post(sketchesJson) {
       if (!token || !fetchImpl) return Promise.resolve();
       return fetchImpl(endpoint, {
@@ -113,23 +136,13 @@
           return r && r.ok ? r.json() : null;
         })
         .then(applyPolicy)
-        .catch(function () {
-          /* fail open */
-        });
+        .catch(function () {});
     }
-
     function record(kind, origin, status) {
       var s = shapeOf(kind, origin);
       buffer.push(
-        '{"route":"' +
-          s.route +
-          '","method":"' +
-          s.method +
-          '","authenticated":false,"status":' +
-          status +
-          ',"params":[],"shape":"' +
-          s.shape +
-          '"}'
+        '{"route":"' + s.route + '","method":"' + s.method + '","authenticated":false,"status":' +
+          status + ',"params":[],"shape":"' + s.shape + '"}'
       );
       if (buffer.length >= 25) flush();
     }
@@ -143,9 +156,9 @@
       post("[]");
     }
 
-    // Core verdict for a client-side event. Records it, returns true to BLOCK.
+    // Core verdict. Records the event, returns true when it should be blocked. First-party always OK.
     function shouldBlock(kind, origin) {
-      if (!origin || origin === selfOrigin) return false; // first-party is always allowed
+      if (!origin || origin === selfOrigin) return false;
       if (state.mode !== "enforce") {
         record(kind, origin, 200);
         return false;
@@ -155,32 +168,32 @@
       return !!reason;
     }
 
-    // ---- browser instrumentation (all wrapped in try/catch so the page is never broken) ----
+    // ---- exfiltration channels (every gate a skimmer uses) ----
+    function guardConnect(url) {
+      return shouldBlock("connect", originOf(url, selfOrigin));
+    }
     function installNetwork() {
       if (env.fetch) {
-        var orig = env.fetch.bind(env);
+        var of = env.fetch.bind(env);
         env.fetch = function (input, init) {
           try {
-            var url = typeof input === "string" ? input : input && input.url;
-            if (shouldBlock("connect", originOf(url, selfOrigin)))
-              return Promise.reject(new Error("blocked_by_nemesis_shield"));
+            var u = typeof input === "string" ? input : input && input.url;
+            if (guardConnect(u)) return Promise.reject(new Error("blocked_by_nemesis_shield"));
           } catch (e) {}
-          return orig(input, init);
+          return of(input, init);
         };
       }
       if (env.XMLHttpRequest && env.XMLHttpRequest.prototype) {
-        var P = env.XMLHttpRequest.prototype;
-        var O = P.open;
+        var P = env.XMLHttpRequest.prototype, O = P.open, S = P.send;
         P.open = function (m, u) {
           try {
-            this.__nsOrigin = originOf(u, selfOrigin);
+            this.__nsO = originOf(u, selfOrigin);
           } catch (e) {}
           return O.apply(this, arguments);
         };
-        var S = P.send;
         P.send = function () {
           try {
-            if (shouldBlock("connect", this.__nsOrigin)) {
+            if (shouldBlock("connect", this.__nsO)) {
               this.abort();
               return;
             }
@@ -192,22 +205,89 @@
         var SB = env.navigator.sendBeacon.bind(env.navigator);
         env.navigator.sendBeacon = function (u, data) {
           try {
-            if (shouldBlock("connect", originOf(u, selfOrigin))) return false;
+            if (guardConnect(u)) return false;
           } catch (e) {}
           return SB(u, data);
         };
       }
+      // Image-beacon exfil: new Image().src = "//evil/?cc=..." — the classic skimmer gate.
+      if (env.HTMLImageElement && env.HTMLImageElement.prototype) {
+        try {
+          var d = Object.getOwnPropertyDescriptor(env.HTMLImageElement.prototype, "src");
+          if (d && d.set) {
+            Object.defineProperty(env.HTMLImageElement.prototype, "src", {
+              configurable: true,
+              enumerable: d.enumerable,
+              get: d.get,
+              set: function (v) {
+                try {
+                  if (guardConnect(v)) return;
+                } catch (e) {}
+                return d.set.call(this, v);
+              },
+            });
+          }
+        } catch (e) {}
+      }
+      // WebSocket / EventSource exfil channels.
+      ["WebSocket", "EventSource"].forEach(function (name) {
+        var Orig = env[name];
+        if (typeof Orig !== "function") return;
+        try {
+          var Wrapped = function (url) {
+            if (guardConnect(url)) throw new Error("blocked_by_nemesis_shield");
+            return new Orig(url, arguments[1]);
+          };
+          Wrapped.prototype = Orig.prototype;
+          Object.keys(Orig).forEach(function (k) {
+            try {
+              Wrapped[k] = Orig[k];
+            } catch (e) {}
+          });
+          env[name] = Wrapped;
+        } catch (e) {}
+      });
     }
 
+    // ---- script inventory + integrity (§6.4.3) and injection blocking / tamper alerting (§11.6.1) ----
+    function inventoryScript(node) {
+      try {
+        if (node.tagName === "SCRIPT") {
+          if (node.src) return shouldBlock("script", originOf(node.src, selfOrigin)); // external: blockable
+          var txt = node.textContent || "";
+          if (txt) shouldBlock("inline", "fp-" + fnv1a(txt)); // inline: fingerprint -> tamper alert
+          return false;
+        }
+        if (node.tagName === "IFRAME" && node.src) return shouldBlock("script", originOf(node.src, selfOrigin));
+      } catch (e) {}
+      return false;
+    }
     function inspectNode(n) {
       try {
         if (!n || n.nodeType !== 1) return;
         var tag = n.tagName;
-        if ((tag === "SCRIPT" || tag === "IFRAME") && n.src) {
-          if (shouldBlock("script", originOf(n.src, selfOrigin))) {
+        if (tag === "SCRIPT" || tag === "IFRAME") {
+          if (inventoryScript(n) && n.parentNode) {
             if (tag === "SCRIPT") n.type = "javascript/blocked";
-            if (n.parentNode) n.parentNode.removeChild(n);
+            n.parentNode.removeChild(n); // prevents an external off-baseline script from loading
           }
+        } else if (tag === "INPUT") {
+          maybeFieldInjection(n);
+        }
+        // scan nested (e.g. a wrapper div carrying a script or input)
+        if (n.getElementsByTagName) {
+          var s = n.getElementsByTagName("script");
+          for (var i = 0; i < s.length; i++) inventoryScript(s[i]);
+        }
+      } catch (e) {}
+    }
+    // A hidden/late input added into a payment form == overlay skimmer. Detect + alert (§11.6.1).
+    function maybeFieldInjection(input) {
+      try {
+        var form = input.form || (input.closest && input.closest("form"));
+        if (form && isPaymentForm(form)) {
+          var o = originOf((form.getAttribute && form.getAttribute("action")) || selfOrigin, selfOrigin) || selfOrigin;
+          shouldBlock("field", o);
         }
       } catch (e) {}
     }
@@ -216,8 +296,7 @@
       if (!env.document) return;
       try {
         var ss = env.document.getElementsByTagName("script");
-        for (var i = 0; i < ss.length; i++)
-          if (ss[i].src) shouldBlock("script", originOf(ss[i].src, selfOrigin));
+        for (var i = 0; i < ss.length; i++) inventoryScript(ss[i]); // initial inventory
       } catch (e) {}
       if (!env.MutationObserver) return;
       var mo = new env.MutationObserver(function (muts) {
@@ -227,13 +306,11 @@
         }
       });
       try {
-        mo.observe(env.document.documentElement || env.document, {
-          childList: true,
-          subtree: true,
-        });
+        mo.observe(env.document.documentElement || env.document, { childList: true, subtree: true });
       } catch (e) {}
     }
 
+    // ---- form-jacking: block a form (esp. payment) re-pointed to an attacker origin ----
     function installForms() {
       if (!env.document || !env.document.addEventListener) return;
       env.document.addEventListener(
@@ -241,12 +318,33 @@
         function (e) {
           try {
             var f = e.target;
-            if (f && f.action && shouldBlock("form", originOf(f.action, selfOrigin)))
-              e.preventDefault();
+            if (!f || !f.action) return;
+            var o = originOf(f.action, selfOrigin);
+            var kind = isPaymentForm(f) ? "payform" : "form";
+            if (shouldBlock(kind, o)) e.preventDefault();
           } catch (err) {}
         },
         true
       );
+    }
+
+    // ---- clickjacking: page rendered inside an un-approved frame ancestor ----
+    function installFraming() {
+      try {
+        if (env.top && env.self && env.top !== env.self) {
+          var anc = "";
+          try {
+            anc = (env.document && env.document.referrer && originOf(env.document.referrer)) || "unknown";
+          } catch (e) {
+            anc = "unknown";
+          }
+          if (shouldBlock("frame", anc) && frameBust) {
+            try {
+              env.top.location = env.self.location.href;
+            } catch (e) {}
+          }
+        }
+      } catch (e) {}
     }
 
     function install() {
@@ -254,6 +352,7 @@
       installNetwork();
       installDom();
       installForms();
+      installFraming();
       refresh();
       if (env.setInterval)
         env.setInterval(function () {
@@ -270,6 +369,8 @@
       decide: decide,
       shapeOf: shapeOf,
       shouldBlock: shouldBlock,
+      isPaymentField: isPaymentField,
+      isPaymentForm: isPaymentForm,
       _applyPolicy: applyPolicy,
       _state: state,
     };

