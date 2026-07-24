@@ -1,15 +1,12 @@
-// Package nemesis is the Nemesis Shield — Sentinel client for Go.
+// Package nemesis is the Nemesis Shield — Sentinel SDK for Go (native: local shape + policy cache +
+// inline blocking). Learns your app's normal behavior; in enforce mode blocks off-baseline requests
+// (auth bypass, path traversal, scanners, unusual methods) before your handlers run. Fail-open.
 //
-// Wrap any net/http handler to observe request behavior:
-//
-//	mux := http.NewServeMux()
-//	// ... register routes ...
-//	handler := nemesis.Middleware(os.Getenv("NEMESIS_TOKEN"))(mux)
+//	client := nemesis.New(os.Getenv("NEMESIS_TOKEN"))
+//	handler := client.Middleware(mux)     // net/http (works with chi too)
 //	http.ListenAndServe(":8080", handler)
 //
-// It reports only privacy-preserving metadata (method, path shape, status, whether authenticated)
-// to Nemesis Shield. It never ships request bodies. Fail-open: Nemesis being unreachable never
-// affects your app.
+// Ships only method + route shape + auth — never bodies or secrets.
 package nemesis
 
 import (
@@ -17,20 +14,13 @@ import (
 	"encoding/json"
 	"net/http"
 	"regexp"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
-const ObserveURL = "https://shield.nemesislabs.xyz/api/v1/observe"
-
-var httpClient = &http.Client{Timeout: 2 * time.Second}
-
-type Event struct {
-	Method        string `json:"method"`
-	Path          string `json:"path"`
-	Status        int    `json:"status"`
-	Authenticated bool   `json:"authenticated"`
-}
+const defaultEndpoint = "https://shield.nemesislabs.xyz/api/v1/sketches"
 
 var (
 	reInt  = regexp.MustCompile(`^\d+$`)
@@ -38,8 +28,60 @@ var (
 	reHex  = regexp.MustCompile(`(?i)^[0-9a-f]{16,}$`)
 )
 
-// PathShape collapses IDs so the baseline doesn't explode: /orders/123 -> /orders/{int}.
-func PathShape(path string) string {
+// Param is a query-parameter shape (name + kind, never the value).
+type Param struct {
+	Name string `json:"name"`
+	Kind string `json:"kind"`
+}
+
+// Sketch is a privacy-preserving request signature.
+type Sketch struct {
+	Route         string  `json:"route"`
+	Method        string  `json:"method"`
+	Authenticated bool    `json:"authenticated"`
+	Status        int     `json:"status"`
+	Params        []Param `json:"params"`
+	Shape         string  `json:"shape"`
+}
+
+// Client caches the compiled policy and makes fast offline decisions; ships telemetry async.
+type Client struct {
+	token, endpoint string
+	http            *http.Client
+
+	mu           sync.RWMutex
+	mode         string
+	shapes       map[string]string // shape -> "allow"|"block"
+	knownBad     map[string]bool
+	haveBaseline bool
+	buffer       []Sketch
+}
+
+// New creates a client and starts the background policy poller (console-driven enforce, no redeploy).
+func New(token string) *Client { return NewWithEndpoint(token, defaultEndpoint) }
+
+func NewWithEndpoint(token, endpoint string) *Client {
+	c := &Client{
+		token: token, endpoint: endpoint,
+		http:     &http.Client{Timeout: 3 * time.Second},
+		mode:     "observe",
+		shapes:   map[string]string{},
+		knownBad: map[string]bool{},
+	}
+	if token != "" {
+		c.refresh()
+		go func() {
+			t := time.NewTicker(2 * time.Second)
+			for range t.C {
+				c.flush()
+				c.refresh()
+			}
+		}()
+	}
+	return c
+}
+
+func normalizePath(path string) string {
 	path = strings.SplitN(path, "?", 2)[0]
 	segs := strings.Split(path, "/")
 	for i, s := range segs {
@@ -55,21 +97,154 @@ func PathShape(path string) string {
 	return strings.Join(segs, "/")
 }
 
-// Report ships a batch of events. Fire-and-forget; never blocks meaningfully; ignores errors.
-func Report(token string, events []Event) {
-	if token == "" || len(events) == 0 {
+func kindOf(v string) string {
+	switch {
+	case reInt.MatchString(v):
+		return "int"
+	case reUUID.MatchString(v):
+		return "uuid"
+	case reHex.MatchString(v):
+		return "hex"
+	case strings.Contains(v, "@"):
+		return "email"
+	default:
+		return "string"
+	}
+}
+
+func fnv1a(s string) string {
+	var h uint32 = 0x811c9dc5
+	for i := 0; i < len(s); i++ {
+		h ^= uint32(s[i])
+		h *= 0x01000193
+	}
+	const hexdig = "0123456789abcdef"
+	out := make([]byte, 8)
+	for i := 7; i >= 0; i-- {
+		out[i] = hexdig[h&0xf]
+		h >>= 4
+	}
+	return string(out)
+}
+
+// BuildSketch computes the request signature. query may be nil.
+func (c *Client) BuildSketch(method, path string, query map[string][]string, authed bool, status int) Sketch {
+	route := normalizePath(path)
+	params := make([]Param, 0, len(query))
+	names := make([]string, 0, len(query))
+	for k := range query {
+		names = append(names, k)
+	}
+	sort.Strings(names)
+	for _, k := range names {
+		v := ""
+		if len(query[k]) > 0 {
+			v = query[k][0]
+		}
+		params = append(params, Param{Name: k, Kind: kindOf(v)})
+	}
+	canonParams := make([][2]string, len(params))
+	for i, p := range params {
+		canonParams[i] = [2]string{p.Name, p.Kind}
+	}
+	auth := 0
+	if authed {
+		auth = 1
+	}
+	canon, _ := json.Marshal(map[string]any{"route": route, "method": strings.ToUpper(method), "params": canonParams, "auth": auth})
+	return Sketch{Route: route, Method: strings.ToUpper(method), Authenticated: authed, Status: status, Params: params, Shape: fnv1a(string(canon))}
+}
+
+// Decide is the positive-security verdict.
+func (c *Client) Decide(s Sketch) (block bool, reason string) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	switch c.shapes[s.Shape] {
+	case "allow":
+		return false, ""
+	case "block":
+		return true, "policy: blocked shape"
+	}
+	if c.knownBad[s.Shape] {
+		return true, "global threat intelligence"
+	}
+	if c.haveBaseline {
+		return true, "off-baseline: unapproved behavior"
+	}
+	return false, ""
+}
+
+func (c *Client) Enforcing() bool { c.mu.RLock(); defer c.mu.RUnlock(); return c.mode == "enforce" }
+
+// Record buffers a sketch for async shipment.
+func (c *Client) Record(s Sketch) {
+	c.mu.Lock()
+	c.buffer = append(c.buffer, s)
+	full := len(c.buffer) >= 50
+	c.mu.Unlock()
+	if full {
+		c.flush()
+	}
+}
+
+func (c *Client) flush() {
+	c.mu.Lock()
+	if len(c.buffer) == 0 {
+		c.mu.Unlock()
 		return
 	}
-	body, _ := json.Marshal(map[string]any{"events": events})
-	req, err := http.NewRequest("POST", ObserveURL, bytes.NewReader(body))
+	batch := c.buffer
+	c.buffer = nil
+	c.mu.Unlock()
+	c.send(batch)
+}
+
+func (c *Client) refresh() { c.send([]Sketch{}) }
+
+func (c *Client) send(batch []Sketch) {
+	body, _ := json.Marshal(map[string]any{"sketches": batch})
+	req, err := http.NewRequest("POST", c.endpoint, bytes.NewReader(body))
 	if err != nil {
 		return
 	}
-	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Authorization", "Bearer "+c.token)
 	req.Header.Set("Content-Type", "application/json")
-	if resp, err := httpClient.Do(req); err == nil {
-		resp.Body.Close()
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return
 	}
+	defer resp.Body.Close()
+	var out struct {
+		Mode   string `json:"mode"`
+		Policy struct {
+			Shapes   map[string]string `json:"shapes"`
+			KnownBad []string          `json:"knownBad"`
+		} `json:"policy"`
+	}
+	if json.NewDecoder(resp.Body).Decode(&out) != nil {
+		return
+	}
+	c.mu.Lock()
+	if out.Mode != "" {
+		c.mode = out.Mode
+	}
+	if out.Policy.Shapes != nil {
+		c.shapes = out.Policy.Shapes
+		if len(out.Policy.Shapes) > 0 {
+			c.haveBaseline = true
+		}
+	}
+	if out.Policy.KnownBad != nil {
+		c.knownBad = map[string]bool{}
+		for _, s := range out.Policy.KnownBad {
+			c.knownBad[s] = true
+		}
+	}
+	c.mu.Unlock()
+}
+
+func authedFrom(r *http.Request) bool {
+	return r.Header.Get("Authorization") != "" || r.Header.Get("Cookie") != "" || r.Header.Get("X-Api-Key") != ""
 }
 
 type statusRecorder struct {
@@ -79,14 +254,22 @@ type statusRecorder struct {
 
 func (r *statusRecorder) WriteHeader(code int) { r.status = code; r.ResponseWriter.WriteHeader(code) }
 
-// Middleware wraps an http.Handler and reports each request after it completes.
-func Middleware(token string) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			rec := &statusRecorder{ResponseWriter: w, status: 200}
-			next.ServeHTTP(rec, r)
-			authed := r.Header.Get("Authorization") != "" || len(r.Cookies()) > 0
-			go Report(token, []Event{{Method: r.Method, Path: PathShape(r.URL.Path), Status: rec.status, Authenticated: authed}})
-		})
-	}
+// Middleware wraps a net/http handler (also works with chi). Blocks off-baseline in enforce mode.
+func (c *Client) Middleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authed := authedFrom(r)
+		if c.Enforcing() {
+			s := c.BuildSketch(r.Method, r.URL.Path, r.URL.Query(), authed, 0)
+			if block, reason := c.Decide(s); block {
+				c.Record(c.BuildSketch(r.Method, r.URL.Path, r.URL.Query(), authed, 403))
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusForbidden)
+				json.NewEncoder(w).Encode(map[string]string{"error": "blocked_by_nemesis_shield", "reason": reason})
+				return
+			}
+		}
+		rec := &statusRecorder{ResponseWriter: w, status: 200}
+		next.ServeHTTP(rec, r)
+		c.Record(c.BuildSketch(r.Method, r.URL.Path, r.URL.Query(), authed, rec.status))
+	})
 }
