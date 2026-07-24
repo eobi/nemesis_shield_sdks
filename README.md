@@ -22,6 +22,7 @@ Nemesis is unreachable, your app is completely unaffected.
 | **Java** | `NemesisShield.java` | Servlet filter / Spring Boot (JDK 11+) → [`java/`](java/) |
 | **.NET / C#** | `NemesisShield.cs` | ASP.NET Core middleware → [`dotnet/`](dotnet/) |
 | **Rust** | `nemesis-shield` | axum (tower) / actix-web middleware → [`rust/`](rust/) |
+| **Edge / Supabase** (Deno TS) | `nemesis-shield.ts` | `withShield()` for Supabase Edge Functions / Deno / CF Workers / Vercel Edge → [`edge/`](edge/) |
 
 ### Front-end (browser)
 
@@ -35,6 +36,10 @@ calls, then blocks anything off-baseline — a learned CSP you approve in the co
 | **React · Angular · Vue · jQuery · plain JS** | `@nemesis-shield/browser` | one `<script data-token>` tag, or `NemesisShield.init({token})` → [`browser/`](browser/) |
 
 One SDK covers every framework — they all share the same browser primitives.
+
+> **Using TypeScript?** There's no separate TS SDK — TypeScript is these same runtimes. Node backends
+> use [`@nemesis-shield/sentinel`](node/) (ships `.d.ts`), Supabase Edge / Deno / Workers use
+> [`edge/`](edge/), and TS front-ends use [`@nemesis-shield/browser`](browser/) (ships `.d.ts`).
 
 ## Get a token
 
