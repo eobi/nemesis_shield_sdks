@@ -19,7 +19,8 @@ Nemesis is unreachable, your app is completely unaffected.
 | **Go** | `github.com/eobi/nemesis_shield_sdks/go` | `net/http` middleware → [`go/`](go/) |
 | **Ruby** | `nemesis_shield.rb` | Rack middleware (Rails/Sinatra) → [`ruby/`](ruby/) |
 | **PHP** | `NemesisShield.php` | `register_shutdown_function` → [`php/`](php/) |
-| **Java** | `NemesisShield.java` | Servlet filter / interceptor (JDK 11+) → [`java/`](java/) |
+| **Java** | `NemesisShield.java` | Servlet filter / Spring Boot (JDK 11+) → [`java/`](java/) |
+| **.NET / C#** | `NemesisShield.cs` | ASP.NET Core middleware → [`dotnet/`](dotnet/) |
 
 ## Get a token
 
