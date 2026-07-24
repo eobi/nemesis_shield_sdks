@@ -15,7 +15,9 @@ def test_shape_hash_key_order_independent_and_matches_js():
     assert shape_hash({"a": 1, "b": 2}) == shape_hash({"b": 2, "a": 1})
 
 
-def test_build_sketch_matches_js():
+def test_build_sketch_request_shape():
+    # The shape is a REQUEST signature (method + route + params + auth), independent of status —
+    # enforcement decides before the response exists. status is kept as a separate attribute.
     s = build_sketch(
         method="post",
         path="/users/123/login",
@@ -26,7 +28,12 @@ def test_build_sketch_matches_js():
         status=200,
     )
     assert s["route"] == "/users/{int}/login"
-    assert s["shape"] == "7b377984"  # identical to Node buildSketch
+    assert s["status"] == 200
+    # status must NOT change the shape (200 vs 500 -> same request identity)
+    s500 = build_sketch(method="post", path="/users/123/login", query={"ref": "home"},
+                        body={"email": "a@b.com"}, header_names=["Content-Type"],
+                        authenticated=True, status=500)
+    assert s["shape"] == s500["shape"] == "809cc854"
 
 
 def test_llm_shape_matches_js():

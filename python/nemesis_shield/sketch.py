@@ -79,12 +79,14 @@ def build_sketch(
 
     headers = sorted({h.lower() for h in (header_names or [])})
 
+    # The shape is a REQUEST signature (method + route + params + auth). It deliberately excludes
+    # status: enforcement decides whether to block BEFORE the response exists, so the identity a
+    # request is matched against cannot depend on its status. Status is kept as an attribute below.
     shape = shape_hash(
         {
             "route": route,
             "method": method.upper(),
             "params": [[p["name"], p["kind"], 1 if p.get("nested") else 0] for p in deduped],
-            "status": _status_class(status),
             "auth": 1 if authenticated else 0,
         }
     )
