@@ -1,0 +1,346 @@
+//! Nemesis Shield — Sentinel SDK for Rust (native: local shape + policy cache + inline blocking).
+//!
+//! Learns your app's normal behavior; in enforce mode **blocks off-baseline requests** (auth bypass,
+//! path traversal, scanners, unusual methods) before your handlers run. Positive-security, fail-open,
+//! privacy-preserving — ships only method + route shape + auth, never bodies or secrets. The console
+//! flips observe↔enforce with no redeploy (a background thread polls the compiled policy).
+//!
+//! ```no_run
+//! use std::sync::Arc;
+//! use nemesis_shield::Client;
+//!
+//! let shield: Arc<Client> = Client::new(std::env::var("NEMESIS_TOKEN").unwrap_or_default());
+//! // In your middleware (axum/actix examples in the README):
+//! let sketch = shield.build_sketch("GET", "/orders/123", &[], true, 0);
+//! if shield.enforcing() {
+//!     if let Some(reason) = shield.decide(&sketch) {
+//!         // respond 403 { "error": "blocked_by_nemesis_shield", "reason": reason }
+//!     }
+//! }
+//! shield.record(shield.build_sketch("GET", "/orders/123", &[], true, 200));
+//! ```
+
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex, RwLock};
+use std::thread;
+use std::time::Duration;
+
+pub const DEFAULT_ENDPOINT: &str = "https://shield.nemesislabs.xyz/api/v1/sketches";
+
+/// A query-parameter shape (name + kind, never the value).
+#[derive(Clone)]
+pub struct Param {
+    pub name: String,
+    pub kind: String,
+}
+
+/// A privacy-preserving request signature.
+pub struct Sketch {
+    pub route: String,
+    pub method: String,
+    pub authenticated: bool,
+    pub status: u16,
+    pub params: Vec<Param>,
+    pub shape: String,
+}
+
+struct Policy {
+    mode: String,
+    shapes: HashMap<String, String>, // shape -> "allow" | "block"
+    known_bad: HashMap<String, ()>,
+    have_baseline: bool,
+}
+
+/// Caches the compiled policy and makes fast offline decisions; ships telemetry async.
+pub struct Client {
+    token: String,
+    endpoint: String,
+    policy: RwLock<Policy>,
+    buffer: Mutex<Vec<String>>,
+}
+
+impl Client {
+    /// Create a client (production endpoint) and start the background policy poller.
+    pub fn new(token: impl Into<String>) -> Arc<Client> {
+        Self::with_endpoint(token, DEFAULT_ENDPOINT)
+    }
+
+    pub fn with_endpoint(token: impl Into<String>, endpoint: impl Into<String>) -> Arc<Client> {
+        let c = Arc::new(Client {
+            token: token.into(),
+            endpoint: endpoint.into(),
+            policy: RwLock::new(Policy {
+                mode: "observe".into(),
+                shapes: HashMap::new(),
+                known_bad: HashMap::new(),
+                have_baseline: false,
+            }),
+            buffer: Mutex::new(Vec::new()),
+        });
+        if !c.token.is_empty() {
+            c.poll();
+            let bg = c.clone();
+            thread::spawn(move || loop {
+                thread::sleep(Duration::from_secs(2));
+                bg.flush();
+                bg.poll();
+            });
+        }
+        c
+    }
+
+    /// True when the console has this app in enforce mode.
+    pub fn enforcing(&self) -> bool {
+        self.policy.read().unwrap().mode == "enforce"
+    }
+
+    fn is_int(s: &str) -> bool {
+        !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit())
+    }
+    fn is_hex(s: &str) -> bool {
+        s.len() >= 16 && s.bytes().all(|b| b.is_ascii_hexdigit())
+    }
+    fn is_uuid(s: &str) -> bool {
+        let b = s.as_bytes();
+        b.len() == 36
+            && s.char_indices().all(|(i, c)| {
+                if i == 8 || i == 13 || i == 18 || i == 23 {
+                    c == '-'
+                } else {
+                    c.is_ascii_hexdigit()
+                }
+            })
+    }
+
+    /// Collapse ids in a path: `/orders/123` -> `/orders/{int}`, uuids -> `{uuid}`, long hex -> `{hex}`.
+    pub fn normalize_path(path: &str) -> String {
+        let path = path.split('?').next().unwrap_or("");
+        path.split('/')
+            .map(|s| {
+                if Self::is_int(s) {
+                    "{int}".to_string()
+                } else if Self::is_uuid(s) {
+                    "{uuid}".to_string()
+                } else if Self::is_hex(s) {
+                    "{hex}".to_string()
+                } else {
+                    s.to_string()
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("/")
+    }
+
+    fn kind_of(v: &str) -> &'static str {
+        if Self::is_int(v) {
+            "int"
+        } else if Self::is_uuid(v) {
+            "uuid"
+        } else if Self::is_hex(v) {
+            "hex"
+        } else if v.contains('@') {
+            "email"
+        } else {
+            "string"
+        }
+    }
+
+    fn fnv1a(s: &str) -> String {
+        let mut h: u32 = 0x811c_9dc5;
+        for &b in s.as_bytes() {
+            h ^= b as u32;
+            h = h.wrapping_mul(0x0100_0193);
+        }
+        format!("{:08x}", h)
+    }
+
+    // Canonical signature string in fixed order: route, method, params, auth (status excluded by design).
+    fn canon(route: &str, method: &str, params: &[Param], auth: bool) -> String {
+        let mut p = String::from("[");
+        for (i, pp) in params.iter().enumerate() {
+            if i > 0 {
+                p.push(',');
+            }
+            p.push_str(&format!("[\"{}\",\"{}\"]", pp.name, pp.kind));
+        }
+        p.push(']');
+        format!(
+            "{{\"route\":\"{}\",\"method\":\"{}\",\"params\":{},\"auth\":{}}}",
+            route,
+            method.to_uppercase(),
+            p,
+            if auth { 1 } else { 0 }
+        )
+    }
+
+    /// Compute the request signature. `query` is a slice of (name, value) pairs; pass `&[]` if none.
+    pub fn build_sketch(
+        &self,
+        method: &str,
+        path: &str,
+        query: &[(String, String)],
+        authed: bool,
+        status: u16,
+    ) -> Sketch {
+        let route = Self::normalize_path(path);
+        let mut sorted: Vec<&(String, String)> = query.iter().collect();
+        sorted.sort_by(|a, b| a.0.cmp(&b.0));
+        let params: Vec<Param> = sorted
+            .iter()
+            .map(|(k, v)| Param {
+                name: k.clone(),
+                kind: Self::kind_of(v).to_string(),
+            })
+            .collect();
+        let shape = Self::fnv1a(&Self::canon(&route, method, &params, authed));
+        Sketch {
+            route,
+            method: method.to_uppercase(),
+            authenticated: authed,
+            status,
+            params,
+            shape,
+        }
+    }
+
+    /// Positive-security verdict. Returns the block reason, or `None` to allow.
+    pub fn decide(&self, s: &Sketch) -> Option<String> {
+        let p = self.policy.read().unwrap();
+        match p.shapes.get(&s.shape).map(String::as_str) {
+            Some("allow") => return None,
+            Some("block") => return Some("policy: blocked shape".into()),
+            _ => {}
+        }
+        if p.known_bad.contains_key(&s.shape) {
+            return Some("global threat intelligence".into());
+        }
+        if p.have_baseline {
+            return Some("off-baseline: unapproved behavior".into());
+        }
+        None
+    }
+
+    fn sketch_json(s: &Sketch) -> String {
+        let mut p = String::from("[");
+        for (i, pp) in s.params.iter().enumerate() {
+            if i > 0 {
+                p.push(',');
+            }
+            p.push_str(&format!("{{\"name\":\"{}\",\"kind\":\"{}\"}}", pp.name, pp.kind));
+        }
+        p.push(']');
+        format!(
+            "{{\"route\":\"{}\",\"method\":\"{}\",\"authenticated\":{},\"status\":{},\"params\":{},\"shape\":\"{}\"}}",
+            s.route, s.method, s.authenticated, s.status, p, s.shape
+        )
+    }
+
+    /// Buffer a sketch for async shipment (fire-and-forget).
+    pub fn record(&self, s: Sketch) {
+        let full = {
+            let mut buf = self.buffer.lock().unwrap();
+            buf.push(Self::sketch_json(&s));
+            buf.len() >= 50
+        };
+        if full {
+            self.flush();
+        }
+    }
+
+    fn flush(&self) {
+        let batch: Vec<String> = {
+            let mut b = self.buffer.lock().unwrap();
+            if b.is_empty() {
+                return;
+            }
+            std::mem::take(&mut *b)
+        };
+        self.send(&format!("[{}]", batch.join(",")));
+    }
+
+    fn poll(&self) {
+        self.send("[]");
+    }
+
+    fn send(&self, sketches_json: &str) {
+        if self.token.is_empty() {
+            return;
+        }
+        let body = format!("{{\"sketches\":{}}}", sketches_json);
+        let resp = ureq::post(&self.endpoint)
+            .set("Authorization", &format!("Bearer {}", self.token))
+            .set("Content-Type", "application/json")
+            .timeout(Duration::from_secs(3))
+            .send_string(&body);
+        if let Ok(r) = resp {
+            if let Ok(txt) = r.into_string() {
+                self.apply_policy(&txt);
+            }
+        }
+        // any transport error: fail open (app is untouched)
+    }
+
+    fn apply_policy(&self, body: &str) {
+        let v: serde_json::Value = match serde_json::from_str(body) {
+            Ok(v) => v,
+            Err(_) => return,
+        };
+        let mut p = self.policy.write().unwrap();
+        if let Some(m) = v.get("mode").and_then(|x| x.as_str()) {
+            p.mode = m.to_string();
+        }
+        if let Some(pol) = v.get("policy") {
+            if let Some(sh) = pol.get("shapes").and_then(|x| x.as_object()) {
+                let mut next = HashMap::new();
+                for (k, val) in sh {
+                    next.insert(k.clone(), val.as_str().unwrap_or("allow").to_string());
+                }
+                p.have_baseline = !next.is_empty();
+                p.shapes = next;
+            }
+            if let Some(kb) = pol.get("knownBad").and_then(|x| x.as_array()) {
+                let mut next = HashMap::new();
+                for s in kb {
+                    if let Some(s) = s.as_str() {
+                        next.insert(s.to_string(), ());
+                    }
+                }
+                p.known_bad = next;
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn normalize_collapses_ids() {
+        assert_eq!(Client::normalize_path("/orders/123"), "/orders/{int}");
+        assert_eq!(
+            Client::normalize_path("/u/550e8400-e29b-41d4-a716-446655440000"),
+            "/u/{uuid}"
+        );
+        assert_eq!(Client::normalize_path("/search?q=x"), "/search");
+    }
+
+    #[test]
+    fn shape_is_stable_and_status_independent() {
+        let c = Client::with_endpoint("", DEFAULT_ENDPOINT);
+        let a = c.build_sketch("GET", "/orders/123", &[], true, 200);
+        let b = c.build_sketch("GET", "/orders/999", &[], true, 500);
+        // same route shape + method + auth => same signature regardless of id or status
+        assert_eq!(a.shape, b.shape);
+        // auth changes the signature
+        let unauth = c.build_sketch("GET", "/orders/123", &[], false, 200);
+        assert_ne!(a.shape, unauth.shape);
+    }
+
+    #[test]
+    fn no_baseline_fails_open() {
+        let c = Client::with_endpoint("", DEFAULT_ENDPOINT);
+        let s = c.build_sketch("GET", "/anything", &[], false, 0);
+        assert!(c.decide(&s).is_none()); // never block without a learned baseline
+    }
+}

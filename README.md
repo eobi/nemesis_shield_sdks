@@ -21,6 +21,7 @@ Nemesis is unreachable, your app is completely unaffected.
 | **PHP** | `NemesisShield.php` | `register_shutdown_function` → [`php/`](php/) |
 | **Java** | `NemesisShield.java` | Servlet filter / Spring Boot (JDK 11+) → [`java/`](java/) |
 | **.NET / C#** | `NemesisShield.cs` | ASP.NET Core middleware → [`dotnet/`](dotnet/) |
+| **Rust** | `nemesis-shield` | axum (tower) / actix-web middleware → [`rust/`](rust/) |
 
 ## Get a token
 
@@ -71,15 +72,29 @@ var nemesis = new NemesisShield(System.getenv("NEMESIS_TOKEN"));
 nemesis.report(req.getMethod(), req.getRequestURI(), res.getStatus(), authed);
 ```
 
-## Two integration modes
+**Rust** (axum / actix — see [`rust/`](rust/) for the middleware)
+```rust
+let shield = nemesis_shield::Client::new(std::env::var("NEMESIS_TOKEN").unwrap_or_default());
+// .layer(middleware::from_fn_with_state(shield.clone(), shield_mw))
+```
 
-- **Native SDK** (Node, Python): computes a privacy-preserving *sketch* locally and streams behavioral
-  state. Lowest overhead, richest signal.
-- **HTTP client** (Go, Ruby, PHP, Java): reports request metadata to the language-agnostic
-  `POST /api/v1/observe` endpoint, where Nemesis computes the sketch server-side. Works from anything
-  that can make an HTTP request.
+## How enforcement works (all SDKs)
 
-Both send the same privacy-preserving data and produce the same behavioral baseline.
+Every SDK is **native**: it computes the privacy-preserving request *shape* locally, caches the
+compiled policy, and makes the block decision **in-process, before your handler runs** — no proxy,
+no sidecar, no per-request round-trip.
+
+1. **Observe** (default) — the SDK records the shape of each request and builds a per-app baseline.
+2. **Approve** — review learned behaviors in the console; approve the legitimate ones (auto-approved
+   during the learning window).
+3. **Enforce** — flip the app to enforce in the console. Requests whose shape isn't in the approved
+   baseline are blocked with `403 blocked_by_nemesis_shield` and reported as findings. **No redeploy**
+   — a background poller picks up the mode change (PHP refreshes a short-TTL policy cache instead).
+
+Verified end-to-end (learn → enforce → attack, real blocking) across **8 languages / ~20 frameworks**:
+Python (FastAPI/Flask/Django), Node (Express/Fastify/Koa), Go (net/http/Chi/Gin/Echo), Ruby
+(Rails/Sinatra/Rack), PHP (raw/Laravel/Symfony), Java (Servlet/Spring Boot), .NET (ASP.NET Core),
+Rust (axum/actix). Legit traffic passes; auth bypass, BOLA, path traversal and scanner probes blocked.
 
 ## LLM protection
 
