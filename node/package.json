@@ -1,0 +1,18 @@
+{
+  "name": "@nemesis-shield/sentinel",
+  "version": "0.1.0",
+  "description": "Nemesis Shield — Sentinel SDK for Node. One line to protect a web app or API: observe behavior, ship a privacy-preserving sketch, enforce the learned baseline.",
+  "type": "module",
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": { "types": "./index.d.ts", "import": "./index.js" },
+    "./express": { "types": "./index.d.ts", "import": "./index.js" }
+  },
+  "files": ["index.js", "index.d.ts", "README.md"],
+  "keywords": ["security", "waf", "rasp", "adr", "api-security", "appsec", "nemesis-shield"],
+  "license": "MIT",
+  "homepage": "https://github.com/eobi/nemesis_shield_sdks/tree/main/node",
+  "repository": { "type": "git", "url": "https://github.com/eobi/nemesis_shield_sdks.git", "directory": "node" },
+  "engines": { "node": ">=18" }
+}

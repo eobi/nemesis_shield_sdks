@@ -1,0 +1,13 @@
+[project]
+name = "nemesis-shield"
+version = "0.0.0"
+description = "Nemesis Shield — Sentinel SDK for Python (web/API/LLM behavioral protection)"
+requires-python = ">=3.9"
+dependencies = []
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
