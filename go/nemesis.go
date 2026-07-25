@@ -22,10 +22,22 @@ import (
 
 const defaultEndpoint = "https://shield.nemesislabs.xyz/api/v1/sketches"
 
+// Canonical value taxonomy — must match the shared engine (tokenize.ts) so a Go app and a
+// Node/Python app produce identical shape hashes.
 var (
-	reInt  = regexp.MustCompile(`^\d+$`)
-	reUUID = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
-	reHex  = regexp.MustCompile(`(?i)^[0-9a-f]{16,}$`)
+	reInt   = regexp.MustCompile(`^-?\d+$`)
+	reFloat = regexp.MustCompile(`^-?\d*\.\d+$`)
+	reUUID  = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+	reEmail = regexp.MustCompile(`^[^@\s]+@[^@\s]+\.[^@\s]+$`)
+	reURL   = regexp.MustCompile(`(?i)^https?://\S+$`)
+	reIPv4  = regexp.MustCompile(`^(\d{1,3}\.){3}\d{1,3}$`)
+	reIPv6  = regexp.MustCompile(`(?i)^[0-9a-f:]+:[0-9a-f:]+$`)
+	reDate  = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2})?)?`)
+	reJWT   = regexp.MustCompile(`^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$`)
+	reHex   = regexp.MustCompile(`(?i)^[0-9a-f]+$`)
+	reB64   = regexp.MustCompile(`^[A-Za-z0-9+/]+={0,2}$`)
+	reAlpha = regexp.MustCompile(`^[A-Za-z]+$`)
+	reAlnum = regexp.MustCompile(`^[A-Za-z0-9]+$`)
 )
 
 // Param is a query-parameter shape (name + kind, never the value).
@@ -83,30 +95,65 @@ func NewWithEndpoint(token, endpoint string) *Client {
 
 func normalizePath(path string) string {
 	path = strings.SplitN(path, "?", 2)[0]
+	path = strings.SplitN(path, "#", 2)[0]
 	segs := strings.Split(path, "/")
 	for i, s := range segs {
-		switch {
-		case reInt.MatchString(s):
+		if s == "" {
+			continue
+		}
+		switch kindOf(s) {
+		case "int", "float":
 			segs[i] = "{int}"
-		case reUUID.MatchString(s):
+		case "uuid":
 			segs[i] = "{uuid}"
-		case reHex.MatchString(s):
+		case "hex":
 			segs[i] = "{hex}"
+		case "base64":
+			segs[i] = "{token}"
+		case "alnum":
+			if len(s) >= 12 {
+				segs[i] = "{id}"
+			}
 		}
 	}
-	return strings.Join(segs, "/")
+	out := strings.Join(segs, "/")
+	if out == "" {
+		return "/"
+	}
+	return out
 }
 
 func kindOf(v string) string {
+	if v == "" {
+		return "empty"
+	}
 	switch {
-	case reInt.MatchString(v):
-		return "int"
 	case reUUID.MatchString(v):
 		return "uuid"
-	case reHex.MatchString(v):
-		return "hex"
-	case strings.Contains(v, "@"):
+	case reEmail.MatchString(v):
 		return "email"
+	case reURL.MatchString(v):
+		return "url"
+	case reIPv4.MatchString(v):
+		return "ipv4"
+	case reIPv6.MatchString(v):
+		return "ipv6"
+	case reJWT.MatchString(v):
+		return "jwt"
+	case reDate.MatchString(v):
+		return "date"
+	case reInt.MatchString(v):
+		return "int"
+	case reFloat.MatchString(v):
+		return "float"
+	case len(v) >= 16 && reHex.MatchString(v):
+		return "hex"
+	case len(v) >= 16 && reB64.MatchString(v):
+		return "base64"
+	case reAlpha.MatchString(v):
+		return "alpha"
+	case reAlnum.MatchString(v):
+		return "alnum"
 	default:
 		return "string"
 	}
@@ -143,9 +190,11 @@ func (c *Client) BuildSketch(method, path string, query map[string][]string, aut
 		}
 		params = append(params, Param{Name: k, Kind: kindOf(v)})
 	}
-	canonParams := make([][2]string, len(params))
+	// canonical shape input: params are [name, kind, nested]; json.Marshal sorts the map keys
+	// (auth, method, params, route); status is excluded so enforcement decides pre-response.
+	canonParams := make([][]any, len(params))
 	for i, p := range params {
-		canonParams[i] = [2]string{p.Name, p.Kind}
+		canonParams[i] = []any{p.Name, p.Kind, 0}
 	}
 	auth := 0
 	if authed {

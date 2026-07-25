@@ -19,23 +19,43 @@ class NemesisShield
 
     public static function normalizePath(string $path): string
     {
-        $path = strtok($path, '?');
+        $path = explode('?', $path, 2)[0];
+        $path = explode('#', $path, 2)[0];
         $segs = explode('/', $path);
         foreach ($segs as $i => $s) {
-            if (preg_match('/^\d+$/', $s)) $segs[$i] = '{int}';
-            elseif (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $s)) $segs[$i] = '{uuid}';
-            elseif (preg_match('/^[0-9a-f]{16,}$/i', $s)) $segs[$i] = '{hex}';
+            if ($s === '') continue;
+            switch (self::kindOf($s)) {
+                case 'int': case 'float': $segs[$i] = '{int}'; break;
+                case 'uuid': $segs[$i] = '{uuid}'; break;
+                case 'hex': $segs[$i] = '{hex}'; break;
+                case 'base64': $segs[$i] = '{token}'; break;
+                case 'alnum': if (strlen($s) >= 12) $segs[$i] = '{id}'; break;
+            }
         }
-        return implode('/', $segs);
+        $out = implode('/', $segs);
+        return $out === '' ? '/' : $out;
     }
 
+    // Canonical value taxonomy — must match the shared engine (tokenize.ts) byte-for-byte.
     private static function kindOf($v): string
     {
+        if ($v === null || $v === '') return 'empty';
+        if (is_bool($v)) return 'bool';
         $s = (string)$v;
-        if (preg_match('/^\d+$/', $s)) return 'int';
+        if ($s === '') return 'empty';
         if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $s)) return 'uuid';
-        if (preg_match('/^[0-9a-f]{16,}$/i', $s)) return 'hex';
-        if (strpos($s, '@') !== false) return 'email';
+        if (preg_match('/^[^@\s]+@[^@\s]+\.[^@\s]+$/', $s)) return 'email';
+        if (preg_match('#^https?://\S+$#i', $s)) return 'url';
+        if (preg_match('/^(\d{1,3}\.){3}\d{1,3}$/', $s)) return 'ipv4';
+        if (preg_match('/^[0-9a-f:]+:[0-9a-f:]+$/i', $s)) return 'ipv6';
+        if (preg_match('/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/', $s)) return 'jwt';
+        if (preg_match('/^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2})?)?/', $s)) return 'date';
+        if (preg_match('/^-?\d+$/', $s)) return 'int';
+        if (preg_match('/^-?\d*\.\d+$/', $s)) return 'float';
+        if (strlen($s) >= 16 && preg_match('/^[0-9a-f]+$/i', $s)) return 'hex';
+        if (strlen($s) >= 16 && preg_match('#^[A-Za-z0-9+/]+={0,2}$#', $s)) return 'base64';
+        if (preg_match('/^[A-Za-z]+$/', $s)) return 'alpha';
+        if (preg_match('/^[A-Za-z0-9]+$/', $s)) return 'alnum';
         return 'string';
     }
 
@@ -56,11 +76,14 @@ class NemesisShield
         sort($names);
         $params = [];
         foreach ($names as $k) {
-            $v = is_array($query[$k]) ? ($query[$k][0] ?? '') : $query[$k];
-            $params[] = ['name' => (string)$k, 'kind' => self::kindOf($v)];
+            $nested = is_array($query[$k]);
+            $v = $nested ? ($query[$k][0] ?? '') : $query[$k];
+            $params[] = ['name' => (string)$k, 'kind' => self::kindOf($v), 'nested' => $nested];
         }
-        $canonParams = array_map(fn($p) => [$p['name'], $p['kind']], $params);
-        $canon = json_encode(['route' => $route, 'method' => strtoupper($method), 'params' => $canonParams, 'auth' => $authed ? 1 : 0]);
+        // canonical shape input: keys sorted (auth, method, params, route); params [name, kind, nested];
+        // status excluded so enforcement decides BEFORE the response exists.
+        $canonParams = array_map(fn($p) => [$p['name'], $p['kind'], !empty($p['nested']) ? 1 : 0], $params);
+        $canon = json_encode(['auth' => $authed ? 1 : 0, 'method' => strtoupper($method), 'params' => $canonParams, 'route' => $route], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         return ['route' => $route, 'method' => strtoupper($method), 'authenticated' => $authed, 'status' => $status, 'params' => $params, 'shape' => self::fnv1a($canon)];
     }
 

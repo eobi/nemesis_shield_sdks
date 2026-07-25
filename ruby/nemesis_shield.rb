@@ -12,28 +12,58 @@ require "thread"
 
 module NemesisShield
   DEFAULT_ENDPOINT = "https://shield.nemesislabs.xyz/api/v1/sketches".freeze
+  # Canonical value taxonomy — must match the shared engine (tokenize.ts) byte-for-byte so a Ruby
+  # app and a Node/Python app produce identical shape hashes.
   UUID = /\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/i
-  HEX = /\A[0-9a-f]{16,}\z/i
-  INT = /\A\d+\z/
+  EMAIL = /\A[^@\s]+@[^@\s]+\.[^@\s]+\z/
+  URLRE = /\Ahttps?:\/\/\S+\z/i
+  IPV4 = /\A(\d{1,3}\.){3}\d{1,3}\z/
+  IPV6 = /\A[0-9a-f:]+:[0-9a-f:]+\z/i
+  INT = /\A-?\d+\z/
+  FLOATRE = /\A-?\d*\.\d+\z/
+  DATE = /\A\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2})?)?/
+  JWT = /\A[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\z/
+  HEX = /\A[0-9a-f]+\z/i
+  B64 = /\A[A-Za-z0-9+\/]+={0,2}\z/
+  ALPHA = /\A[A-Za-z]+\z/
+  ALNUM = /\A[A-Za-z0-9]+\z/
 
   module_function
 
   def normalize_path(path)
-    path.to_s.split("?", 2).first.to_s.split("/").map do |seg|
-      if seg =~ INT then "{int}"
-      elsif seg =~ UUID then "{uuid}"
-      elsif seg =~ HEX then "{hex}"
+    clean = path.to_s.split("?", 2).first.to_s.split("#", 2).first.to_s
+    out = clean.split("/").map do |seg|
+      next seg if seg.empty?
+      case kind_of(seg)
+      when "int", "float" then "{int}"
+      when "uuid" then "{uuid}"
+      when "hex" then "{hex}"
+      when "base64" then "{token}"
+      when "alnum" then seg.length >= 12 ? "{id}" : seg
       else seg end
     end.join("/")
+    out.empty? ? "/" : out
   end
 
   def kind_of(v)
+    return "bool" if v == true || v == false
+    return "empty" if v.nil?
     s = v.to_s
-    if s =~ INT then "int"
-    elsif s =~ UUID then "uuid"
-    elsif s =~ HEX then "hex"
-    elsif s.include?("@") then "email"
-    else "string" end
+    return "empty" if s.empty?
+    return "uuid" if s =~ UUID
+    return "email" if s =~ EMAIL
+    return "url" if s =~ URLRE
+    return "ipv4" if s =~ IPV4
+    return "ipv6" if s =~ IPV6
+    return "jwt" if s =~ JWT
+    return "date" if s =~ DATE
+    return "int" if s =~ INT
+    return "float" if s =~ FLOATRE
+    return "hex" if s.length >= 16 && s =~ HEX
+    return "base64" if s.length >= 16 && s =~ B64
+    return "alpha" if s =~ ALPHA
+    return "alnum" if s =~ ALNUM
+    "string"
   end
 
   def fnv1a(str)
@@ -45,8 +75,10 @@ module NemesisShield
   # Request signature (method + route + query param kinds + auth). Excludes status by design.
   def build_sketch(method:, path:, query: {}, authed: false, status: 0)
     route = normalize_path(path)
-    params = (query || {}).keys.sort.map { |k| { name: k.to_s, kind: kind_of((query[k].is_a?(Array) ? query[k].first : query[k])) } }
-    canon = JSON.generate({ route: route, method: method.to_s.upcase, params: params.map { |p| [p[:name], p[:kind]] }, auth: authed ? 1 : 0 })
+    params = (query || {}).keys.sort.map { |k| v = query[k]; { name: k.to_s, kind: kind_of(v.is_a?(Array) ? v.first : v), nested: v.is_a?(Array) } }
+    # canonical shape input: keys sorted (auth, method, params, route); params are [name, kind, nested];
+    # status is intentionally excluded so enforcement can decide BEFORE the response exists.
+    canon = JSON.generate({ auth: authed ? 1 : 0, method: method.to_s.upcase, params: params.map { |p| [p[:name], p[:kind], p[:nested] ? 1 : 0] }, route: route })
     { route: route, method: method.to_s.upcase, authenticated: authed, status: status, params: params, shape: fnv1a(canon) }
   end
 
