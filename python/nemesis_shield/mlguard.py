@@ -36,7 +36,14 @@ def refresh_model(url: str | None = None, timeout: float = 5.0):
         return None
     try:
         with urllib.request.urlopen(url, timeout=timeout) as r:
-            m = json.loads(r.read())
+            raw = r.read()
+            sig = r.headers.get("X-Model-Signature")
+        # Integrity: if a public key is pinned, the cloud bundle MUST carry a valid Ed25519 signature
+        # over these exact bytes; otherwise we keep the current (trusted) model. With no key pinned,
+        # verification is skipped and only the version gate + HTTPS transport apply.
+        if not _verify_model_signature(raw, sig):
+            return None
+        m = json.loads(raw)
         if int(m.get("version", 0)) <= MODEL_VERSION or int(m.get("dim", _DIM)) != _DIM:
             return None
         _WEIGHTS = {int(k): v for k, v in m["weights"].items()}
@@ -47,6 +54,25 @@ def refresh_model(url: str | None = None, timeout: float = 5.0):
         return MODEL_VERSION
     except Exception:
         return None
+
+
+# Ed25519 public key (hex) that signs published models. Set this to the PUBLIC_HEX from the signing
+# keypair to REQUIRE valid signatures on cloud model pulls. Empty = verification disabled.
+MODEL_PUBLIC_KEY_HEX = ""
+
+
+def _verify_model_signature(raw: bytes, sig_b64) -> bool:
+    if not MODEL_PUBLIC_KEY_HEX:
+        return True  # no key pinned yet — version gate + HTTPS still protect the swap
+    if not sig_b64:
+        return False  # a key is pinned but the bundle is unsigned — reject
+    try:
+        import base64
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+        Ed25519PublicKey.from_public_bytes(bytes.fromhex(MODEL_PUBLIC_KEY_HEX)).verify(base64.b64decode(sig_b64), raw)
+        return True
+    except Exception:
+        return False
 
 _LEET = str.maketrans({"0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "@": "a", "$": "s", "8": "b", "|": "i"})
 _WORD = re.compile(r"[a-z0-9']+")
