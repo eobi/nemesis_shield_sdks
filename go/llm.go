@@ -17,6 +17,7 @@ import (
 var mlWeightsJSON []byte
 
 type mlModel struct {
+	Version        int                `json:"version"`
 	Dim            int                `json:"dim"`
 	Bias           float64            `json:"bias"`
 	BlockThreshold float64            `json:"blockThreshold"`

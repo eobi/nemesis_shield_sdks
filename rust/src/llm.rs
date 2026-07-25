@@ -4,11 +4,16 @@
 //! layer misses.
 
 use std::collections::{HashMap, HashSet};
-use std::sync::OnceLock;
+use std::sync::{OnceLock, RwLock, RwLockReadGuard};
 
 const WEIGHTS_JSON: &str = include_str!("ml_weights.json");
 
+// Ed25519 public key (hex) that signs published models. Cloud pulls MUST carry a valid signature over
+// the exact bytes; unsigned or tampered bundles are rejected and the embedded model is kept.
+const MODEL_PUBLIC_KEY_HEX: &str = "79d81a3b41966b379a9ba719155b8713f70bb341c3e8fab09fd5563a59893d28";
+
 struct MlModel {
+    version: u64,
     dim: u64,
     bias: f64,
     block: f64,
@@ -16,26 +21,39 @@ struct MlModel {
     weights: HashMap<u32, f64>,
 }
 
-fn model() -> &'static MlModel {
-    static M: OnceLock<MlModel> = OnceLock::new();
-    M.get_or_init(|| {
-        let v: serde_json::Value = serde_json::from_str(WEIGHTS_JSON).expect("ml_weights.json");
-        let mut weights = HashMap::new();
-        if let Some(obj) = v["weights"].as_object() {
-            for (k, val) in obj {
-                if let (Ok(bk), Some(w)) = (k.parse::<u32>(), val.as_f64()) {
-                    weights.insert(bk, w);
-                }
+fn parse_model(json: &str) -> Option<MlModel> {
+    let v: serde_json::Value = serde_json::from_str(json).ok()?;
+    let mut weights = HashMap::new();
+    if let Some(obj) = v["weights"].as_object() {
+        for (k, val) in obj {
+            if let (Ok(bk), Some(w)) = (k.parse::<u32>(), val.as_f64()) {
+                weights.insert(bk, w);
             }
         }
-        MlModel {
-            dim: v["dim"].as_u64().unwrap_or(8192),
-            bias: v["bias"].as_f64().unwrap_or(0.0),
-            block: v["blockThreshold"].as_f64().unwrap_or(0.85),
-            flag: v["flagThreshold"].as_f64().unwrap_or(0.45),
-            weights,
-        }
+    }
+    Some(MlModel {
+        version: v["version"].as_u64().unwrap_or(1),
+        dim: v["dim"].as_u64().unwrap_or(8192),
+        bias: v["bias"].as_f64().unwrap_or(0.0),
+        block: v["blockThreshold"].as_f64().unwrap_or(0.85),
+        flag: v["flagThreshold"].as_f64().unwrap_or(0.45),
+        weights,
     })
+}
+
+// Swappable model state behind an RwLock so refresh_model() can hot-swap a newer published version.
+fn model_lock() -> &'static RwLock<MlModel> {
+    static M: OnceLock<RwLock<MlModel>> = OnceLock::new();
+    M.get_or_init(|| RwLock::new(parse_model(WEIGHTS_JSON).expect("ml_weights.json")))
+}
+
+fn model() -> RwLockReadGuard<'static, MlModel> {
+    model_lock().read().unwrap()
+}
+
+/// Version of the model currently loaded (embedded, or a hot-swapped one).
+pub fn model_version() -> u64 {
+    model().version
 }
 
 fn fnv1a(s: &str) -> u32 {
@@ -152,15 +170,75 @@ pub fn guard_llm(prompt: &str, enforce: bool) -> LlmVerdict {
     if regex_injection(prompt) {
         return LlmVerdict { blocked: enforce, severity: "high", kind: "prompt_injection", score: 1.0, owasp: "LLM01" };
     }
-    let m = model();
+    let (block, flag) = { let m = model(); (m.block, m.flag) }; // copy + release before re-locking
     let s = ml_injection_score(prompt);
-    if s >= m.block {
+    if s >= block {
         LlmVerdict { blocked: enforce, severity: "high", kind: "ml_prompt_injection", score: s, owasp: "LLM01" }
-    } else if s >= m.flag {
+    } else if s >= flag {
         LlmVerdict { blocked: false, severity: "medium", kind: "ml_prompt_injection", score: s, owasp: "LLM01" }
     } else {
         LlmVerdict { blocked: false, severity: "none", kind: "", score: s, owasp: "" }
     }
+}
+
+fn hex_to_bytes(s: &str) -> Option<Vec<u8>> {
+    if s.len() % 2 != 0 {
+        return None;
+    }
+    (0..s.len()).step_by(2).map(|i| u8::from_str_radix(&s[i..i + 2], 16).ok()).collect()
+}
+
+fn verify_model_signature(raw: &[u8], sig_b64: Option<&str>) -> bool {
+    use base64::Engine;
+    if MODEL_PUBLIC_KEY_HEX.is_empty() {
+        return true; // no key pinned — version gate + HTTPS apply
+    }
+    let sig_b64 = match sig_b64 {
+        Some(s) if !s.is_empty() => s,
+        _ => return false, // key pinned but bundle unsigned — reject
+    };
+    let key_bytes = match hex_to_bytes(MODEL_PUBLIC_KEY_HEX) {
+        Some(k) if k.len() == 32 => k,
+        _ => return false,
+    };
+    let sig_bytes = match base64::engine::general_purpose::STANDARD.decode(sig_b64) {
+        Ok(s) if s.len() == 64 => s,
+        _ => return false,
+    };
+    let mut ka = [0u8; 32];
+    ka.copy_from_slice(&key_bytes);
+    let mut sa = [0u8; 64];
+    sa.copy_from_slice(&sig_bytes);
+    match ed25519_dalek::VerifyingKey::from_bytes(&ka) {
+        Ok(vk) => vk.verify_strict(raw, &ed25519_dalek::Signature::from_bytes(&sa)).is_ok(),
+        Err(_) => false,
+    }
+}
+
+/// Hot-swap the HashLR model from a cloud URL if a newer signed version is published, so the model can
+/// be retrained and pushed centrally without redeploying the SDK. Returns the new version number if
+/// updated, else `None`. Fail-safe: on any error the current (embedded) model is kept.
+/// URL defaults to env `NEMESIS_MODEL_URL`.
+pub fn refresh_model(url: Option<&str>) -> Option<u64> {
+    let owned = url.map(str::to_string).or_else(|| std::env::var("NEMESIS_MODEL_URL").ok())?;
+    let resp = ureq::get(&owned).timeout(std::time::Duration::from_secs(5)).call().ok()?;
+    let sig = resp.header("X-Model-Signature").map(str::to_string);
+    let mut raw: Vec<u8> = Vec::new();
+    use std::io::Read;
+    resp.into_reader().take(8 * 1024 * 1024).read_to_end(&mut raw).ok()?;
+    if !verify_model_signature(&raw, sig.as_deref()) {
+        return None; // integrity gate
+    }
+    let json = String::from_utf8(raw).ok()?;
+    let m = parse_model(&json)?;
+    let cur_dim = model().dim;
+    let cur_ver = model().version;
+    if m.version <= cur_ver || m.dim != cur_dim {
+        return None; // version / dim gate (feature space is fixed across versions)
+    }
+    let v = m.version;
+    *model_lock().write().unwrap() = m;
+    Some(v)
 }
 
 #[cfg(test)]

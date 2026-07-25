@@ -16,12 +16,60 @@ final class NemesisShieldLLM
         '/(bypass|ignore|disable)\s+(your\s+)?(safety|content\s+policy|guardrails?)/i',
     ];
 
+    // Ed25519 public key (hex) that signs published models. Cloud pulls MUST carry a valid signature
+    // over the exact bytes; unsigned or tampered bundles are rejected and the embedded model is kept.
+    private const MODEL_PUBLIC_KEY_HEX = '79d81a3b41966b379a9ba719155b8713f70bb341c3e8fab09fd5563a59893d28';
+
     private static function model(): array
     {
         if (self::$model === null) {
             self::$model = json_decode(file_get_contents(__DIR__ . '/ml_weights.json'), true);
         }
         return self::$model;
+    }
+
+    public static function modelVersion(): int
+    {
+        return (int) (self::model()['version'] ?? 1);
+    }
+
+    private static function verifyModelSignature(string $raw, ?string $sigB64): bool
+    {
+        if (self::MODEL_PUBLIC_KEY_HEX === '') return true; // no key pinned — version gate + HTTPS apply
+        if (!$sigB64) return false;                         // key pinned but bundle unsigned — reject
+        if (!function_exists('sodium_crypto_sign_verify_detached')) return false;
+        $pk = @hex2bin(self::MODEL_PUBLIC_KEY_HEX);
+        $sig = base64_decode($sigB64, true);
+        if ($pk === false || $sig === false || strlen($pk) !== 32 || strlen($sig) !== 64) return false;
+        return sodium_crypto_sign_verify_detached($sig, $raw, $pk);
+    }
+
+    /**
+     * Hot-swap the HashLR model from a cloud URL if a newer signed version is published, so the model
+     * can be retrained and pushed centrally without redeploying the SDK. Returns the new version number
+     * if updated, else null. Fail-safe: on any error the current (embedded) model is kept.
+     * URL defaults to env NEMESIS_MODEL_URL.
+     */
+    public static function refreshModel(?string $url = null, float $timeout = 5.0): ?int
+    {
+        $url = $url ?? (getenv('NEMESIS_MODEL_URL') ?: null);
+        if (!$url) return null;
+        $ctx = stream_context_create(['http' => ['timeout' => $timeout, 'ignore_errors' => true]]);
+        $raw = @file_get_contents($url, false, $ctx);
+        if ($raw === false) return null;
+        $sig = null;
+        foreach ($http_response_header ?? [] as $h) {
+            if (stripos($h, 'x-model-signature:') === 0) $sig = trim(substr($h, 18));
+        }
+        if (!self::verifyModelSignature($raw, $sig)) return null; // integrity gate
+        $m = json_decode($raw, true);
+        if (!is_array($m)) return null;
+        $cur = self::model();
+        if ((int) ($m['version'] ?? 0) <= (int) ($cur['version'] ?? 1) || (int) ($m['dim'] ?? $cur['dim']) !== (int) $cur['dim']) {
+            return null; // version / dim gate (feature space is fixed across versions)
+        }
+        self::$model = $m;
+        return (int) $m['version'];
     }
 
     private static function fnv1a(string $s): int

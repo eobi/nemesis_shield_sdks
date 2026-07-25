@@ -4,14 +4,64 @@
 // (de-leetspeaked, ASCII-alnum) form catch obfuscation ("1gn0re") the regex layer misses.
 
 import { readFileSync } from "node:fs";
+import { verify as edVerify, createPublicKey } from "node:crypto";
 import { fnv1a } from "./shape.js";
 
 const model = JSON.parse(readFileSync(new URL("./ml_weights.json", import.meta.url), "utf8"));
-const DIM = model.dim;
-const BIAS = model.bias;
-const WEIGHTS = model.weights;
-export const ML_BLOCK_THRESHOLD = model.blockThreshold ?? 0.85;
-export const ML_FLAG_THRESHOLD = model.flagThreshold ?? 0.45;
+const DIM = model.dim; // feature space is fixed across versions — only weights/bias/thresholds swap
+// Swappable model state (mutable so refreshModel() can hot-swap a newer published version in place).
+let BIAS = model.bias;
+let WEIGHTS = model.weights;
+export let ML_BLOCK_THRESHOLD = model.blockThreshold ?? 0.85;
+export let ML_FLAG_THRESHOLD = model.flagThreshold ?? 0.45;
+export let MODEL_VERSION = Number(model.version ?? 1);
+
+// Ed25519 public key (hex) that signs published models. Cloud pulls MUST carry a valid signature over
+// the exact bytes; unsigned or tampered bundles are rejected and the embedded model is kept.
+const MODEL_PUBLIC_KEY_HEX = "79d81a3b41966b379a9ba719155b8713f70bb341c3e8fab09fd5563a59893d28";
+// SubjectPublicKeyInfo DER prefix for a raw Ed25519 public key (RFC 8410) — wrap the 32 raw bytes.
+const _SPKI_PREFIX = Buffer.from("302a300506032b6570032100", "hex");
+function _verifyModelSignature(raw, sigB64) {
+  if (!MODEL_PUBLIC_KEY_HEX) return true; // no key pinned — version gate + HTTPS still apply
+  if (!sigB64) return false; // key pinned but bundle unsigned — reject
+  try {
+    const der = Buffer.concat([_SPKI_PREFIX, Buffer.from(MODEL_PUBLIC_KEY_HEX, "hex")]);
+    const key = createPublicKey({ key: der, format: "der", type: "spki" });
+    return edVerify(null, raw, key, Buffer.from(sigB64, "base64"));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Hot-swap the HashLR model from a cloud URL if a newer signed version is published, so the model can
+ * be retrained and pushed centrally without redeploying the SDK. Returns the new version number if
+ * updated, else null. Fail-safe: on any error the current (embedded) model is kept unchanged.
+ * URL defaults to env NEMESIS_MODEL_URL.
+ */
+export async function refreshModel(url = process.env.NEMESIS_MODEL_URL, { timeoutMs = 5000 } = {}) {
+  if (!url) return null;
+  try {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), timeoutMs);
+    const res = await fetch(url, { signal: ctl.signal });
+    clearTimeout(t);
+    if (!res.ok) return null;
+    const raw = Buffer.from(await res.arrayBuffer());
+    const sig = res.headers.get("x-model-signature");
+    if (!_verifyModelSignature(raw, sig)) return null; // integrity gate
+    const m = JSON.parse(raw.toString("utf8"));
+    if (Number(m.version ?? 0) <= MODEL_VERSION || Number(m.dim ?? DIM) !== DIM) return null; // version/dim gate
+    WEIGHTS = m.weights;
+    BIAS = m.bias;
+    MODEL_VERSION = Number(m.version);
+    if (m.blockThreshold != null) ML_BLOCK_THRESHOLD = m.blockThreshold;
+    if (m.flagThreshold != null) ML_FLAG_THRESHOLD = m.flagThreshold;
+    return MODEL_VERSION;
+  } catch {
+    return null;
+  }
+}
 
 const LEET = { "0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "@": "a", "$": "s", "8": "b", "|": "i" };
 const INJECTION = [

@@ -10,9 +10,15 @@ namespace NemesisShield;
 
 public static class LlmGuard
 {
-    private static readonly int Dim;
-    private static readonly double Bias, Block, Flag;
+    // Feature space (Dim) is fixed across versions; the rest is swappable so RefreshModel() can hot-swap
+    // a newer published version in place.
+    private static int Dim;
+    private static double Bias, Block, Flag;
+    private static int Version = 1;
     private static readonly Dictionary<int, double> Weights = new();
+    // Ed25519 public key (hex) that signs published models. Cloud pulls MUST carry a valid signature
+    // over the exact bytes; unsigned or tampered bundles are rejected and the embedded model is kept.
+    private const string ModelPublicKeyHex = "79d81a3b41966b379a9ba719155b8713f70bb341c3e8fab09fd5563a59893d28";
     private static readonly Regex Word = new("[a-z0-9']+", RegexOptions.Compiled);
     private static readonly Regex[] Injection =
     {
@@ -25,14 +31,72 @@ public static class LlmGuard
 
     static LlmGuard()
     {
-        using var doc = JsonDocument.Parse(LoadWeights());
+        ApplyModel(LoadWeights(), true);
+    }
+
+    // Parse a HashLR bundle and load it into the live model state. When init==true Dim is set (embedded
+    // load); on a refresh Dim is fixed and enforced by the caller.
+    private static void ApplyModel(string json, bool init)
+    {
+        using var doc = JsonDocument.Parse(json);
         var r = doc.RootElement;
-        Dim = r.GetProperty("dim").GetInt32();
+        if (init) Dim = r.GetProperty("dim").GetInt32();
         Bias = r.GetProperty("bias").GetDouble();
         Block = r.TryGetProperty("blockThreshold", out var b) ? b.GetDouble() : 0.85;
         Flag = r.TryGetProperty("flagThreshold", out var f) ? f.GetDouble() : 0.45;
+        Version = r.TryGetProperty("version", out var v) ? v.GetInt32() : Version;
+        Weights.Clear();
         foreach (var w in r.GetProperty("weights").EnumerateObject())
             Weights[int.Parse(w.Name)] = w.Value.GetDouble();
+    }
+
+    public static int ModelVersion() => Version;
+
+    private static bool VerifyModelSignature(byte[] raw, string? sigB64)
+    {
+        if (ModelPublicKeyHex.Length == 0) return true;          // no key pinned — version gate + HTTPS apply
+        if (string.IsNullOrEmpty(sigB64)) return false;          // key pinned but bundle unsigned — reject
+        try
+        {
+            byte[] key = Convert.FromHexString(ModelPublicKeyHex);
+            byte[] sig = Convert.FromBase64String(sigB64);
+            var verifier = new Org.BouncyCastle.Crypto.Signers.Ed25519Signer();
+            verifier.Init(false, new Org.BouncyCastle.Crypto.Parameters.Ed25519PublicKeyParameters(key, 0));
+            verifier.BlockUpdate(raw, 0, raw.Length);
+            return verifier.VerifySignature(sig);
+        }
+        catch { return false; }
+    }
+
+    /// <summary>
+    /// Hot-swap the HashLR model from a cloud URL if a newer signed version is published, so the model
+    /// can be retrained and pushed centrally without redeploying the SDK. Returns the new version number
+    /// if updated, else null. Fail-safe: on any error the current (embedded) model is kept.
+    /// URL defaults to env NEMESIS_MODEL_URL.
+    /// </summary>
+    public static int? RefreshModel(string? url = null)
+    {
+        url ??= Environment.GetEnvironmentVariable("NEMESIS_MODEL_URL");
+        if (string.IsNullOrEmpty(url)) return null;
+        try
+        {
+            using var http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+            var resp = http.GetAsync(url).GetAwaiter().GetResult();
+            if (!resp.IsSuccessStatusCode) return null;
+            byte[] raw = resp.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult();
+            resp.Headers.TryGetValues("X-Model-Signature", out var sigVals);
+            string? sig = sigVals is null ? null : System.Linq.Enumerable.FirstOrDefault(sigVals);
+            if (!VerifyModelSignature(raw, sig)) return null; // integrity gate
+            string json = System.Text.Encoding.UTF8.GetString(raw);
+            using var doc = JsonDocument.Parse(json);
+            var r = doc.RootElement;
+            int newVer = r.TryGetProperty("version", out var v) ? v.GetInt32() : 0;
+            int newDim = r.TryGetProperty("dim", out var d) ? d.GetInt32() : Dim;
+            if (newVer <= Version || newDim != Dim) return null; // version / dim gate
+            ApplyModel(json, false);
+            return Version;
+        }
+        catch { return null; }
     }
 
     private static string LoadWeights()

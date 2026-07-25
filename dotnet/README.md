@@ -33,3 +33,25 @@ double score = LlmGuard.MlInjectionScore(userPrompt); // 0..1
 ```
 
 Regex first, then ML. Blocks at ≥ 0.85 (high), flags at ≥ 0.45.
+
+## Central model updates (hot-swap)
+
+The HashLR model can be retrained and pushed centrally, so SDKs pick up a new version without a redeploy:
+
+```csharp
+// Pull the latest signed model (defaults to env NEMESIS_MODEL_URL). Returns the new version, or null
+// if nothing newer / rejected. Fail-safe: the embedded model is kept on any error.
+int? v = LlmGuard.RefreshModel("https://shield.nemesislabs.xyz/api/v1/model/injection");
+int current = LlmGuard.ModelVersion();
+```
+
+Bundles are Ed25519-signed; a pinned public key verifies the exact bytes before the swap, so unsigned or
+tampered bundles are rejected. Signature verification uses **BouncyCastle** (.NET has no built-in Ed25519
+on net8), so add the package to your project:
+
+```
+dotnet add package BouncyCastle.Cryptography
+```
+
+Run `RefreshModel` on startup and/or on a timer (e.g. hourly). The feature space (`dim`) is fixed across
+versions; only weights, bias and thresholds swap.
