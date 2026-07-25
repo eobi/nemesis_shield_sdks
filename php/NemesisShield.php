@@ -82,7 +82,8 @@ class NemesisShield
         }
         // canonical shape input: keys sorted (auth, method, params, route); params [name, kind, nested];
         // status excluded so enforcement decides BEFORE the response exists.
-        $canonParams = array_map(fn($p) => [$p['name'], $p['kind'], !empty($p['nested']) ? 1 : 0], $params);
+        // plain closure (not fn=>) so the SDK runs on PHP 7.2+ — matching Laravel 6's own floor.
+        $canonParams = array_map(function ($p) { return [$p['name'], $p['kind'], !empty($p['nested']) ? 1 : 0]; }, $params);
         $canon = json_encode(['auth' => $authed ? 1 : 0, 'method' => strtoupper($method), 'params' => $canonParams, 'route' => $route], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         return ['route' => $route, 'method' => strtoupper($method), 'authenticated' => $authed, 'status' => $status, 'params' => $params, 'shape' => self::fnv1a($canon)];
     }
