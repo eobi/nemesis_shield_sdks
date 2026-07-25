@@ -98,10 +98,68 @@ impl Client {
     }
 
     fn is_int(s: &str) -> bool {
-        !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit())
+        let t = s.strip_prefix('-').unwrap_or(s);
+        !t.is_empty() && t.bytes().all(|b| b.is_ascii_digit())
     }
-    fn is_hex(s: &str) -> bool {
-        s.len() >= 16 && s.bytes().all(|b| b.is_ascii_hexdigit())
+    fn is_float(s: &str) -> bool {
+        let t = s.strip_prefix('-').unwrap_or(s);
+        match t.split_once('.') {
+            Some((a, b)) => !b.is_empty() && a.bytes().all(|c| c.is_ascii_digit()) && b.bytes().all(|c| c.is_ascii_digit()),
+            None => false,
+        }
+    }
+    fn is_hex_chars(s: &str) -> bool {
+        !s.is_empty() && s.bytes().all(|b| b.is_ascii_hexdigit())
+    }
+    fn is_alpha(s: &str) -> bool {
+        !s.is_empty() && s.bytes().all(|b| b.is_ascii_alphabetic())
+    }
+    fn is_alnum(s: &str) -> bool {
+        !s.is_empty() && s.bytes().all(|b| b.is_ascii_alphanumeric())
+    }
+    fn is_email(s: &str) -> bool {
+        if s.bytes().any(|b| b.is_ascii_whitespace()) {
+            return false;
+        }
+        match s.split_once('@') {
+            Some((l, d)) => !l.is_empty() && !d.contains('@') && match d.rsplit_once('.') {
+                Some((a, b)) => !a.is_empty() && !b.is_empty(),
+                None => false,
+            },
+            None => false,
+        }
+    }
+    fn is_url(s: &str) -> bool {
+        let l = s.to_ascii_lowercase();
+        ((l.starts_with("http://") && s.len() > 7) || (l.starts_with("https://") && s.len() > 8))
+            && !s.bytes().any(|b| b.is_ascii_whitespace())
+    }
+    fn is_ipv4(s: &str) -> bool {
+        let parts: Vec<&str> = s.split('.').collect();
+        parts.len() == 4 && parts.iter().all(|p| !p.is_empty() && p.len() <= 3 && p.bytes().all(|b| b.is_ascii_digit()))
+    }
+    fn is_ipv6(s: &str) -> bool {
+        s.contains(':')
+            && s.bytes().any(|b| b.is_ascii_hexdigit())
+            && s.bytes().all(|b| b.is_ascii_hexdigit() || b == b':')
+    }
+    fn is_date(s: &str) -> bool {
+        let b = s.as_bytes();
+        b.len() >= 10
+            && b[0..4].iter().all(|c| c.is_ascii_digit())
+            && b[4] == b'-'
+            && b[5].is_ascii_digit() && b[6].is_ascii_digit()
+            && b[7] == b'-'
+            && b[8].is_ascii_digit() && b[9].is_ascii_digit()
+    }
+    fn is_jwt(s: &str) -> bool {
+        let parts: Vec<&str> = s.split('.').collect();
+        parts.len() == 3 && parts.iter().all(|p| !p.is_empty() && p.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-'))
+    }
+    fn is_b64(s: &str) -> bool {
+        let core = s.trim_end_matches('=');
+        let pad = s.len() - core.len();
+        pad <= 2 && !core.is_empty() && core.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'+' || b == b'/')
     }
     fn is_uuid(s: &str) -> bool {
         let b = s.as_bytes();
@@ -118,31 +176,61 @@ impl Client {
     /// Collapse ids in a path: `/orders/123` -> `/orders/{int}`, uuids -> `{uuid}`, long hex -> `{hex}`.
     pub fn normalize_path(path: &str) -> String {
         let path = path.split('?').next().unwrap_or("");
-        path.split('/')
+        let path = path.split('#').next().unwrap_or(path);
+        let out = path
+            .split('/')
             .map(|s| {
-                if Self::is_int(s) {
-                    "{int}".to_string()
-                } else if Self::is_uuid(s) {
-                    "{uuid}".to_string()
-                } else if Self::is_hex(s) {
-                    "{hex}".to_string()
-                } else {
-                    s.to_string()
+                if s.is_empty() {
+                    return s.to_string();
+                }
+                match Self::kind_of(s) {
+                    "int" | "float" => "{int}".to_string(),
+                    "uuid" => "{uuid}".to_string(),
+                    "hex" => "{hex}".to_string(),
+                    "base64" => "{token}".to_string(),
+                    "alnum" if s.len() >= 12 => "{id}".to_string(),
+                    _ => s.to_string(),
                 }
             })
             .collect::<Vec<_>>()
-            .join("/")
+            .join("/");
+        if out.is_empty() {
+            "/".to_string()
+        } else {
+            out
+        }
     }
 
+    // Canonical value taxonomy — must match the shared engine (tokenize.ts) byte-for-byte.
     fn kind_of(v: &str) -> &'static str {
-        if Self::is_int(v) {
-            "int"
+        if v.is_empty() {
+            "empty"
         } else if Self::is_uuid(v) {
             "uuid"
-        } else if Self::is_hex(v) {
-            "hex"
-        } else if v.contains('@') {
+        } else if Self::is_email(v) {
             "email"
+        } else if Self::is_url(v) {
+            "url"
+        } else if Self::is_ipv4(v) {
+            "ipv4"
+        } else if Self::is_ipv6(v) {
+            "ipv6"
+        } else if Self::is_jwt(v) {
+            "jwt"
+        } else if Self::is_date(v) {
+            "date"
+        } else if Self::is_int(v) {
+            "int"
+        } else if Self::is_float(v) {
+            "float"
+        } else if v.len() >= 16 && Self::is_hex_chars(v) {
+            "hex"
+        } else if v.len() >= 16 && Self::is_b64(v) {
+            "base64"
+        } else if Self::is_alpha(v) {
+            "alpha"
+        } else if Self::is_alnum(v) {
+            "alnum"
         } else {
             "string"
         }
@@ -157,22 +245,23 @@ impl Client {
         format!("{:08x}", h)
     }
 
-    // Canonical signature string in fixed order: route, method, params, auth (status excluded by design).
+    // Canonical shape input: keys SORTED (auth, method, params, route); params [name, kind, nested];
+    // status excluded so enforcement decides pre-response. Byte-identical to the shared engine.
     fn canon(route: &str, method: &str, params: &[Param], auth: bool) -> String {
         let mut p = String::from("[");
         for (i, pp) in params.iter().enumerate() {
             if i > 0 {
                 p.push(',');
             }
-            p.push_str(&format!("[\"{}\",\"{}\"]", pp.name, pp.kind));
+            p.push_str(&format!("[\"{}\",\"{}\",0]", pp.name, pp.kind));
         }
         p.push(']');
         format!(
-            "{{\"route\":\"{}\",\"method\":\"{}\",\"params\":{},\"auth\":{}}}",
-            route,
+            "{{\"auth\":{},\"method\":\"{}\",\"params\":{},\"route\":\"{}\"}}",
+            if auth { 1 } else { 0 },
             method.to_uppercase(),
             p,
-            if auth { 1 } else { 0 }
+            route
         )
     }
 
@@ -345,5 +434,16 @@ mod tests {
         let c = Client::with_endpoint("", DEFAULT_ENDPOINT);
         let s = c.build_sketch("GET", "/anything", &[], false, 0);
         assert!(c.decide(&s).is_none()); // never block without a learned baseline
+    }
+}
+
+#[cfg(test)]
+mod shape_parity {
+    use super::*;
+    #[test]
+    fn canonical_shapes() {
+        let c = Client::with_endpoint("", DEFAULT_ENDPOINT);
+        assert_eq!(c.build_sketch("GET", "/orders/123", &[], false, 200).shape, "3e8cf0b3");
+        assert_eq!(c.build_sketch("GET", "/orders/123", &[("expand".into(), "items".into())], false, 200).shape, "440c7e37");
     }
 }

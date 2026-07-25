@@ -62,7 +62,8 @@ public sealed class SentinelClient
     public string ShapeOf(string method, string path, bool authed)
     {
         var route = NormalizePath(path);
-        var canon = $"{{\"route\":\"{route}\",\"method\":\"{method.ToUpperInvariant()}\",\"params\":[],\"auth\":{(authed ? 1 : 0)}}}";
+        // canonical shape input: keys SORTED (auth, method, params, route); status excluded by design.
+        var canon = $"{{\"auth\":{(authed ? 1 : 0)},\"method\":\"{method.ToUpperInvariant()}\",\"params\":[],\"route\":\"{route}\"}}";
         return Fnv1a(canon);
     }
 

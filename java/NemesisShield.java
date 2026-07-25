@@ -73,8 +73,9 @@ public class NemesisShield {
     /** Request signature: method + normalized route + auth (status excluded by design). */
     public String shapeOf(String method, String path, boolean authed) {
         String route = normalizePath(path);
-        String canon = "{\"route\":\"" + route + "\",\"method\":\"" + method.toUpperCase()
-                + "\",\"params\":[],\"auth\":" + (authed ? 1 : 0) + "}";
+        // canonical shape input: keys SORTED (auth, method, params, route); status excluded by design.
+        String canon = "{\"auth\":" + (authed ? 1 : 0) + ",\"method\":\"" + method.toUpperCase()
+                + "\",\"params\":[],\"route\":\"" + route + "\"}";
         return fnv1a(canon);
     }
 

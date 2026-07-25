@@ -1,30 +1,60 @@
 // Local, privacy-preserving request-sketch computation. The shape is a REQUEST signature
 // (method + normalized route + query param kinds + auth) — it deliberately excludes response status,
-// because enforcement decides whether to block BEFORE the response exists. Deterministic; only needs
-// to be internally consistent (the server stores whatever shape the SDK sends).
+// because enforcement decides whether to block BEFORE the response exists. The value taxonomy and
+// shape-input construction match the shared engine byte-for-byte, so a Node app and a Python/Go/PHP
+// app produce IDENTICAL shape hashes (cross-language baseline sharing).
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const HEX = /^[0-9a-f]{16,}$/i;
-const INT = /^\d+$/;
-
-export function normalizePath(path) {
-  return String(path || "/")
-    .split("?")[0]
-    .split("/")
-    .map((seg) => (INT.test(seg) ? "{int}" : UUID.test(seg) ? "{uuid}" : HEX.test(seg) ? "{hex}" : seg))
-    .join("/") || "/";
-}
+const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+const URLRE = /^https?:\/\/\S+$/i;
+const IPV4 = /^(\d{1,3}\.){3}\d{1,3}$/;
+const IPV6 = /^[0-9a-f:]+:[0-9a-f:]+$/i;
+const INT = /^-?\d+$/;
+const FLOATRE = /^-?\d*\.\d+$/;
+const DATE = /^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2})?)?/;
+const JWT = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
+const HEX = /^[0-9a-f]+$/i;
+const B64 = /^[A-Za-z0-9+/]+={0,2}$/;
+const ALPHA = /^[A-Za-z]+$/;
+const ALNUM = /^[A-Za-z0-9]+$/;
 
 function kindOf(v) {
-  if (v == null) return "null";
+  if (v == null || v === "") return "empty";
+  if (typeof v === "boolean") return "bool";
   const s = String(v);
-  if (INT.test(s)) return "int";
+  if (s === "") return "empty";
   if (UUID.test(s)) return "uuid";
-  if (/^-?\d+\.\d+$/.test(s)) return "float";
-  if (/^(true|false)$/i.test(s)) return "bool";
-  if (/^[0-9a-f]{16,}$/i.test(s)) return "hex";
-  if (/@/.test(s)) return "email";
+  if (EMAIL.test(s)) return "email";
+  if (URLRE.test(s)) return "url";
+  if (IPV4.test(s)) return "ipv4";
+  if (IPV6.test(s)) return "ipv6";
+  if (JWT.test(s)) return "jwt";
+  if (DATE.test(s)) return "date";
+  if (INT.test(s)) return "int";
+  if (FLOATRE.test(s)) return "float";
+  if (s.length >= 16 && HEX.test(s)) return "hex";
+  if (s.length >= 16 && B64.test(s)) return "base64";
+  if (ALPHA.test(s)) return "alpha";
+  if (ALNUM.test(s)) return "alnum";
   return "string";
+}
+
+export function normalizePath(path) {
+  const clean = String(path || "/").split("?")[0].split("#")[0];
+  const out = clean
+    .split("/")
+    .map((seg) => {
+      if (seg === "") return seg;
+      const k = kindOf(seg);
+      if (k === "int" || k === "float") return "{int}";
+      if (k === "uuid") return "{uuid}";
+      if (k === "hex") return "{hex}";
+      if (k === "base64") return "{token}";
+      if (k === "alnum") return seg.length >= 12 ? "{id}" : seg;
+      return seg;
+    })
+    .join("/");
+  return out || "/";
 }
 
 // 32-bit FNV-1a over a stable string -> 8-hex-char digest.
@@ -42,12 +72,17 @@ export function buildSketch({ method, path, query = {}, authenticated = false, s
   const route = normalizePath(path);
   const params = Object.keys(query || {})
     .sort()
-    .map((name) => ({ name, kind: kindOf(query[name]) }));
+    .map((name) => {
+      const val = query[name];
+      const isArr = Array.isArray(val);
+      return { name, kind: kindOf(isArr ? val[0] : val), nested: isArr };
+    });
+  // Canonical shape input: keys SORTED (auth, method, params, route); params [name, kind, nested].
   const canonical = JSON.stringify({
-    route,
-    method: String(method || "GET").toUpperCase(),
-    params: params.map((p) => [p.name, p.kind]),
     auth: authenticated ? 1 : 0,
+    method: String(method || "GET").toUpperCase(),
+    params: params.map((p) => [p.name, p.kind, p.nested ? 1 : 0]),
+    route,
   });
   return {
     v: 1,
