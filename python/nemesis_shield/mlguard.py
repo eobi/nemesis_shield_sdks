@@ -59,7 +59,7 @@ def refresh_model(url: str | None = None, timeout: float = 5.0):
 # Ed25519 public key (hex) that signs published models. When set, cloud model pulls MUST carry a
 # valid signature over the exact bytes (unsigned or tampered bundles are rejected; the embedded model
 # is kept). Public key is safe to commit; the matching private seed lives only in the CI secret.
-MODEL_PUBLIC_KEY_HEX = "23446c0eebba8871113c60c4ea2d8755a198d6b4c6ad1b6e2b6b097a2ce4e835"
+MODEL_PUBLIC_KEY_HEX = "a412c2c4a6e409cefcbb0564d11f501a3db895f52111160db9fd6536928d052e"
 
 
 def _verify_model_signature(raw: bytes, sig_b64) -> bool:
