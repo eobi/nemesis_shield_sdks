@@ -14,9 +14,67 @@ namespace NemesisShield;
 public sealed class SentinelClient
 {
     private const string Endpoint = "https://shield.nemesislabs.xyz/api/v1/sketches";
-    private static readonly Regex Int = new("^\\d+$", RegexOptions.Compiled);
+    // Canonical value taxonomy — matches the shared engine (tokenize.ts) byte-for-byte.
+    private static readonly Regex Int = new("^-?\\d+$", RegexOptions.Compiled);
+    private static readonly Regex Float = new("^-?\\d*\\.\\d+$", RegexOptions.Compiled);
     private static readonly Regex Uuid = new("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private static readonly Regex Hex = new("^[0-9a-f]{16,}$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex Email = new(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.Compiled);
+    private static readonly Regex Url = new(@"^https?://\S+$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex Ipv4 = new(@"^(\d{1,3}\.){3}\d{1,3}$", RegexOptions.Compiled);
+    private static readonly Regex Ipv6 = new("^[0-9a-f:]+:[0-9a-f:]+$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex DateRe = new(@"^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2})?)?", RegexOptions.Compiled);
+    private static readonly Regex Jwt = new(@"^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$", RegexOptions.Compiled);
+    private static readonly Regex Hex = new("^[0-9a-f]+$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex B64 = new(@"^[A-Za-z0-9+/]+={0,2}$", RegexOptions.Compiled);
+    private static readonly Regex Alpha = new("^[A-Za-z]+$", RegexOptions.Compiled);
+    private static readonly Regex Alnum = new("^[A-Za-z0-9]+$", RegexOptions.Compiled);
+
+    internal static string KindOf(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return "empty";
+        if (Uuid.IsMatch(s)) return "uuid";
+        if (Email.IsMatch(s)) return "email";
+        if (Url.IsMatch(s)) return "url";
+        if (Ipv4.IsMatch(s)) return "ipv4";
+        if (Ipv6.IsMatch(s)) return "ipv6";
+        if (Jwt.IsMatch(s)) return "jwt";
+        if (DateRe.IsMatch(s)) return "date";
+        if (Int.IsMatch(s)) return "int";
+        if (Float.IsMatch(s)) return "float";
+        if (s.Length >= 16 && Hex.IsMatch(s)) return "hex";
+        if (s.Length >= 16 && B64.IsMatch(s)) return "base64";
+        if (Alpha.IsMatch(s)) return "alpha";
+        if (Alnum.IsMatch(s)) return "alnum";
+        return "string";
+    }
+
+    private static string Esc(string s) => s.Replace("\\", "\\\\").Replace("\"", "\\\"");
+
+    // Parse a raw query string into the canonical params array [[name,kind,nested],...], sorted +
+    // deduped by name (repeated key -> nested). Values are classified, never kept.
+    private static string ParamsCanon(string? query)
+    {
+        if (string.IsNullOrEmpty(query)) return "[]";
+        var first = new System.Collections.Generic.Dictionary<string, string>();
+        var order = new System.Collections.Generic.List<string>();
+        var multi = new System.Collections.Generic.HashSet<string>();
+        foreach (var pair in query.Split('&'))
+        {
+            if (pair.Length == 0) continue;
+            var eq = pair.IndexOf('=');
+            var k = eq >= 0 ? pair.Substring(0, eq) : pair;
+            var v = eq >= 0 ? pair.Substring(eq + 1) : "";
+            k = System.Uri.UnescapeDataString(k);
+            v = System.Uri.UnescapeDataString(v);
+            if (first.ContainsKey(k)) multi.Add(k);
+            else { first[k] = v; order.Add(k); }
+        }
+        order.Sort(System.StringComparer.Ordinal);
+        var parts = new System.Collections.Generic.List<string>();
+        foreach (var k in order)
+            parts.Add("[\"" + Esc(k) + "\",\"" + KindOf(first[k]) + "\"," + (multi.Contains(k) ? 1 : 0) + "]");
+        return "[" + string.Join(",", parts) + "]";
+    }
 
     private readonly string _token;
     private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(3) };
@@ -41,14 +99,23 @@ public sealed class SentinelClient
     {
         var q = path.IndexOf('?');
         if (q >= 0) path = path[..q];
+        var h = path.IndexOf('#');
+        if (h >= 0) path = path[..h];
         var segs = path.Split('/');
         for (var i = 0; i < segs.Length; i++)
         {
-            if (Int.IsMatch(segs[i])) segs[i] = "{int}";
-            else if (Uuid.IsMatch(segs[i])) segs[i] = "{uuid}";
-            else if (Hex.IsMatch(segs[i])) segs[i] = "{hex}";
+            if (segs[i].Length == 0) continue;
+            switch (KindOf(segs[i]))
+            {
+                case "int": case "float": segs[i] = "{int}"; break;
+                case "uuid": segs[i] = "{uuid}"; break;
+                case "hex": segs[i] = "{hex}"; break;
+                case "base64": segs[i] = "{token}"; break;
+                case "alnum": if (segs[i].Length >= 12) segs[i] = "{id}"; break;
+            }
         }
-        return string.Join("/", segs);
+        var outp = string.Join("/", segs);
+        return outp.Length == 0 ? "/" : outp;
     }
 
     private static string Fnv1a(string s)
@@ -59,11 +126,13 @@ public sealed class SentinelClient
     }
 
     // Request signature: method + normalized route + auth (excludes status by design).
-    public string ShapeOf(string method, string path, bool authed)
+    public string ShapeOf(string method, string path, bool authed) => ShapeOf(method, path, null, authed);
+
+    public string ShapeOf(string method, string path, string? query, bool authed)
     {
         var route = NormalizePath(path);
         // canonical shape input: keys SORTED (auth, method, params, route); status excluded by design.
-        var canon = $"{{\"auth\":{(authed ? 1 : 0)},\"method\":\"{method.ToUpperInvariant()}\",\"params\":[],\"route\":\"{route}\"}}";
+        var canon = $"{{\"auth\":{(authed ? 1 : 0)},\"method\":\"{Esc(method.ToUpperInvariant())}\",\"params\":{ParamsCanon(query)},\"route\":\"{Esc(route)}\"}}";
         return Fnv1a(canon);
     }
 
@@ -80,10 +149,12 @@ public sealed class SentinelClient
         return null;
     }
 
-    public void Observe(string method, string path, bool authed, int status)
+    public void Observe(string method, string path, bool authed, int status) => Observe(method, path, null, authed, status);
+
+    public void Observe(string method, string path, string? query, bool authed, int status)
     {
         var route = NormalizePath(path);
-        var sk = $"{{\"route\":\"{route}\",\"method\":\"{method.ToUpperInvariant()}\",\"authenticated\":{authed.ToString().ToLowerInvariant()},\"status\":{status},\"params\":[],\"shape\":\"{ShapeOf(method, path, authed)}\"}}";
+        var sk = $"{{\"route\":\"{Esc(route)}\",\"method\":\"{Esc(method.ToUpperInvariant())}\",\"authenticated\":{authed.ToString().ToLowerInvariant()},\"status\":{status},\"params\":{ParamsCanon(query)},\"shape\":\"{ShapeOf(method, path, query, authed)}\"}}";
         _ = Send("[" + sk + "]");
     }
 
@@ -147,13 +218,14 @@ public sealed class SentinelMiddleware
     {
         var method = ctx.Request.Method;
         var path = ctx.Request.Path.HasValue ? ctx.Request.Path.Value! : "/";
+        var query = ctx.Request.QueryString.HasValue ? ctx.Request.QueryString.Value!.TrimStart('?') : null;
         var authed = ctx.Request.Headers.ContainsKey("Authorization") || ctx.Request.Headers.ContainsKey("Cookie");
         if (_client.Enforcing)
         {
-            var reason = _client.Decide(_client.ShapeOf(method, path, authed));
+            var reason = _client.Decide(_client.ShapeOf(method, path, query, authed));
             if (reason != null)
             {
-                _client.Observe(method, path, authed, 403);
+                _client.Observe(method, path, query, authed, 403);
                 ctx.Response.StatusCode = 403;
                 ctx.Response.ContentType = "application/json";
                 await ctx.Response.WriteAsync(JsonSerializer.Serialize(new { error = "blocked_by_nemesis_shield", reason }));
@@ -161,6 +233,6 @@ public sealed class SentinelMiddleware
             }
         }
         await _next(ctx);
-        _client.Observe(method, path, authed, ctx.Response.StatusCode);
+        _client.Observe(method, path, query, authed, ctx.Response.StatusCode);
     }
 }

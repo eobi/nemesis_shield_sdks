@@ -21,9 +21,66 @@ import java.util.regex.Pattern;
 
 public class NemesisShield {
     private static final String ENDPOINT = "https://shield.nemesislabs.xyz/api/v1/sketches";
-    private static final Pattern INT = Pattern.compile("^\\d+$");
+    // Canonical value taxonomy — matches the shared engine (tokenize.ts) byte-for-byte.
+    private static final Pattern INT = Pattern.compile("^-?\\d+$");
+    private static final Pattern FLOAT = Pattern.compile("^-?\\d*\\.\\d+$");
     private static final Pattern UUID = Pattern.compile("(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$");
-    private static final Pattern HEX = Pattern.compile("(?i)^[0-9a-f]{16,}$");
+    private static final Pattern EMAIL = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
+    private static final Pattern URL = Pattern.compile("(?i)^https?://\\S+$");
+    private static final Pattern IPV4 = Pattern.compile("^(\\d{1,3}\\.){3}\\d{1,3}$");
+    private static final Pattern IPV6 = Pattern.compile("(?i)^[0-9a-f:]+:[0-9a-f:]+$");
+    private static final Pattern DATE = Pattern.compile("^\\d{4}-\\d{2}-\\d{2}([T ]\\d{2}:\\d{2}(:\\d{2})?)?");
+    private static final Pattern JWT = Pattern.compile("^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$");
+    private static final Pattern HEX = Pattern.compile("(?i)^[0-9a-f]+$");
+    private static final Pattern B64 = Pattern.compile("^[A-Za-z0-9+/]+={0,2}$");
+    private static final Pattern ALPHA = Pattern.compile("^[A-Za-z]+$");
+    private static final Pattern ALNUM = Pattern.compile("^[A-Za-z0-9]+$");
+
+    static String kindOf(String s) {
+        if (s == null || s.isEmpty()) return "empty";
+        if (UUID.matcher(s).matches()) return "uuid";
+        if (EMAIL.matcher(s).matches()) return "email";
+        if (URL.matcher(s).matches()) return "url";
+        if (IPV4.matcher(s).matches()) return "ipv4";
+        if (IPV6.matcher(s).matches()) return "ipv6";
+        if (JWT.matcher(s).matches()) return "jwt";
+        if (DATE.matcher(s).lookingAt()) return "date";
+        if (INT.matcher(s).matches()) return "int";
+        if (FLOAT.matcher(s).matches()) return "float";
+        if (s.length() >= 16 && HEX.matcher(s).matches()) return "hex";
+        if (s.length() >= 16 && B64.matcher(s).matches()) return "base64";
+        if (ALPHA.matcher(s).matches()) return "alpha";
+        if (ALNUM.matcher(s).matches()) return "alnum";
+        return "string";
+    }
+
+    // Parse a raw query string ("a=1&b=x") into the canonical params array [[name,kind,nested],...],
+    // sorted + deduped by name (repeated key -> nested). Values are classified, never kept.
+    private static String paramsCanon(String query) {
+        if (query == null || query.isEmpty()) return "[]";
+        java.util.TreeMap<String, String> first = new java.util.TreeMap<>();
+        java.util.Set<String> multi = new java.util.HashSet<>();
+        for (String pair : query.split("&")) {
+            if (pair.isEmpty()) continue;
+            int eq = pair.indexOf('=');
+            String k = eq >= 0 ? pair.substring(0, eq) : pair;
+            String v = eq >= 0 ? pair.substring(eq + 1) : "";
+            try {
+                k = java.net.URLDecoder.decode(k, java.nio.charset.StandardCharsets.UTF_8);
+                v = java.net.URLDecoder.decode(v, java.nio.charset.StandardCharsets.UTF_8);
+            } catch (Exception ignored) { }
+            if (first.containsKey(k)) multi.add(k); else first.put(k, v);
+        }
+        StringBuilder sb = new StringBuilder("[");
+        boolean firstItem = true;
+        for (var e : first.entrySet()) {
+            if (!firstItem) sb.append(',');
+            firstItem = false;
+            sb.append("[\"").append(esc(e.getKey())).append("\",\"").append(kindOf(e.getValue()))
+              .append("\",").append(multi.contains(e.getKey()) ? 1 : 0).append(']');
+        }
+        return sb.append(']').toString();
+    }
 
     private final String token;
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build();
@@ -52,13 +109,21 @@ public class NemesisShield {
         if (path == null) return "/";
         int q = path.indexOf('?');
         if (q >= 0) path = path.substring(0, q);
+        int h = path.indexOf('#');
+        if (h >= 0) path = path.substring(0, h);
         String[] segs = path.split("/", -1);
         for (int i = 0; i < segs.length; i++) {
-            if (INT.matcher(segs[i]).matches()) segs[i] = "{int}";
-            else if (UUID.matcher(segs[i]).matches()) segs[i] = "{uuid}";
-            else if (HEX.matcher(segs[i]).matches()) segs[i] = "{hex}";
+            if (segs[i].isEmpty()) continue;
+            switch (kindOf(segs[i])) {
+                case "int": case "float": segs[i] = "{int}"; break;
+                case "uuid": segs[i] = "{uuid}"; break;
+                case "hex": segs[i] = "{hex}"; break;
+                case "base64": segs[i] = "{token}"; break;
+                case "alnum": if (segs[i].length() >= 12) segs[i] = "{id}"; break;
+            }
         }
-        return String.join("/", segs);
+        String out = String.join("/", segs);
+        return out.isEmpty() ? "/" : out;
     }
 
     private static String fnv1a(String s) {
@@ -70,13 +135,17 @@ public class NemesisShield {
         return String.format("%08x", h & 0xffffffffL);
     }
 
-    /** Request signature: method + normalized route + auth (status excluded by design). */
-    public String shapeOf(String method, String path, boolean authed) {
+    /** Request signature: method + normalized route + query-param shapes + auth (status excluded). */
+    public String shapeOf(String method, String path, String query, boolean authed) {
         String route = normalizePath(path);
         // canonical shape input: keys SORTED (auth, method, params, route); status excluded by design.
-        String canon = "{\"auth\":" + (authed ? 1 : 0) + ",\"method\":\"" + method.toUpperCase()
-                + "\",\"params\":[],\"route\":\"" + route + "\"}";
+        String canon = "{\"auth\":" + (authed ? 1 : 0) + ",\"method\":\"" + esc(method.toUpperCase())
+                + "\",\"params\":" + paramsCanon(query) + ",\"route\":\"" + esc(route) + "\"}";
         return fnv1a(canon);
+    }
+
+    public String shapeOf(String method, String path, boolean authed) {
+        return shapeOf(method, path, (String) null, authed);
     }
 
     /** Positive-security verdict for a shape. Returns the block reason, or null to allow. */
@@ -91,16 +160,20 @@ public class NemesisShield {
 
     private static String esc(String s) { return s == null ? "" : s.replace("\\", "\\\\").replace("\"", "\\\""); }
 
-    private String sketchJson(String method, String path, boolean authed, int status) {
+    private String sketchJson(String method, String path, String query, boolean authed, int status) {
         String route = normalizePath(path);
         return "{\"route\":\"" + esc(route) + "\",\"method\":\"" + esc(method.toUpperCase())
                 + "\",\"authenticated\":" + authed + ",\"status\":" + status
-                + ",\"params\":[],\"shape\":\"" + shapeOf(method, path, authed) + "\"}";
+                + ",\"params\":" + paramsCanon(query) + ",\"shape\":\"" + shapeOf(method, path, query, authed) + "\"}";
     }
 
     /** Record an observed request (fire-and-forget). */
+    public void observe(String method, String path, String query, boolean authed, int status) {
+        send("[" + sketchJson(method, path, query, authed, status) + "]");
+    }
+
     public void observe(String method, String path, boolean authed, int status) {
-        send("[" + sketchJson(method, path, authed, status) + "]");
+        observe(method, path, null, authed, status);
     }
 
     private void refresh() { send("[]"); }
@@ -152,9 +225,10 @@ public class NemesisShield {
      */
     public boolean guard(String method, String path, boolean authed, com.sun.net.httpserver.HttpExchange ex) throws java.io.IOException {
         if (!enforcing()) return false;
-        String reason = decide(shapeOf(method, path, authed));
+        String query = ex.getRequestURI().getRawQuery();
+        String reason = decide(shapeOf(method, path, query, authed));
         if (reason == null) return false;
-        observe(method, path, authed, 403);
+        observe(method, path, query, authed, 403);
         byte[] out = ("{\"error\":\"blocked_by_nemesis_shield\",\"reason\":\"" + esc(reason) + "\"}").getBytes();
         ex.getResponseHeaders().set("Content-Type", "application/json");
         ex.sendResponseHeaders(403, out.length);

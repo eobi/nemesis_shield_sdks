@@ -22,12 +22,12 @@ public class NemesisShieldFilter implements Filter {
     public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain) throws IOException, ServletException {
         HttpServletRequest r = (HttpServletRequest) req;
         HttpServletResponse w = (HttpServletResponse) res;
-        String method = r.getMethod(), path = r.getRequestURI();
+        String method = r.getMethod(), path = r.getRequestURI(), query = r.getQueryString();
         boolean authed = r.getHeader("Authorization") != null || r.getHeader("Cookie") != null;
         if (nemesis.enforcing()) {
-            String reason = nemesis.decide(nemesis.shapeOf(method, path, authed));
+            String reason = nemesis.decide(nemesis.shapeOf(method, path, query, authed));
             if (reason != null) {
-                nemesis.observe(method, path, authed, 403);
+                nemesis.observe(method, path, query, authed, 403);
                 w.setStatus(403);
                 w.setContentType("application/json");
                 w.getWriter().write("{\"error\":\"blocked_by_nemesis_shield\",\"reason\":\"" + reason + "\"}");
@@ -35,6 +35,6 @@ public class NemesisShieldFilter implements Filter {
             }
         }
         chain.doFilter(req, res);
-        nemesis.observe(method, path, authed, w.getStatus());
+        nemesis.observe(method, path, query, authed, w.getStatus());
     }
 }
