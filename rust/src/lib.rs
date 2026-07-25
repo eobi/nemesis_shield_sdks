@@ -27,6 +27,9 @@ use std::time::Duration;
 
 pub const DEFAULT_ENDPOINT: &str = "https://shield.nemesislabs.xyz/api/v1/sketches";
 
+pub mod llm;
+pub use llm::{guard_llm, ml_injection_score, LlmVerdict};
+
 /// A query-parameter shape (name + kind, never the value).
 #[derive(Clone)]
 pub struct Param {
