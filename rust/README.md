@@ -84,3 +84,21 @@ if shield.enforcing() {
 
 Verified end-to-end (learn → enforce → attack) on axum: legit traffic passes (200); auth bypass,
 BOLA, path traversal and scanner probes are blocked (403) and reported.
+
+## LLM Guard (OWASP LLM Top 10)
+
+The same HashLR ML classifier every Nemesis Shield SDK ships — catches obfuscated prompt injection
+signature rules miss, scored identically in every language.
+
+```rust
+use nemesis_shield::guard_llm;
+
+let v = guard_llm(&user_prompt, true); // enforce
+if v.blocked {
+    // refuse — v.kind, v.score, v.owasp ("LLM01")
+}
+
+let score = nemesis_shield::ml_injection_score(&user_prompt); // 0..1
+```
+
+Regex first, then ML. Blocks at ≥ 0.85 (high), flags at ≥ 0.45.

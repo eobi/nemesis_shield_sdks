@@ -57,3 +57,23 @@ e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
 Observe (default) → learn & approve behaviors in the console → flip to **enforce** (the SDK polls the
 policy in the background, no redeploy) → off-baseline requests get `403 blocked_by_nemesis_shield`.
 Verified end-to-end on net/http, chi, Gin and Echo: legit passes (200); attacks blocked (403).
+
+## LLM Guard (OWASP LLM Top 10)
+
+Protect an LLM app/agent with the same **HashLR ML classifier** every Nemesis Shield SDK ships — it
+catches obfuscated/paraphrased prompt injection that signature rules miss (e.g. `1gn0re pr3vi0us…`),
+and scores **identically in every language**.
+
+```go
+import nemesis "github.com/eobi/nemesis_shield_sdks/go"
+
+v := nemesis.GuardLLM(userPrompt, true) // true = enforce
+if v.Blocked {
+    // refuse — v.Kind ("prompt_injection" | "ml_prompt_injection"), v.Score, v.Owasp ("LLM01")
+}
+
+score := nemesis.MLInjectionScore(userPrompt) // 0..1, if you want the raw signal
+```
+
+Regex rules run first, then the ML for obfuscation. Blocks at score ≥ 0.85 (high), flags at ≥ 0.45.
+The model (`ml_weights.json`) is embedded and can be updated centrally.

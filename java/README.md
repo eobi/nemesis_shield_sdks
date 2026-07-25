@@ -28,3 +28,20 @@ Observe (default) → learn & approve behaviors in the console → flip to **enf
 requests get `403 blocked_by_nemesis_shield`. Verified end-to-end (learn → enforce → attack) on the
 raw HttpServer: legit passes (200); attacks blocked (403). The Servlet filter uses the identical
 `NemesisShield` client.
+
+## LLM Guard (OWASP LLM Top 10)
+
+The same HashLR ML classifier every Nemesis Shield SDK ships — catches obfuscated prompt injection
+signature rules miss, scored identically in every language. Add `NemesisShieldLLM.java` +
+`ml_weights.json` (on the classpath).
+
+```java
+var v = NemesisShieldLLM.guardLLM(userPrompt, true); // enforce
+if (v.blocked) {
+    // refuse — v.kind, v.severity, v.owasp ("LLM01")
+}
+
+double score = NemesisShieldLLM.mlInjectionScore(userPrompt); // 0..1
+```
+
+Regex first, then ML. Blocks at ≥ 0.85 (high), flags at ≥ 0.45.
