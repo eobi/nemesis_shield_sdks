@@ -14,7 +14,19 @@ if (NemesisShield::guard($token)) return;   // pre-dispatch block (enforce mode)
 NemesisShield::observe($token);             // record after the response
 ```
 
-**Laravel** — register `NemesisShieldMiddleware` (ships in this repo) globally and set `NEMESIS_TOKEN`.
+**Laravel (Composer, 6+ / PHP 7.2+)** — zero-config via package auto-discovery:
+```bash
+composer require nemesislabs/sentinel
+```
+```dotenv
+# .env
+NEMESIS_TOKEN=nsk_your_app_token
+```
+`NemesisShieldServiceProvider` prepends the middleware to the global stack automatically — no
+`Kernel.php` edit. Full guide + manual (no-Composer) fallback + Namecheap/shared-hosting notes:
+[`examples/laravel/`](../examples/laravel/). (No Composer? drop `NemesisShield.php` +
+`NemesisShieldMiddleware.php` in and register the middleware yourself — see the example.)
+
 **Symfony** — register it as a PSR-15 middleware / kernel subscriber wrapping `guard`/`observe`.
 
 Observe (default) → learn & approve in the console → flip to **enforce** → off-baseline requests get
