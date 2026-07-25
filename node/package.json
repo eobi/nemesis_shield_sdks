@@ -1,20 +1,55 @@
 {
   "name": "@nemesis-shield/sentinel",
   "version": "0.2.0",
-  "description": "Nemesis Shield — Sentinel SDK for Node. Learn your app's normal behavior, then block off-baseline requests (auth bypass, path traversal, scanners) in enforce mode. Express/Fastify/Koa adapters.",
+  "description": "Nemesis Shield \u2014 Sentinel SDK for Node. Learn your app's normal behavior, then block off-baseline requests (auth bypass, path traversal, scanners) in enforce mode. Express/Fastify/Koa adapters.",
   "type": "module",
   "main": "./index.js",
   "types": "./index.d.ts",
   "exports": {
-    ".": { "types": "./index.d.ts", "import": "./index.js" },
-    "./express": { "import": "./express.js" },
-    "./fastify": { "import": "./fastify.js" },
-    "./koa": { "import": "./koa.js" }
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.js"
+    },
+    "./express": {
+      "import": "./express.js"
+    },
+    "./fastify": {
+      "import": "./fastify.js"
+    },
+    "./koa": {
+      "import": "./koa.js"
+    },
+    "./llm": {
+      "import": "./lib/llm.js"
+    }
   },
-  "files": ["index.js", "index.d.ts", "express.js", "fastify.js", "koa.js", "lib/", "README.md"],
-  "keywords": ["security", "waf", "rasp", "adr", "api-security", "appsec", "positive-security", "nemesis-shield"],
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "express.js",
+    "fastify.js",
+    "koa.js",
+    "lib/",
+    "README.md"
+  ],
+  "keywords": [
+    "security",
+    "waf",
+    "rasp",
+    "adr",
+    "api-security",
+    "appsec",
+    "positive-security",
+    "nemesis-shield"
+  ],
   "license": "MIT",
   "homepage": "https://github.com/eobi/nemesis_shield_sdks/tree/main/node",
-  "repository": { "type": "git", "url": "https://github.com/eobi/nemesis_shield_sdks.git", "directory": "node" },
-  "engines": { "node": ">=18" }
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eobi/nemesis_shield_sdks.git",
+    "directory": "node"
+  },
+  "engines": {
+    "node": ">=18"
+  }
 }

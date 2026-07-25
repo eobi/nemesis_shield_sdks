@@ -9,5 +9,12 @@ dependencies = []
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools]
+packages = ["nemesis_shield"]
+
+[tool.setuptools.package-data]
+# ship the trained HashLR weights inside the wheel
+nemesis_shield = ["*.json"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

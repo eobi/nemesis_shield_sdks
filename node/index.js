@@ -25,3 +25,6 @@ export async function reportLLM(token, exchange, opts = {}) {
     });
   } catch { /* fail open */ }
 }
+
+// LLM Guard — OWASP-LLM-Top-10 detection + HashLR ML classifier (see lib/llm.js).
+export { guardLLM, mlInjectionScore, ML_BLOCK_THRESHOLD, ML_FLAG_THRESHOLD } from "./lib/llm.js";
