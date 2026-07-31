@@ -23,7 +23,7 @@ Legend: `[x]` done · `[ ]` not yet.
 | 6 | ruby | RubyGems | **`nemesis-shield`** (v0.1.0) | `gem install nemesis-shield` | ✅ 0.1.0 | ✅ works |
 | 7 | php | Packagist | **`nemesislabs/sentinel`** (v0.1.0) | `composer require nemesislabs/sentinel` | ✅ 0.1.0 | ✅ works |
 | 8 | java | Maven Central | **`io.github.eobi:sentinel`** (v0.1.1) | Maven/Gradle coord | ✅ 0.1.1 (canonical) | ✅ works |
-| 9 | dotnet | NuGet | **`NemesisShield`** | `dotnet add package NemesisShield` | [ ] | [ ] |
+| 9 | dotnet | NuGet | **`NemesisShield`** (v0.1.1) | `dotnet add package NemesisShield` | ✅ pushed (validating) | ⏳ |
 | 10 | rust | crates.io | **`nemesis-shield`** | `cargo add nemesis-shield` | [ ] | [ ] |
 | 11 | wordpress | WordPress.org | slug **`nemesis-shield`** | Plugins → search | [ ] | [ ] |
 | — | cloudflare-supabase-proxy | (deploy template) | `nemesis-supabase-proxy` | `wrangler deploy` | n/a | n/a |
