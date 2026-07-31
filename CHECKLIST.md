@@ -20,7 +20,7 @@ Legend: `[x]` done · `[ ]` not yet.
 | 3 | edge | npm + JSR | **`@nemesis-shield-autogon/edge`** | `npm i @nemesis-shield-autogon/edge` | [ ] | [ ] |
 | 4 | python | PyPI | **`nemesis-shield`** (v0.1.0) | `pip install nemesis-shield` | ✅ 0.1.0 | ✅ works |
 | 5 | go | Go modules | **`github.com/eobi/nemesis_shield_sdks/go`** (tag `go/v0.1.0`) | `go get github.com/eobi/nemesis_shield_sdks/go` | ✅ go/v0.1.0 | ✅ works |
-| 6 | ruby | RubyGems | **`nemesis-shield`** (v0.1.0) | `gem install nemesis-shield` | ⏳ built+verified, needs API key | [ ] |
+| 6 | ruby | RubyGems | **`nemesis-shield`** (v0.1.0) | `gem install nemesis-shield` | ✅ 0.1.0 | ✅ works |
 | 7 | php | Packagist | **`nemesislabs/sentinel`** | `composer require nemesislabs/sentinel` | [ ] | [ ] |
 | 8 | java | Maven Central | **`xyz.nemesislabs:sentinel`** | Maven/Gradle coord | [ ] | [ ] |
 | 9 | dotnet | NuGet | **`NemesisShield`** | `dotnet add package NemesisShield` | [ ] | [ ] |
@@ -38,7 +38,7 @@ Legend: `[x]` done · `[ ]` not yet.
 - [x] **npm** — org + `nmptoken` in `~/Documents/nemesis-shield/.env` (used locally, never committed)
 - [x] **PyPI** — project `nemesis-shield` published with `__token__` API token (`pypi_*` in `~/Documents/nemesis-shield/.env`, used locally)
 - [ ] **crates.io** — login (GitHub); `CARGO_REGISTRY_TOKEN`
-- [ ] **RubyGems** — account; `RUBYGEMS_API_KEY`
+- [x] **RubyGems** — published with `rubygems` API key in `~/Documents/nemesis-shield/.env` (used locally); MFA lowered to UI-only for the push
 - [ ] **Packagist** — submit repo URL once (auto-updates on tag)
 - [ ] **NuGet** — nuget.org account; `NUGET_API_KEY`
 - [ ] **Maven Central** — Central Portal namespace `xyz.nemesislabs` (DNS TXT verify) + GPG key; `CENTRAL_TOKEN`
@@ -74,4 +74,5 @@ Legend: `[x]` done · `[ ]` not yet.
 - [ ] crates.io (`rust`) — polish Cargo.toml, `cargo publish`
 - [ ] Packagist (`php`) — submit repo URL, tag
 - [x] Go — `go/v0.1.0` tag pushed + proxy-verified (`go get` works, embedded ML model matches parity vectors)
-- [ ] then: RubyGems, NuGet, edge (npm+JSR), Maven Central, WordPress.org
+- [x] RubyGems (`ruby`) — published nemesis-shield 0.1.0, pull-verified (parity + ML guard)
+- [ ] then: NuGet, edge (npm+JSR), Maven Central, WordPress.org
