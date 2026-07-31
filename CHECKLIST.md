@@ -19,7 +19,7 @@ Legend: `[x]` done · `[ ]` not yet.
 | 2 | browser | npm | **`@nemesis-shield-autogon/browser`** | `npm i @nemesis-shield-autogon/browser` | ✅ 0.1.0 | ✅ works |
 | 3 | edge | npm + JSR | **`@nemesis-shield-autogon/edge`** | `npm i @nemesis-shield-autogon/edge` | [ ] | [ ] |
 | 4 | python | PyPI | **`nemesis-shield`** (v0.1.0) | `pip install nemesis-shield` | ✅ 0.1.0 | ✅ works |
-| 5 | go | Go modules | **`github.com/eobi/nemesis_shield_sdks/go`** | `go get github.com/eobi/nemesis_shield_sdks/go` | [ ] | [ ] |
+| 5 | go | Go modules | **`github.com/eobi/nemesis_shield_sdks/go`** (tag `go/v0.1.0`) | `go get github.com/eobi/nemesis_shield_sdks/go` | ✅ go/v0.1.0 | ✅ works |
 | 6 | ruby | RubyGems | **`nemesis-shield`** | `gem install nemesis-shield` | [ ] | [ ] |
 | 7 | php | Packagist | **`nemesislabs/sentinel`** | `composer require nemesislabs/sentinel` | [ ] | [ ] |
 | 8 | java | Maven Central | **`xyz.nemesislabs:sentinel`** | Maven/Gradle coord | [ ] | [ ] |
@@ -44,7 +44,7 @@ Legend: `[x]` done · `[ ]` not yet.
 - [ ] **Maven Central** — Central Portal namespace `xyz.nemesislabs` (DNS TXT verify) + GPG key; `CENTRAL_TOKEN`
 - [ ] **JSR** — scope `@nemesis-shield-autogon` (for edge); OIDC
 - [ ] **WordPress.org** — submit plugin for review; then SVN access
-- [ ] **Go** — nothing (proxy indexes the tag)
+- [x] **Go** — no account/token; `go/v0.1.0` tag pushed, proxy indexed, `go get` verified
 
 ---
 
@@ -73,5 +73,5 @@ Legend: `[x]` done · `[ ]` not yet.
 - [x] PyPI (`python`) — published `nemesis-shield` 0.1.0, pull-verified (parity + ml_weights sha256 match)
 - [ ] crates.io (`rust`) — polish Cargo.toml, `cargo publish`
 - [ ] Packagist (`php`) — submit repo URL, tag
-- [ ] Go — push `go/vX.Y.Z` tag, verify `go get`
+- [x] Go — `go/v0.1.0` tag pushed + proxy-verified (`go get` works, embedded ML model matches parity vectors)
 - [ ] then: RubyGems, NuGet, edge (npm+JSR), Maven Central, WordPress.org
