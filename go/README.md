@@ -52,11 +52,47 @@ e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
 })
 ```
 
+Shortcut: Echo can adapt the net/http middleware directly — `e.Use(echo.WrapMiddleware(c.Middleware))`.
+
+## Gorilla/mux
+
+Wrap the **router**, not `r.Use(...)`. Gorilla only runs `r.Use` middleware on *matched* routes, so a
+scanner hitting an unknown path (`/.env`, `/admin`) would bypass the shield. Wrapping covers every request:
+
+```go
+r := mux.NewRouter()
+// ...routes...
+handler := c.Middleware(r)          // NOT r.Use — see note above
+http.ListenAndServe(":8080", handler)
+```
+
+## Fiber (fasthttp)
+
+Fiber isn't net/http, so use its adaptor to run the SDK middleware inside Fiber:
+
+```go
+import fiberadaptor "github.com/gofiber/fiber/v2/middleware/adaptor"
+
+app := fiber.New()
+app.Use(fiberadaptor.HTTPMiddleware(c.Middleware))   // shield runs before your handlers
+```
+
+## Beego (MVC)
+
+Beego's `ControllerRegister` is an `http.Handler`, so wrap it at the root:
+
+```go
+handler := c.Middleware(web.BeeApp.Handlers)
+http.ListenAndServe(":8080", handler)
+```
+
 ## How enforcement works
 
 Observe (default) → learn & approve behaviors in the console → flip to **enforce** (the SDK polls the
 policy in the background, no redeploy) → off-baseline requests get `403 blocked_by_nemesis_shield`.
-Verified end-to-end on net/http, chi, Gin and Echo: legit passes (200); attacks blocked (403).
+Verified end-to-end (learn → enforce → attack) on **net/http, chi, Gin, Echo, Gorilla/mux, Fiber and
+Beego**: legit passes (200); auth-bypass/BOLA, scanner probes, param tampering and method anomalies are
+blocked (403) *before the handler runs*.
 
 ## LLM Guard (OWASP LLM Top 10)
 
