@@ -1,4 +1,4 @@
-package xyz.nemesislabs.sentinel;
+package io.github.eobi.sentinel;
 
 // Servlet filter (Jakarta EE / Spring Boot 3+). Register it and set NEMESIS_TOKEN.
 // Spring Boot:  @Bean FilterRegistrationBean<NemesisShieldFilter> ... new NemesisShieldFilter()

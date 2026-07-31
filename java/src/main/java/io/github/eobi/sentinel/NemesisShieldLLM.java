@@ -1,4 +1,4 @@
-package xyz.nemesislabs.sentinel;
+package io.github.eobi.sentinel;
 
 // LLM Guard for Java (JDK 11+, no dependencies) — OWASP-LLM-Top-10 detection with the HashLR ML
 // classifier shared across every Nemesis Shield SDK. Feature buckets are fnv1a(feature) % dim,

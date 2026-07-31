@@ -1,4 +1,4 @@
-package xyz.nemesislabs.sentinel;
+package io.github.eobi.sentinel;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
