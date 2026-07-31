@@ -21,7 +21,7 @@ All share ONE behavioral contract (identical `ml_weights.json` + FNV-1a shape ha
 | `go` | **Go modules** (proxy) | `github.com/eobi/nemesis_shield_sdks/go` | `go get github.com/eobi/nemesis_shield_sdks/go` | ✅ **PUBLISHED** tag `go/v0.1.0` · proxy-verified |
 | `ruby` | **RubyGems** | `nemesis-shield` | `gem install nemesis-shield` | ✅ **PUBLISHED** v0.1.0 · gemspec + pull-verified |
 | `php` | **Packagist** | `nemesislabs/sentinel` | `composer require nemesislabs/sentinel` | ✅ **PUBLISHED** v0.1.0 · split repo (eobi/nemesis-shield-php) · pull-verified |
-| `java` | **Maven Central** | `io.github.eobi:sentinel` | Maven/Gradle coordinate | ✅ pom.xml + GPG (keyserver) + Central Portal — v0.1.0 **validated + publish triggered**, propagating to Maven Central (io.github.eobi verified) |
+| `java` | **Maven Central** | `io.github.eobi:sentinel` | Maven/Gradle coordinate | ✅ **PUBLISHED** v0.1.0 · Central-pull-verified · live-tested Raw HttpServer + Spring Boot |
 | `dotnet` | **NuGet** | `NemesisShield` | `dotnet add package NemesisShield` | ⏳ pending — needs `.csproj` |
 | `rust` | **crates.io** | `nemesis-shield` | `cargo add nemesis-shield` | ⏳ Cargo.toml ready (v0.1.0) — not yet pushed to crates.io |
 | `wordpress` | **WordPress.org** | slug `nemesis-shield` | Plugins → search "Nemesis Shield" | ⏳ pending — needs `readme.txt` (WP format) + assets + SVN |
