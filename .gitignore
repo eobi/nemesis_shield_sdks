@@ -36,3 +36,7 @@ dotnet/obj/
 dotnet/nupkg/
 dotnet/**/bin/
 dotnet/**/obj/
+
+# edge build output
+edge/dist/
+edge/node_modules/
