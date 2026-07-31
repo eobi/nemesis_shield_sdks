@@ -97,7 +97,7 @@ define('NEMESIS_SHIELD_TOKEN', 'nsk_your_site_token');
 
 **Java** — `io.github.eobi:sentinel` on Maven Central (Spring Boot filter, or raw:)
 ```java
-import xyz.nemesislabs.sentinel.NemesisShield;
+import io.github.eobi.sentinel.NemesisShield;
 var nemesis = new NemesisShield(System.getenv("NEMESIS_TOKEN"));
 if (nemesis.guard(method, path, authed, exchange)) return;   // block off-baseline (403)
 nemesis.observe(method, path, authed, status);               // learn

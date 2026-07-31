@@ -12,14 +12,14 @@ redeploy). Positive-security, fail-open.
 <dependency>
   <groupId>io.github.eobi</groupId>
   <artifactId>sentinel</artifactId>
-  <version>0.1.0</version>
+  <version>0.1.1</version>
 </dependency>
 ```
 **Gradle**
 ```kotlin
-implementation("io.github.eobi:sentinel:0.1.0")
+implementation("io.github.eobi:sentinel:0.1.1")
 ```
-Then `import xyz.nemesislabs.sentinel.NemesisShield;` (also `NemesisShieldFilter`, `NemesisShieldLLM`).
+Then `import io.github.eobi.sentinel.NemesisShield;` (also `NemesisShieldFilter`, `NemesisShieldLLM`).
 The trained ML model (`ml_weights.json`) ships inside the jar. Self-hosting? Set `NEMESIS_ENDPOINT`
 (env) or `-Dnemesis.endpoint=` to point at your own Shield.
 
