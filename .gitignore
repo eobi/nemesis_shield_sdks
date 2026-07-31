@@ -40,3 +40,4 @@ dotnet/**/obj/
 # edge build output
 edge/dist/
 edge/node_modules/
+edge/package-lock.json
