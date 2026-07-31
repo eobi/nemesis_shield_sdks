@@ -18,7 +18,7 @@ Nemesis is unreachable, your app is completely unaffected.
 | **Python** | `nemesis-shield` | ASGI/WSGI middleware (FastAPI/Starlette/Flask) → [`python/`](python/) |
 | **Go** | `github.com/eobi/nemesis_shield_sdks/go` | `net/http` middleware → [`go/`](go/) |
 | **Ruby** | `nemesis_shield.rb` | Rack middleware (Rails/Sinatra) → [`ruby/`](ruby/) |
-| **PHP** | `NemesisShield.php` | `register_shutdown_function` → [`php/`](php/) |
+| **PHP** | `composer require nemesislabs/sentinel` | Laravel auto-discovery / `register_shutdown_function` → [`php/`](php/) |
 | **WordPress** | drop-in plugin | Activate → set token; gates the front end, REST & admin-ajax → [`wordpress/`](wordpress/) |
 | **Java** | `NemesisShield.java` | Servlet filter / Spring Boot (JDK 11+) → [`java/`](java/) |
 | **.NET / C#** | `NemesisShield.cs` | ASP.NET Core middleware → [`dotnet/`](dotnet/) |
@@ -83,9 +83,10 @@ http.ListenAndServe(":8080", handler)
 use NemesisShield::Middleware, token: ENV["NEMESIS_TOKEN"]
 ```
 
-**PHP**
+**PHP** — `composer require nemesislabs/sentinel` (Laravel auto-discovers the middleware; raw PHP:)
 ```php
-register_shutdown_function(fn() => NemesisShield::observe(getenv('NEMESIS_TOKEN')));
+NemesisShield::guard(getenv('NEMESIS_TOKEN'));                                        // block off-baseline
+register_shutdown_function(fn() => NemesisShield::observe(getenv('NEMESIS_TOKEN'))); // learn
 ```
 
 **WordPress** — drop the [`wordpress/nemesis-shield/`](wordpress/) plugin into `wp-content/plugins/`, activate, and set the token:
