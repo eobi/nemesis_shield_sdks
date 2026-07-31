@@ -14,7 +14,7 @@ Nemesis is unreachable, your app is completely unaffected.
 
 | Language | Package | Integration |
 |---|---|---|
-| **Node.js** | `@nemesis-shield/sentinel` | One-line Express/Connect middleware → [`node/`](node/) |
+| **Node.js** | `@nemesis-shield-autogon/sentinel` | One-line Express/Connect middleware → [`node/`](node/) |
 | **Python** | `nemesis-shield` | ASGI/WSGI middleware (FastAPI/Starlette/Flask) → [`python/`](python/) |
 | **Go** | `github.com/eobi/nemesis_shield_sdks/go` | `net/http` middleware → [`go/`](go/) |
 | **Ruby** | `nemesis_shield.rb` | Rack middleware (Rails/Sinatra) → [`ruby/`](ruby/) |
@@ -37,13 +37,13 @@ tampering, field injection, and **clickjacking**; and maps directly to **PCI DSS
 
 | Front-end | Package | Integration |
 |---|---|---|
-| **React · Angular · Vue · jQuery · plain JS** | `@nemesis-shield/browser` | one `<script data-token>` tag, or `NemesisShield.init({token})` → [`browser/`](browser/) |
+| **React · Angular · Vue · jQuery · plain JS** | `@nemesis-shield-autogon/browser` | one `<script data-token>` tag, or `NemesisShield.init({token})` → [`browser/`](browser/) |
 
 One SDK covers every framework — they all share the same browser primitives.
 
 > **Using TypeScript?** There's no separate TS SDK — TypeScript is these same runtimes. Node backends
-> use [`@nemesis-shield/sentinel`](node/) (ships `.d.ts`), Supabase Edge / Deno / Workers use
-> [`edge/`](edge/), and TS front-ends use [`@nemesis-shield/browser`](browser/) (ships `.d.ts`).
+> use [`@nemesis-shield-autogon/sentinel`](node/) (ships `.d.ts`), Supabase Edge / Deno / Workers use
+> [`edge/`](edge/), and TS front-ends use [`@nemesis-shield-autogon/browser`](browser/) (ships `.d.ts`).
 
 ## Get a token
 
@@ -56,10 +56,10 @@ One SDK covers every framework — they all share the same browser primitives.
 
 **Node.js**
 ```bash
-npm install @nemesis-shield/sentinel
+npm install @nemesis-shield-autogon/sentinel
 ```
 ```js
-import { sentinel } from "@nemesis-shield/sentinel/express";
+import { sentinel } from "@nemesis-shield-autogon/sentinel/express";
 app.use(sentinel({ token: process.env.NEMESIS_TOKEN })); // one line, zero route changes
 ```
 
@@ -131,7 +131,7 @@ The Node and Python SDKs also report LLM exchanges for OWASP-LLM-Top-10 behavior
 detection labels and shapes are stored — never raw prompts or responses.
 
 ```js
-import { reportLLM } from "@nemesis-shield/sentinel";
+import { reportLLM } from "@nemesis-shield-autogon/sentinel";
 await reportLLM(token, { prompt, system, response, tools, allowedTools: ["search"] });
 ```
 

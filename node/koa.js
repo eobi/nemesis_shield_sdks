@@ -1,5 +1,5 @@
 // Koa middleware. One line:
-//   import { sentinelKoa } from "@nemesis-shield/sentinel/koa";
+//   import { sentinelKoa } from "@nemesis-shield-autogon/sentinel/koa";
 //   app.use(sentinelKoa({ token: process.env.NEMESIS_TOKEN }));
 import { SentinelClient } from "./lib/client.js";
 import { buildSketch } from "./lib/shape.js";

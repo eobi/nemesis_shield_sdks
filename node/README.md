@@ -1,4 +1,4 @@
-# @nemesis-shield/sentinel — Node.js
+# @nemesis-shield-autogon/sentinel — Node.js
 
 Native Node SDK for [Nemesis Shield](https://shield.nemesislabs.xyz). Learns your app's normal
 behavior, and in **enforce mode BLOCKS off-baseline requests** (auth bypass, path traversal,
@@ -6,32 +6,32 @@ scanners, unusual methods) before your routes run. Positive-security, fail-open,
 (ships only method + route shape + auth — never bodies or secrets).
 
 ```bash
-npm install @nemesis-shield/sentinel
+npm install @nemesis-shield-autogon/sentinel
 ```
 
 ## One line per framework
 
 **Express / Connect**
 ```js
-import { sentinel } from "@nemesis-shield/sentinel/express";
+import { sentinel } from "@nemesis-shield-autogon/sentinel/express";
 app.use(sentinel({ token: process.env.NEMESIS_TOKEN }));
 ```
 
 **Fastify**
 ```js
-import { sentinelFastify } from "@nemesis-shield/sentinel/fastify";
+import { sentinelFastify } from "@nemesis-shield-autogon/sentinel/fastify";
 await app.register(sentinelFastify, { token: process.env.NEMESIS_TOKEN });
 ```
 
 **Koa**
 ```js
-import { sentinelKoa } from "@nemesis-shield/sentinel/koa";
+import { sentinelKoa } from "@nemesis-shield-autogon/sentinel/koa";
 app.use(sentinelKoa({ token: process.env.NEMESIS_TOKEN }));
 ```
 
 **Raw / anything** — use the client directly:
 ```js
-import { SentinelClient, buildSketch } from "@nemesis-shield/sentinel";
+import { SentinelClient, buildSketch } from "@nemesis-shield-autogon/sentinel";
 const client = new SentinelClient({ token: process.env.NEMESIS_TOKEN });
 client.record(buildSketch({ method: "GET", path: "/orders/42", authenticated: true, status: 200 }));
 ```

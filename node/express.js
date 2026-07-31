@@ -1,5 +1,5 @@
 // Express / Connect adapter. One line:
-//   import { sentinel } from "@nemesis-shield/sentinel/express";
+//   import { sentinel } from "@nemesis-shield-autogon/sentinel/express";
 //   app.use(sentinel({ token: process.env.NEMESIS_TOKEN }));
 // Observes every request and, in enforce mode, blocks off-baseline requests (403) before your
 // routes run. Fail-open.

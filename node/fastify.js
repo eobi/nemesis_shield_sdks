@@ -1,5 +1,5 @@
 // Fastify plugin. One line:
-//   import { sentinelFastify } from "@nemesis-shield/sentinel/fastify";
+//   import { sentinelFastify } from "@nemesis-shield-autogon/sentinel/fastify";
 //   await app.register(sentinelFastify, { token: process.env.NEMESIS_TOKEN });
 import { SentinelClient } from "./lib/client.js";
 import { buildSketch } from "./lib/shape.js";

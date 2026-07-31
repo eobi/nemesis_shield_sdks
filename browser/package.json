@@ -1,5 +1,5 @@
 {
-  "name": "@nemesis-shield/browser",
+  "name": "@nemesis-shield-autogon/browser",
   "version": "0.1.0",
   "description": "Nemesis Shield browser SDK — client-side runtime protection (anti-skimmer / anti-exfil / form-jacking) for React, Angular, Vue, jQuery, and plain JS.",
   "main": "nemesis-shield.js",

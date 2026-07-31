@@ -41,7 +41,7 @@ Magecart class. This SDK maps directly to them:
 
 **Bundled app** (React / Vue / Angular) — once at bootstrap, before render:
 ```js
-import NemesisShield from "@nemesis-shield/browser";
+import NemesisShield from "@nemesis-shield-autogon/browser";
 NemesisShield.init({ token: import.meta.env.VITE_NEMESIS_TOKEN, frameBust: true });
 ```
 - **React** → top of `main.tsx` / `index.js`. **Angular** → `main.ts` before bootstrap. **Vue** →

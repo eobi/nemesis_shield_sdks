@@ -43,9 +43,9 @@ There's no separate "TypeScript SDK" — TypeScript *is* the JS runtimes:
 
 | Where your TypeScript runs | Use |
 |---|---|
-| **Node** backend (Express/Fastify/Koa, Next.js API routes) | [`@nemesis-shield/sentinel`](../node/) — ships `.d.ts` types |
+| **Node** backend (Express/Fastify/Koa, Next.js API routes) | [`@nemesis-shield-autogon/sentinel`](../node/) — ships `.d.ts` types |
 | **Supabase Edge / Deno / CF Workers / Vercel Edge** | **this package** (`edge/`) |
-| **Browser** (React/Angular/Vue/…) | [`@nemesis-shield/browser`](../browser/) — ships `.d.ts` types |
+| **Browser** (React/Angular/Vue/…) | [`@nemesis-shield-autogon/browser`](../browser/) — ships `.d.ts` types |
 
 ## Verified
 

@@ -2,10 +2,10 @@
 // locally, learns your app's normal behavior, and — in enforce mode — BLOCKS off-baseline requests
 // (auth bypass, path traversal, scanners, unusual methods) before your routes run. Fail-open.
 //
-//   import { sentinel } from "@nemesis-shield/sentinel/express";
+//   import { sentinel } from "@nemesis-shield-autogon/sentinel/express";
 //   app.use(sentinel({ token: process.env.NEMESIS_TOKEN }));
 //
-// Framework adapters: "@nemesis-shield/sentinel/express" | "/fastify" | "/koa".
+// Framework adapters: "@nemesis-shield-autogon/sentinel/express" | "/fastify" | "/koa".
 export { sentinel } from "./express.js";
 export { sentinelFastify } from "./fastify.js";
 export { sentinelKoa } from "./koa.js";

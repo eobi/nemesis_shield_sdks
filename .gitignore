@@ -22,3 +22,4 @@ dotnet/deeptest/bin/
 dotnet/deeptest/obj/
 # demo build output
 demo/live-cve/goapp/app
+.npmrc
