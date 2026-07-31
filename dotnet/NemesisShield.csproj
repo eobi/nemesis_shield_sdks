@@ -1,0 +1,57 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- net8.0 = modern ASP.NET Core; netstandard2.0 = broad reach (.NET Framework 4.6.1+, .NET 6/7/8,
+         .NET Core 2.0+) — the combination banks need for mixed legacy + modern estates. -->
+    <TargetFrameworks>net8.0;netstandard2.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AssemblyName>NemesisShield</AssemblyName>
+    <RootNamespace>NemesisShield</RootNamespace>
+
+    <!-- NuGet package metadata -->
+    <PackageId>NemesisShield</PackageId>
+    <Version>0.1.1</Version>
+    <Authors>Autogon Inc.</Authors>
+    <Company>Nemesis Labs</Company>
+    <Description>Nemesis Shield — Sentinel SDK for .NET / ASP.NET Core. Positive-security runtime protection: learns your app's normal behavior and blocks off-baseline requests (auth bypass, BOLA, path traversal, scanners, unusual methods) in enforce mode BEFORE your endpoints run, plus an OWASP-LLM prompt-injection guard with an embedded ML model (byte-identical across all Nemesis Shield SDKs). One line: app.UseMiddleware&lt;NemesisShield.SentinelMiddleware&gt;(). Fail-open, privacy-preserving. Targets net8.0 + netstandard2.0 (.NET Framework 4.6.1+ / .NET 6/8 / .NET Core).</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://nemesislabs.xyz</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/eobi/nemesis_shield_sdks</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>security;waf;rasp;appsec;aspnetcore;middleware;positive-security;owasp;llm;prompt-injection;nemesis-shield</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="NemesisShield.cs" />
+    <Compile Include="NemesisShieldLLM.cs" />
+    <!-- ship the trained HashLR model inside the assembly (loads via GetManifestResourceStream) -->
+    <EmbeddedResource Include="ml_weights.json" />
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Ed25519 verification for signed model hot-swaps -->
+    <PackageReference Include="BouncyCastle.Cryptography" Version="2.4.0" />
+  </ItemGroup>
+
+  <!-- ASP.NET Core middleware types: shared framework on net8.0, abstractions package on netstandard2.0 -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.2.0" />
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+    <!-- polyfills (records / init-only / IsExternalInit) so the same source compiles on netstandard2.0 -->
+    <PackageReference Include="PolySharp" Version="1.14.1">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+</Project>

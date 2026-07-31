@@ -29,3 +29,10 @@ demo/live-cve/goapp/app
 
 # java build output
 java/target/
+
+# dotnet build output
+dotnet/bin/
+dotnet/obj/
+dotnet/nupkg/
+dotnet/**/bin/
+dotnet/**/obj/

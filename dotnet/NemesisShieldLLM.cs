@@ -58,7 +58,7 @@ public static class LlmGuard
         if (string.IsNullOrEmpty(sigB64)) return false;          // key pinned but bundle unsigned — reject
         try
         {
-            byte[] key = Convert.FromHexString(ModelPublicKeyHex);
+            byte[] key = FromHex(ModelPublicKeyHex);
             byte[] sig = Convert.FromBase64String(sigB64);
             var verifier = new Org.BouncyCastle.Crypto.Signers.Ed25519Signer();
             verifier.Init(false, new Org.BouncyCastle.Crypto.Parameters.Ed25519PublicKeyParameters(key, 0));
@@ -101,9 +101,30 @@ public static class LlmGuard
 
     private static string LoadWeights()
     {
+        // 1) embedded resource — the trained model shipped inside the NuGet package (bank/air-gapped safe)
+        try
+        {
+            var asm = typeof(LlmGuard).Assembly;
+            foreach (var n in asm.GetManifestResourceNames())
+                if (n.EndsWith("ml_weights.json", StringComparison.Ordinal))
+                {
+                    using var s = asm.GetManifestResourceStream(n);
+                    if (s != null) { using var r = new StreamReader(s); return r.ReadToEnd(); }
+                }
+        }
+        catch { /* fall through to disk */ }
+        // 2) disk — dev / source-drop / hot-swap beside the assembly
         foreach (var p in new[] { "ml_weights.json", Path.Combine(AppContext.BaseDirectory, "ml_weights.json") })
             if (File.Exists(p)) return File.ReadAllText(p);
         return "{\"dim\":8192,\"bias\":0,\"weights\":{}}";
+    }
+
+    // portable hex decode (Convert.FromHexString is net5+; this keeps netstandard2.0 working)
+    private static byte[] FromHex(string hex)
+    {
+        var b = new byte[hex.Length / 2];
+        for (int i = 0; i < b.Length; i++) b[i] = System.Convert.ToByte(hex.Substring(i * 2, 2), 16);
+        return b;
     }
 
     private static uint Fnv1a(string s)

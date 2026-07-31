@@ -1,14 +1,28 @@
 # Nemesis Shield — .NET / C#
 
 Native .NET SDK for [Nemesis Shield](https://shield.nemesislabs.xyz). Learns your app's normal
-behavior; in **enforce mode BLOCKS off-baseline requests** (auth bypass, path traversal, scanners,
-unusual methods) before your endpoints run. Positive-security, fail-open, privacy-preserving.
+behavior; in **enforce mode BLOCKS off-baseline requests** (auth bypass, BOLA, path traversal,
+scanners, unusual methods) before your endpoints run. Positive-security, fail-open, privacy-preserving.
 
-**ASP.NET Core** — add `NemesisShield.cs` to your project and register the middleware:
-```csharp
-app.UseMiddleware<NemesisShield.SentinelMiddleware>();
+Targets **net8.0** (modern ASP.NET Core) and **netstandard2.0** (.NET Framework 4.6.1+, .NET 6/7/8,
+.NET Core) — the mix an enterprise/bank estate needs. The trained ML model ships inside the assembly.
+
+## Install
+
+```bash
+dotnet add package NemesisShield
 ```
-Set `NEMESIS_TOKEN` in the environment.
+
+**ASP.NET Core** — register the middleware **first in the pipeline** so it inspects *every* request
+(including paths that match no endpoint), then set `NEMESIS_TOKEN`:
+```csharp
+var app = builder.Build();
+app.UseMiddleware<NemesisShield.SentinelMiddleware>();   // BEFORE UseRouting / endpoints — sees all traffic
+// ... app.UseRouting(); app.MapControllers(); etc.
+```
+
+Self-hosted / on-prem / air-gapped Shield? Point the SDK at your own endpoint with the
+`NEMESIS_ENDPOINT` environment variable (defaults to the Nemesis Shield cloud).
 
 Observe (default) → learn & approve behaviors in the console → flip to **enforce** (the SDK polls the
 policy in the background, no redeploy) → off-baseline requests get `403 blocked_by_nemesis_shield`.
@@ -18,8 +32,8 @@ BOLA, path traversal and scanner probes blocked (403) and reported.
 ## LLM Guard (OWASP LLM Top 10)
 
 The same HashLR ML classifier every Nemesis Shield SDK ships — catches obfuscated prompt injection
-signature rules miss, scored identically in every language. Add `NemesisShieldLLM.cs` +
-`ml_weights.json`.
+signature rules miss, scored identically in every language. `LlmGuard` and the trained
+`ml_weights.json` are included in the package (embedded — no extra setup).
 
 ```csharp
 using NemesisShield;

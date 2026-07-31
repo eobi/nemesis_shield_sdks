@@ -9,12 +9,17 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Http;
 
 namespace NemesisShield;
 
 public sealed class SentinelClient
 {
-    private const string Endpoint = "https://shield.nemesislabs.xyz/api/v1/sketches";
+    // Sketches endpoint. Defaults to the Nemesis Shield cloud; override with the NEMESIS_ENDPOINT env
+    // var to point at a self-hosted / on-prem Shield or a local mock (bank / air-gapped deployments).
+    private static readonly string Endpoint =
+        Environment.GetEnvironmentVariable("NEMESIS_ENDPOINT") is { Length: > 0 } e
+            ? e : "https://shield.nemesislabs.xyz/api/v1/sketches";
     // Canonical value taxonomy — matches the shared engine (tokenize.ts) byte-for-byte.
     private static readonly Regex Int = new("^-?\\d+$", RegexOptions.Compiled);
     private static readonly Regex Float = new("^-?\\d*\\.\\d+$", RegexOptions.Compiled);
