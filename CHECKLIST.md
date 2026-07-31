@@ -20,7 +20,7 @@ Legend: `[x]` done · `[ ]` not yet.
 | 3 | edge | npm + JSR | **`@nemesis-shield-autogon/edge`** | `npm i @nemesis-shield-autogon/edge` | [ ] | [ ] |
 | 4 | python | PyPI | **`nemesis-shield`** (v0.1.0) | `pip install nemesis-shield` | ✅ 0.1.0 | ✅ works |
 | 5 | go | Go modules | **`github.com/eobi/nemesis_shield_sdks/go`** (tag `go/v0.1.0`) | `go get github.com/eobi/nemesis_shield_sdks/go` | ✅ go/v0.1.0 | ✅ works |
-| 6 | ruby | RubyGems | **`nemesis-shield`** | `gem install nemesis-shield` | [ ] | [ ] |
+| 6 | ruby | RubyGems | **`nemesis-shield`** (v0.1.0) | `gem install nemesis-shield` | ⏳ built+verified, needs API key | [ ] |
 | 7 | php | Packagist | **`nemesislabs/sentinel`** | `composer require nemesislabs/sentinel` | [ ] | [ ] |
 | 8 | java | Maven Central | **`xyz.nemesislabs:sentinel`** | Maven/Gradle coord | [ ] | [ ] |
 | 9 | dotnet | NuGet | **`NemesisShield`** | `dotnet add package NemesisShield` | [ ] | [ ] |
@@ -51,7 +51,7 @@ Legend: `[x]` done · `[ ]` not yet.
 ## Manifests to CREATE before those can publish
 
 - [ ] `edge/package.json` + `edge/jsr.json` (name `@nemesis-shield-autogon/edge`) → then repoint the CF proxy import
-- [ ] `ruby/nemesis-shield.gemspec`
+- [x] `ruby/nemesis-shield.gemspec` (done; flat layout, ships ml_weights.json)
 - [ ] `dotnet/NemesisShield.csproj` (+ BouncyCastle dep, embed ml_weights.json)
 - [ ] `wordpress/nemesis-shield/readme.txt` (WP format) + `assets/` (icon/banner/screenshots)
 - [ ] `java/pom.xml` (groupId `xyz.nemesislabs`, GPG signing, Central Portal deploy) ← long pole
