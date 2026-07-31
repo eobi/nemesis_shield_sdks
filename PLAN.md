@@ -47,7 +47,7 @@ Reserve every name up front so nobody squats them, even before the code is 100% 
 | Packagist | Submit repo URL once; auto-updates on tag via webhook | none (GitHub App) |
 | Go | nothing — `proxy.golang.org` indexes any public tag | none |
 | RubyGems | Account, reserve `nemesis-shield` | `RUBYGEMS_API_KEY` |
-| Maven Central | **Central Portal** (central.sonatype.com) namespace `xyz.nemesislabs` (verify via DNS TXT on nemesislabs.xyz) + a **GPG key** published to keyservers | `CENTRAL_TOKEN` + `GPG_PRIVATE_KEY` + `GPG_PASSPHRASE` |
+| Maven Central | **Central Portal** (central.sonatype.com) namespace `io.github.eobi` (verify via a public GitHub repo, no DNS) + a **GPG key** published to keyservers | `CENTRAL_TOKEN` + `GPG_PRIVATE_KEY` + `GPG_PASSPHRASE` |
 | NuGet | nuget.org account, reserve `NemesisShield` (ID prefix optional) | `NUGET_API_KEY` |
 | WordPress.org | Submit plugin at wordpress.org/plugins/developers for **manual review** (can take days–weeks); then SVN commit access | SVN user/pass (`SVN_USER`, `SVN_PASS`) |
 
@@ -101,8 +101,8 @@ Per-registry publish specifics:
   long-lived token is stored. Build with `python -m build`, publish with `pypa/gh-action-pypi-publish`.
 - **crates.io:** `cargo publish` needs `CARGO_REGISTRY_TOKEN`; the name is claimed on first successful publish.
 - **Maven Central:** the heaviest. Sign artifacts with GPG (`maven-gpg-plugin`), publish to the Central Portal
-  (`central-publishing-maven-plugin`), namespace `xyz.nemesislabs` verified by a DNS TXT record on
-  `nemesislabs.xyz`. Budget extra setup time here.
+  (`central-publishing-maven-plugin`), namespace `io.github.eobi` verified via a
+  public GitHub repo named the verification key. Budget extra setup time here.
 - **NuGet:** `dotnet nuget push bin/Release/*.nupkg -k $NUGET_API_KEY -s https://api.nuget.org/v3/index.json`.
 - **Go:** the module is already `github.com/eobi/nemesis_shield_sdks/go`; a subdir module is released by a
   **path-prefixed tag** `go/vX.Y.Z` (in addition to the top-level `vX.Y.Z`). Then
