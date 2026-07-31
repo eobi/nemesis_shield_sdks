@@ -103,6 +103,12 @@ if (nemesis.guard(method, path, authed, exchange)) return;   // block off-baseli
 nemesis.observe(method, path, authed, status);               // learn
 ```
 
+**.NET / C#** — `dotnet add package NemesisShield` (net8.0 + netstandard2.0 / .NET Framework 4.6.1+)
+```csharp
+// Program.cs — register FIRST (before UseRouting) so it inspects every request, incl. unmatched paths
+app.UseMiddleware<NemesisShield.SentinelMiddleware>();   // set NEMESIS_TOKEN in env
+```
+
 **Rust** (axum / actix — see [`rust/`](rust/) for the middleware)
 ```rust
 let shield = nemesis_shield::Client::new(std::env::var("NEMESIS_TOKEN").unwrap_or_default());
