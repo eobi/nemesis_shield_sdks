@@ -16,7 +16,7 @@ All share ONE behavioral contract (identical `ml_weights.json` + FNV-1a shape ha
 |---|---|---|---|---|
 | `node` | **npm** | `@nemesis-shield-autogon/sentinel` | `npm i @nemesis-shield-autogon/sentinel` | ✅ **PUBLISHED** v0.2.2 · pull-verified |
 | `browser` | **npm** (+ CDN) | `@nemesis-shield-autogon/browser` | `npm i @nemesis-shield-autogon/browser` / unpkg | ✅ **PUBLISHED** v0.1.1 · pull-verified |
-| `edge` | **npm** + **JSR** | `@nemesis-shield-autogon/edge` | `npm i @nemesis-shield-autogon/edge` / `jsr add @nemesis-shield-autogon/edge` | ⏳ pending — needs package.json (+ jsr.json) |
+| `edge` | **npm** + **JSR** | `@nemesis-shield-autogon/edge` | `npm i @nemesis-shield-autogon/edge` / `jsr add ...` | ✅ **npm PUBLISHED** v0.1.0 · pull-verified · JSR ready (needs scope+auth) |
 | `python` | **PyPI** | `nemesis-shield` | `pip install nemesis-shield` | ✅ **PUBLISHED** v0.1.1 · pull-verified |
 | `go` | **Go modules** (proxy) | `github.com/eobi/nemesis_shield_sdks/go` | `go get github.com/eobi/nemesis_shield_sdks/go` | ✅ **PUBLISHED** tag `go/v0.1.0` · proxy-verified |
 | `ruby` | **RubyGems** | `nemesis-shield` | `gem install nemesis-shield` | ✅ **PUBLISHED** v0.1.0 · gemspec + pull-verified |
