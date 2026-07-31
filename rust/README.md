@@ -97,8 +97,9 @@ if shield.enforcing() {
    blocked with `403 blocked_by_nemesis_shield` and reported as a finding. No redeploy — the SDK
    picks up the mode change on its next poll.
 
-Verified end-to-end (learn → enforce → attack) on axum: legit traffic passes (200); auth bypass,
-BOLA, path traversal and scanner probes are blocked (403) and reported.
+Verified end-to-end (learn → enforce → attack) on **axum and actix-web** (8/8 each): legit traffic
+passes (200); auth bypass, BOLA, path traversal, param tampering, method and auth anomalies are
+blocked (403) before the handler runs; the login path stays reachable (break-glass).
 
 ## LLM Guard (OWASP LLM Top 10)
 
