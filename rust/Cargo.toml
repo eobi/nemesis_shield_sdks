@@ -5,6 +5,7 @@ edition = "2021"
 license = "MIT"
 description = "Nemesis Shield — Sentinel SDK for Rust: learns your app's normal behavior and blocks off-baseline requests (positive-security, fail-open)."
 repository = "https://github.com/eobi/nemesis_shield_sdks"
+homepage = "https://nemesislabs.xyz"
 readme = "README.md"
 keywords = ["security", "waf", "rasp", "runtime", "appsec"]
 categories = ["web-programming", "authentication"]
