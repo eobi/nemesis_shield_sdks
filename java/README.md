@@ -1,9 +1,27 @@
-# Nemesis Shield — Java (JDK 11+, no dependencies)
+# Nemesis Shield — Java (JDK 11+, no runtime dependencies)
 
 Native Java SDK for [Nemesis Shield](https://shield.nemesislabs.xyz). Learns your app's normal
 behavior; in **enforce mode BLOCKS off-baseline requests** (auth bypass, path traversal, scanners,
 unusual methods) before your handlers run. Background policy poller (console-driven enforce, no
 redeploy). Positive-security, fail-open.
+
+## Install (Maven Central)
+
+**Maven**
+```xml
+<dependency>
+  <groupId>io.github.eobi</groupId>
+  <artifactId>sentinel</artifactId>
+  <version>0.1.0</version>
+</dependency>
+```
+**Gradle**
+```kotlin
+implementation("io.github.eobi:sentinel:0.1.0")
+```
+Then `import xyz.nemesislabs.sentinel.NemesisShield;` (also `NemesisShieldFilter`, `NemesisShieldLLM`).
+The trained ML model (`ml_weights.json`) ships inside the jar. Self-hosting? Set `NEMESIS_ENDPOINT`
+(env) or `-Dnemesis.endpoint=` to point at your own Shield.
 
 **Servlet / Spring Boot 3+** — register `NemesisShieldFilter` and set `NEMESIS_TOKEN`:
 ```java
@@ -32,8 +50,8 @@ raw HttpServer: legit passes (200); attacks blocked (403). The Servlet filter us
 ## LLM Guard (OWASP LLM Top 10)
 
 The same HashLR ML classifier every Nemesis Shield SDK ships — catches obfuscated prompt injection
-signature rules miss, scored identically in every language. Add `NemesisShieldLLM.java` +
-`ml_weights.json` (on the classpath).
+signature rules miss, scored identically in every language. `NemesisShieldLLM` and the trained
+`ml_weights.json` are included in the dependency (no extra setup).
 
 ```java
 var v = NemesisShieldLLM.guardLLM(userPrompt, true); // enforce

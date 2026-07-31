@@ -20,7 +20,7 @@ Nemesis is unreachable, your app is completely unaffected.
 | **Ruby** | `nemesis_shield.rb` | Rack middleware (Rails/Sinatra) → [`ruby/`](ruby/) |
 | **PHP** | `composer require nemesislabs/sentinel` | Laravel auto-discovery / `register_shutdown_function` → [`php/`](php/) |
 | **WordPress** | drop-in plugin | Activate → set token; gates the front end, REST & admin-ajax → [`wordpress/`](wordpress/) |
-| **Java** | `NemesisShield.java` | Servlet filter / Spring Boot (JDK 11+) → [`java/`](java/) |
+| **Java** | `io.github.eobi:sentinel` | Servlet filter / Spring Boot (JDK 11+) → [`java/`](java/) |
 | **.NET / C#** | `NemesisShield.cs` | ASP.NET Core middleware → [`dotnet/`](dotnet/) |
 | **Rust** | `nemesis-shield` | axum (tower) / actix-web middleware → [`rust/`](rust/) |
 | **Edge / Supabase** (Deno TS) | `nemesis-shield.ts` | `withShield()` for Supabase Edge Functions / Deno / CF Workers / Vercel Edge → [`edge/`](edge/) |
@@ -95,10 +95,12 @@ register_shutdown_function(fn() => NemesisShield::observe(getenv('NEMESIS_TOKEN'
 define('NEMESIS_SHIELD_TOKEN', 'nsk_your_site_token');
 ```
 
-**Java** (servlet filter)
+**Java** — `io.github.eobi:sentinel` on Maven Central (Spring Boot filter, or raw:)
 ```java
+import xyz.nemesislabs.sentinel.NemesisShield;
 var nemesis = new NemesisShield(System.getenv("NEMESIS_TOKEN"));
-nemesis.report(req.getMethod(), req.getRequestURI(), res.getStatus(), authed);
+if (nemesis.guard(method, path, authed, exchange)) return;   // block off-baseline (403)
+nemesis.observe(method, path, authed, status);               // learn
 ```
 
 **Rust** (axum / actix — see [`rust/`](rust/) for the middleware)
