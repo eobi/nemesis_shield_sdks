@@ -10,26 +10,66 @@ handler runs. Positive-security, fail-open, privacy-preserving.
 > which steps outside RLS. The function *is* the trust boundary, with nothing on it. This wraps that
 > boundary with a learned allow-list, so only the request shapes your function actually serves get through.
 
-## Supabase Edge Function
+## Install
 
-```ts
-import { withShield } from "https://esm.sh/gh/eobi/nemesis_shield_sdks/edge/nemesis-shield.ts";
-
-Deno.serve(
-  withShield(
-    async (req) => {
-      // ... your function ...
-      return new Response(JSON.stringify({ ok: true }), { headers: { "content-type": "application/json" } });
-    },
-    { token: Deno.env.get("NEMESIS_TOKEN") },
-  ),
-);
+```bash
+npm install @nemesis-shield-autogon/edge        # Cloudflare Workers, Vercel Edge, Next.js, bundlers
+deno add jsr:@nemesis-shield-autogon/edge        # Deno / Deno Deploy / Supabase Edge (or import jsr: directly)
 ```
 
+`withShield(handler, { token })` wraps any Web-standard `(Request) => Response` handler — so the same
+one line works on every edge runtime. Pick your platform:
+
+### Supabase Edge Functions (Deno)
+```ts
+import { withShield } from "jsr:@nemesis-shield-autogon/edge";
+
+Deno.serve(withShield(
+  async (req) => new Response(JSON.stringify({ ok: true }), { headers: { "content-type": "application/json" } }),
+  { token: Deno.env.get("NEMESIS_TOKEN") },
+));
+```
 Set the token: `supabase secrets set NEMESIS_TOKEN=nsk_your_app_token`.
 
-Works identically on **Deno Deploy**, **Cloudflare Workers**, and **Vercel Edge** — the handler is a
-plain Web-standard `(Request) => Response`.
+### Deno / Deno Deploy
+```ts
+import { withShield } from "jsr:@nemesis-shield-autogon/edge";
+
+Deno.serve(withShield((req) => new Response("ok"), { token: Deno.env.get("NEMESIS_TOKEN") }));
+```
+
+### Cloudflare Workers
+The token comes from the Worker's `env` binding (`wrangler secret put NEMESIS_TOKEN`):
+```ts
+import { withShield } from "@nemesis-shield-autogon/edge";
+
+const app = (req: Request) => new Response("ok");
+export default {
+  fetch(req: Request, env: { NEMESIS_TOKEN: string }) {
+    return withShield(app, { token: env.NEMESIS_TOKEN })(req);
+  },
+};
+```
+
+### Vercel Edge Functions
+```ts
+import { withShield } from "@nemesis-shield-autogon/edge";
+
+export const config = { runtime: "edge" };
+export default withShield((req) => new Response("ok"), { token: process.env.NEMESIS_TOKEN });
+```
+
+### Next.js Edge Middleware (`middleware.ts`)
+Guards **every route** in the app before it renders:
+```ts
+import { withShield } from "@nemesis-shield-autogon/edge";
+import { NextResponse } from "next/server";
+
+export const config = { matcher: "/:path*" };
+export default withShield(() => NextResponse.next(), { token: process.env.NEMESIS_TOKEN });
+```
+
+Self-hosted / on-prem Shield? Add `endpoint: "https://your-shield/api/v1/sketches"` to the options.
 
 ## Serverless-safe enforcement
 
