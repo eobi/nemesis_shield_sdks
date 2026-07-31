@@ -37,6 +37,22 @@ c = SentinelClient(token=os.environ["NEMESIS_TOKEN"])
 c.record(build_sketch(method="GET", path="/orders/42", authenticated=True, status=200))
 ```
 
+## Docs & links
+
+Want more than the one-liner? Full per-framework code, options, and examples:
+
+| Framework | Detailed guide & source |
+|---|---|
+| FastAPI / Starlette (ASGI) | [nemesis_shield/asgi.py](https://github.com/eobi/nemesis_shield_sdks/blob/main/python/nemesis_shield/asgi.py) |
+| Flask / WSGI | [nemesis_shield/wsgi.py](https://github.com/eobi/nemesis_shield_sdks/blob/main/python/nemesis_shield/wsgi.py) |
+| Django | [nemesis_shield/django.py](https://github.com/eobi/nemesis_shield_sdks/blob/main/python/nemesis_shield/django.py) |
+| Raw client | [nemesis_shield/client.py](https://github.com/eobi/nemesis_shield_sdks/blob/main/python/nemesis_shield/client.py) |
+| LLM guard | [nemesis_shield/llm.py](https://github.com/eobi/nemesis_shield_sdks/blob/main/python/nemesis_shield/llm.py) |
+| Runnable examples | [python/tests](https://github.com/eobi/nemesis_shield_sdks/tree/main/python/tests) |
+
+- **Full docs & source:** https://github.com/eobi/nemesis_shield_sdks/tree/main/python
+- **Website & console:** https://shield.nemesislabs.xyz
+
 ## How enforcement works
 
 1. **Learn** — deploy in observe mode (default). Every request is recorded as a privacy-preserving

@@ -36,6 +36,22 @@ const client = new SentinelClient({ token: process.env.NEMESIS_TOKEN });
 client.record(buildSketch({ method: "GET", path: "/orders/42", authenticated: true, status: 200 }));
 ```
 
+## Docs & links
+
+Want more than the one-liner? Full per-framework code, options, and examples:
+
+| Framework | Detailed guide & source |
+|---|---|
+| Express / Connect | [express.js](https://github.com/eobi/nemesis_shield_sdks/blob/main/node/express.js) |
+| Fastify | [fastify.js](https://github.com/eobi/nemesis_shield_sdks/blob/main/node/fastify.js) |
+| Koa | [koa.js](https://github.com/eobi/nemesis_shield_sdks/blob/main/node/koa.js) |
+| Raw client | [lib/client.js](https://github.com/eobi/nemesis_shield_sdks/blob/main/node/lib/client.js) |
+| LLM guard | [lib/llm.js](https://github.com/eobi/nemesis_shield_sdks/blob/main/node/lib/llm.js) |
+| Runnable examples | [node/tests](https://github.com/eobi/nemesis_shield_sdks/tree/main/node/tests) |
+
+- **Full docs & source:** https://github.com/eobi/nemesis_shield_sdks/tree/main/node
+- **Website & console:** https://shield.nemesislabs.xyz
+
 ## How enforcement works
 
 Deploy in **observe** mode (default) → the SDK records privacy-preserving request signatures → review

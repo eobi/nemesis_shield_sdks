@@ -50,6 +50,19 @@ NemesisShield.init({ token: import.meta.env.VITE_NEMESIS_TOKEN, frameBust: true 
 One SDK for every framework — they all share the same browser primitives. `frameBust` (default off)
 redirects out of an un-approved frame; leave it off if you legitimately embed your page.
 
+## Docs & links
+
+Want more than the snippet? Full source, every hooked channel, options, and examples:
+
+| Topic | Detailed guide & source |
+|---|---|
+| Full SDK source (all channels) | [nemesis-shield.js](https://github.com/eobi/nemesis_shield_sdks/blob/main/browser/nemesis-shield.js) |
+| `init()` options & types | [index.d.ts](https://github.com/eobi/nemesis_shield_sdks/blob/main/browser/index.d.ts) |
+| Runnable examples & tests | [browser/tests](https://github.com/eobi/nemesis_shield_sdks/tree/main/browser/tests) |
+
+- **Full docs & source:** https://github.com/eobi/nemesis_shield_sdks/tree/main/browser
+- **Website & console:** https://shield.nemesislabs.xyz
+
 ## How enforcement works
 
 1. **Observe** (default) — records origins of scripts loaded, endpoints called (all channels), form

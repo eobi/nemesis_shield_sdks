@@ -1,6 +1,6 @@
 {
   "name": "@nemesis-shield-autogon/browser",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Nemesis Shield browser SDK — client-side runtime protection (anti-skimmer / anti-exfil / form-jacking) for React, Angular, Vue, jQuery, and plain JS.",
   "main": "nemesis-shield.js",
   "browser": "nemesis-shield.js",
@@ -9,9 +9,24 @@
   "scripts": {
     "test": "node test.cjs"
   },
-  "keywords": ["security", "csp", "magecart", "skimmer", "client-side", "appsec", "page-shield"],
+  "keywords": [
+    "security",
+    "csp",
+    "magecart",
+    "skimmer",
+    "client-side",
+    "appsec",
+    "page-shield"
+  ],
   "license": "MIT",
   "author": "Autogon Inc.",
-  "repository": { "type": "git", "url": "https://github.com/eobi/nemesis_shield_sdks" },
-  "files": ["nemesis-shield.js", "index.d.ts", "README.md"]
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eobi/nemesis_shield_sdks"
+  },
+  "files": [
+    "nemesis-shield.js",
+    "index.d.ts",
+    "README.md"
+  ]
 }
