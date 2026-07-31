@@ -21,7 +21,7 @@ Legend: `[x]` done · `[ ]` not yet.
 | 4 | python | PyPI | **`nemesis-shield`** (v0.1.0) | `pip install nemesis-shield` | ✅ 0.1.0 | ✅ works |
 | 5 | go | Go modules | **`github.com/eobi/nemesis_shield_sdks/go`** (tag `go/v0.1.0`) | `go get github.com/eobi/nemesis_shield_sdks/go` | ✅ go/v0.1.0 | ✅ works |
 | 6 | ruby | RubyGems | **`nemesis-shield`** (v0.1.0) | `gem install nemesis-shield` | ✅ 0.1.0 | ✅ works |
-| 7 | php | Packagist | **`nemesislabs/sentinel`** | `composer require nemesislabs/sentinel` | [ ] | [ ] |
+| 7 | php | Packagist | **`nemesislabs/sentinel`** (v0.1.0) | `composer require nemesislabs/sentinel` | ✅ 0.1.0 | ✅ works |
 | 8 | java | Maven Central | **`xyz.nemesislabs:sentinel`** | Maven/Gradle coord | [ ] | [ ] |
 | 9 | dotnet | NuGet | **`NemesisShield`** | `dotnet add package NemesisShield` | [ ] | [ ] |
 | 10 | rust | crates.io | **`nemesis-shield`** | `cargo add nemesis-shield` | [ ] | [ ] |
@@ -39,7 +39,7 @@ Legend: `[x]` done · `[ ]` not yet.
 - [x] **PyPI** — project `nemesis-shield` published with `__token__` API token (`pypi_*` in `~/Documents/nemesis-shield/.env`, used locally)
 - [ ] **crates.io** — login (GitHub); `CARGO_REGISTRY_TOKEN`
 - [x] **RubyGems** — published with `rubygems` API key in `~/Documents/nemesis-shield/.env` (used locally); MFA lowered to UI-only for the push
-- [ ] **Packagist** — submit repo URL once (auto-updates on tag)
+- [x] **Packagist** — split repo github.com/eobi/nemesis-shield-php submitted; auto-updates on tag
 - [ ] **NuGet** — nuget.org account; `NUGET_API_KEY`
 - [ ] **Maven Central** — Central Portal namespace `xyz.nemesislabs` (DNS TXT verify) + GPG key; `CENTRAL_TOKEN`
 - [ ] **JSR** — scope `@nemesis-shield-autogon` (for edge); OIDC
@@ -72,7 +72,7 @@ Legend: `[x]` done · `[ ]` not yet.
 ## Next up (fastest developer payoff)
 - [x] PyPI (`python`) — published `nemesis-shield` 0.1.0, pull-verified (parity + ml_weights sha256 match)
 - [ ] crates.io (`rust`) — polish Cargo.toml, `cargo publish`
-- [ ] Packagist (`php`) — submit repo URL, tag
+- [x] Packagist (`php`) — published nemesislabs/sentinel 0.1.0 via split repo, pull-verified (parity + allow-list)
 - [x] Go — `go/v0.1.0` tag pushed + proxy-verified (`go get` works, embedded ML model matches parity vectors)
 - [x] RubyGems (`ruby`) — published nemesis-shield 0.1.0, pull-verified (parity + ML guard)
 - [ ] then: NuGet, edge (npm+JSR), Maven Central, WordPress.org
