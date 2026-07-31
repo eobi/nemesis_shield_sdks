@@ -11,7 +11,7 @@ export function sentinelKoa(config = {}) {
     const authenticated = Boolean(h.authorization || h.cookie || h["x-api-key"]);
     const path = ctx.originalUrl || ctx.url || "/";
     const query = ctx.query || {};
-    if (client.mode === "enforce") {
+    if (client.mode === "enforce" && !client.neverBlock(path)) {
       const verdict = client.decide(buildSketch({ method: ctx.method, path, query, authenticated }));
       if (client.shouldBlock(verdict)) {
         client.record(buildSketch({ method: ctx.method, path, query, authenticated, status: 403 }));

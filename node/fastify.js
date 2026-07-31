@@ -13,7 +13,7 @@ export async function sentinelFastify(fastify, opts) {
   const client = new SentinelClient(opts);
 
   fastify.addHook("onRequest", async (req, reply) => {
-    if (client.mode !== "enforce") return;
+    if (client.mode !== "enforce" || client.neverBlock(req.url)) return;
     const verdict = client.decide(buildSketch({ method: req.method, path: req.url, query: req.query, authenticated: authed(req) }));
     if (client.shouldBlock(verdict)) {
       client.record(buildSketch({ method: req.method, path: req.url, query: req.query, authenticated: authed(req), status: 403 }));

@@ -79,6 +79,8 @@ def length_bucket(n: int) -> str:
 def _norm_seg(seg: str) -> str:
     if seg == "":
         return seg
+    if ".." in seg:
+        return "{traversal}"  # path-traversal segment (also keeps ".." out of telemetry)
     from urllib.parse import unquote
 
     kind = classify(unquote(seg))

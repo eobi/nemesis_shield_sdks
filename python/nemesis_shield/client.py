@@ -2,12 +2,27 @@
 shipper. Mirrors the Node client's contract."""
 
 import json
+import os
 import threading
 import time
 import urllib.request
 import urllib.error
 
 DEFAULT_ENDPOINT = "https://shield.nemesislabs.xyz/api/v1/sketches"
+
+# Safe-unlock (break-glass): paths never blocked, so a still-learning baseline can't lock operators
+# out of the doors they need to fix it. Prefix-matched on the pathname. Override/extend with the
+# NEMESIS_SHIELD_BOOTSTRAP env (comma-separated) or the `bootstrap=` client option.
+DEFAULT_BOOTSTRAP = ["/login", "/signin", "/sign-in", "/auth", "/oauth", "/session", "/wp-login.php", "/wp-admin"]
+
+
+def _resolve_bootstrap(cfg):
+    if isinstance(cfg, (list, tuple)):
+        return list(cfg)
+    env = os.environ.get("NEMESIS_SHIELD_BOOTSTRAP", "")
+    if env.strip():
+        return [s.strip() for s in env.split(",") if s.strip()]
+    return list(DEFAULT_BOOTSTRAP)
 
 
 class SentinelClient:
@@ -21,6 +36,7 @@ class SentinelClient:
         flush_interval: float = 5.0,
         transport=None,
         on_error=None,
+        bootstrap=None,
     ):
         if not token:
             raise ValueError("Nemesis Sentinel: token is required")
@@ -30,6 +46,7 @@ class SentinelClient:
         self.sample_rate = sample_rate
         self.batch_size = batch_size
         self.flush_interval = flush_interval
+        self._bootstrap = _resolve_bootstrap(bootstrap)
         self._transport = transport  # callable(batch, token) -> dict|None (tests)
         self._on_error = on_error
         self._policy = {"shapes": {}, "knownBad": []}
@@ -92,6 +109,11 @@ class SentinelClient:
 
     def should_block(self, verdict: dict) -> bool:
         return self.mode == "enforce" and verdict.get("action") == "block"
+
+    def never_block(self, path: str) -> bool:
+        """Break-glass: is this path on the never-block bootstrap allow-list? Prefix match."""
+        p = str(path or "/").split("?")[0].split("#")[0].lower()
+        return any(b and p.startswith(b.lower()) for b in self._bootstrap)
 
     # ── telemetry (fail-open) ─────────────────────────────────────────────
     def record(self, sketch: dict):

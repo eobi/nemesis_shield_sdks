@@ -19,6 +19,7 @@ Nemesis is unreachable, your app is completely unaffected.
 | **Go** | `github.com/eobi/nemesis_shield_sdks/go` | `net/http` middleware → [`go/`](go/) |
 | **Ruby** | `nemesis_shield.rb` | Rack middleware (Rails/Sinatra) → [`ruby/`](ruby/) |
 | **PHP** | `NemesisShield.php` | `register_shutdown_function` → [`php/`](php/) |
+| **WordPress** | drop-in plugin | Activate → set token; gates the front end, REST & admin-ajax → [`wordpress/`](wordpress/) |
 | **Java** | `NemesisShield.java` | Servlet filter / Spring Boot (JDK 11+) → [`java/`](java/) |
 | **.NET / C#** | `NemesisShield.cs` | ASP.NET Core middleware → [`dotnet/`](dotnet/) |
 | **Rust** | `nemesis-shield` | axum (tower) / actix-web middleware → [`rust/`](rust/) |
@@ -87,6 +88,12 @@ use NemesisShield::Middleware, token: ENV["NEMESIS_TOKEN"]
 register_shutdown_function(fn() => NemesisShield::observe(getenv('NEMESIS_TOKEN')));
 ```
 
+**WordPress** — drop the [`wordpress/nemesis-shield/`](wordpress/) plugin into `wp-content/plugins/`, activate, and set the token:
+```php
+// wp-config.php
+define('NEMESIS_SHIELD_TOKEN', 'nsk_your_site_token');
+```
+
 **Java** (servlet filter)
 ```java
 var nemesis = new NemesisShield(System.getenv("NEMESIS_TOKEN"));
@@ -131,3 +138,15 @@ await reportLLM(token, { prompt, system, response, tools, allowedTools: ["search
 ## License
 
 [MIT](LICENSE) © Autogon Inc. — use them freely, in any project.
+
+## Coverage & safe-unlock (all SDKs)
+
+Every backend SDK is mounted **outermost** so it sees *every* route (attacks come from any path, not just your API), and the request **shape now includes query-param structure** — names + kinds, never values — so param tampering, injected params, and type anomalies on a *known* route are caught, not just unknown paths. Path-traversal segments normalize to `{traversal}`.
+
+Enforcement covers **every route with a break-glass**: the login/auth path is never blocked, so a still-learning baseline can't lock you out. Defaults: `/login /signin /sign-in /auth /oauth /session /wp-login.php /wp-admin`. Override per app:
+
+```bash
+export NEMESIS_SHIELD_BOOTSTRAP="/login,/admin,/healthz"
+```
+
+Verified across every SDK with live over-the-wire tests: legit traffic (incl. same-route value variation and param-order swaps) passes; unknown paths, injected/mutated params, method and auth anomalies, and 100+ CVE-pattern probes (path traversal, LFI/RFI, Log4Shell, Spring4Shell, Actuator, PHPUnit/Ignition RCE, ViewState, PostgREST table-enum, prototype pollution, NoSQL, SSTI…) are blocked.

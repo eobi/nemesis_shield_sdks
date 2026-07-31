@@ -97,6 +97,22 @@ impl Client {
         self.policy.read().unwrap().mode == "enforce"
     }
 
+    /// Break-glass: is this path on the never-block bootstrap allow-list? Prefix match, so a
+    /// still-learning baseline can't lock operators out of the doors they need to fix it. Override
+    /// with the NEMESIS_SHIELD_BOOTSTRAP env (comma-separated).
+    pub fn never_block(path: &str) -> bool {
+        const DEFAULT_BOOTSTRAP: [&str; 8] =
+            ["/login", "/signin", "/sign-in", "/auth", "/oauth", "/session", "/wp-login.php", "/wp-admin"];
+        let p = path.split(['?', '#']).next().unwrap_or(path).to_ascii_lowercase();
+        let env = std::env::var("NEMESIS_SHIELD_BOOTSTRAP").unwrap_or_default();
+        let list: Vec<String> = if env.trim().is_empty() {
+            DEFAULT_BOOTSTRAP.iter().map(|s| s.to_string()).collect()
+        } else {
+            env.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect()
+        };
+        list.iter().any(|b| !b.is_empty() && p.starts_with(&b.to_ascii_lowercase()))
+    }
+
     fn is_int(s: &str) -> bool {
         let t = s.strip_prefix('-').unwrap_or(s);
         !t.is_empty() && t.bytes().all(|b| b.is_ascii_digit())
@@ -182,6 +198,9 @@ impl Client {
             .map(|s| {
                 if s.is_empty() {
                     return s.to_string();
+                }
+                if s.contains("..") {
+                    return "{traversal}".to_string(); // keeps ".." out of telemetry
                 }
                 match Self::kind_of(s) {
                     "int" | "float" => "{int}".to_string(),
@@ -445,5 +464,85 @@ mod shape_parity {
         let c = Client::with_endpoint("", DEFAULT_ENDPOINT);
         assert_eq!(c.build_sketch("GET", "/orders/123", &[], false, 200).shape, "3e8cf0b3");
         assert_eq!(c.build_sketch("GET", "/orders/123", &[("expand".into(), "items".into())], false, 200).shape, "440c7e37");
+    }
+}
+
+#[cfg(test)]
+mod deep_coverage {
+    use super::*;
+    use std::sync::Arc;
+
+    fn client(mode: &str, allow: &[String], known_bad: &[String]) -> Arc<Client> {
+        let c = Client::with_endpoint("", DEFAULT_ENDPOINT); // empty token -> no poller, no network
+        {
+            let mut p = c.policy.write().unwrap();
+            p.mode = mode.to_string();
+            for s in allow { p.shapes.insert(s.clone(), "allow".into()); }
+            for s in known_bad { p.known_bad.insert(s.clone(), ()); }
+            p.have_baseline = !allow.is_empty() || !known_bad.is_empty();
+        }
+        c
+    }
+    fn split(url: &str) -> (&str, Vec<(String, String)>) {
+        match url.split_once('?') {
+            Some((p, q)) => (
+                p,
+                q.split('&').filter(|s| !s.is_empty()).map(|kv| {
+                    let (k, v) = kv.split_once('=').unwrap_or((kv, ""));
+                    (k.to_string(), v.to_string())
+                }).collect(),
+            ),
+            None => (url, vec![]),
+        }
+    }
+    fn shape(c: &Client, m: &str, url: &str, a: bool) -> String {
+        let (p, q) = split(url);
+        c.build_sketch(m, p, &q, a, 0).shape
+    }
+    fn blocked(c: &Client, m: &str, url: &str, a: bool) -> bool {
+        let (p, q) = split(url);
+        if !c.enforcing() || Client::never_block(p) { return false; }
+        c.decide(&c.build_sketch(m, p, &q, a, 0)).is_some()
+    }
+
+    #[test]
+    fn sees_and_blocks_attacks_from_any_route() {
+        let r = Client::with_endpoint("", DEFAULT_ENDPOINT);
+        let allow = vec![
+            shape(&r, "GET", "/", false),
+            shape(&r, "GET", "/products/12345", false),
+            shape(&r, "GET", "/search?q=shoes", false),
+            shape(&r, "POST", "/api/orders", true),
+        ];
+        // query params change the shape (deep, not just route)
+        assert_ne!(shape(&r, "GET", "/search?q=x", false), shape(&r, "GET", "/search?q=x&inject=1", false));
+        assert_ne!(shape(&r, "GET", "/search?q=shoes", false), shape(&r, "GET", "/search?q=%27+OR+1", false));
+
+        let c = client("enforce", &allow, &[]);
+        // approved passes
+        assert!(!blocked(&c, "GET", "/", false));
+        assert!(!blocked(&c, "GET", "/products/999", false));
+        assert!(!blocked(&c, "GET", "/search?q=boots", false));
+        assert!(!blocked(&c, "POST", "/api/orders", true));
+        // attacks blocked
+        assert!(blocked(&c, "GET", "/.env", false));
+        assert!(blocked(&c, "GET", "/wp-config.php.bak", false));
+        assert!(blocked(&c, "GET", "/search?q=x&cmd=id", false)); // injected param
+        assert!(blocked(&c, "POST", "/", false));                 // method anomaly
+        assert!(blocked(&c, "GET", "/api/orders", false));        // auth anomaly
+        assert!(blocked(&c, "GET", "/admin/config", false));
+
+        // knownBad (global intel)
+        let bad = shape(&r, "POST", "/xmlrpc.php", false);
+        assert!(blocked(&client("enforce", &allow, &[bad]), "POST", "/xmlrpc.php", false));
+
+        // safe-unlock — auth path never blocked
+        assert!(!blocked(&c, "POST", "/login?next=x", false));
+        assert!(!blocked(&c, "GET", "/wp-login.php", false));
+        assert!(!blocked(&c, "GET", "/wp-admin/options.php", false));
+
+        // fail-open + observe
+        assert!(!blocked(&client("enforce", &[], &[]), "GET", "/.env", false));
+        assert!(!blocked(&client("observe", &allow, &[]), "GET", "/.env", false));
     }
 }

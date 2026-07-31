@@ -1,0 +1,70 @@
+# Real-WordPress end-to-end harness for the Nemesis Shield plugin.
+#   wp   — actual WordPress (Apache + mod_php), the plugin bind-mounted in
+#   db   — MariaDB
+#   mock — the mock Shield endpoint, sharing ./tests/.e2e with the host so the
+#          test can flip the policy (observe → enforce) and read recorded sketches
+# Driven by tests/e2e.sh (which also runs wp-cli via the `wordpress:cli` image).
+services:
+  db:
+    image: mariadb:10.11
+    environment:
+      MARIADB_DATABASE: wordpress
+      MARIADB_USER: wordpress
+      MARIADB_PASSWORD: wordpress
+      MARIADB_ROOT_PASSWORD: root
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  wp:
+    image: wordpress:6-php8.2-apache
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+      # Token + endpoint injected as constants so the plugin reads them with no DB write.
+      WORDPRESS_CONFIG_EXTRA: |
+        define('NEMESIS_SHIELD_TOKEN', 'nsk_e2e_token');
+        define('NEMESIS_SHIELD_ENDPOINT', 'http://mock:9000/api/v1/sketches');
+    volumes:
+      - wp_core:/var/www/html
+      - ./nemesis-shield:/var/www/html/wp-content/plugins/nemesis-shield
+
+  # wp-cli sharing the WordPress volume — used by tests/e2e.sh via `compose run`.
+  wpcli:
+    image: wordpress:cli
+    user: "33"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+      HOME: /tmp
+    volumes:
+      - wp_core:/var/www/html
+      - ./nemesis-shield:/var/www/html/wp-content/plugins/nemesis-shield
+
+  mock:
+    image: php:8.2-cli
+    command: php -S 0.0.0.0:9000 /app/mock-shield.php
+    working_dir: /app
+    environment:
+      NEMESIS_MOCK_POLICY: /shared/policy.json
+      NEMESIS_MOCK_RECORD: /shared/record.ndjson
+    volumes:
+      - ./tests:/app
+      - ./tests/.e2e:/shared
+
+volumes:
+  wp_core:

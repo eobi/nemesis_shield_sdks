@@ -77,3 +77,27 @@ score := nemesis.MLInjectionScore(userPrompt) // 0..1, if you want the raw signa
 
 Regex rules run first, then the ML for obfuscation. Blocks at score ≥ 0.85 (high), flags at ≥ 0.45.
 The model (`ml_weights.json`) is embedded and can be updated centrally.
+
+## Full coverage & safe-unlock
+
+**Mount it first / outermost** so *every* route is inspected (not just API routes — attackers hit any path):
+
+```
+handler := client.Middleware(rootMux)   // wrap the ROOT mux so all routes are covered
+```
+
+**What's inspected** (privacy-preserving): method + normalized route + **query-param structure** (names + kinds, never values) + auth flag + status. An off-baseline route, **param structure**, method, or auth state is blocked in enforce mode. Path-traversal segments normalize to `{traversal}`.
+
+**Safe-unlock (break-glass):** the login/auth path is never blocked, so a still-learning baseline can't lock you out. Defaults: `/login /signin /sign-in /auth /oauth /session /wp-login.php /wp-admin`. Override:
+
+```bash
+export NEMESIS_SHIELD_BOOTSTRAP="/login,/admin,/healthz"
+```
+
+**Verify coverage** — in observe mode, hit a normal route, a param, and a scanner path, then confirm all three appear in the console (Activity / Behaviors):
+
+```bash
+curl -s "http://localhost:8080/" >/dev/null
+curl -s "http://localhost:8080/search?q=shoes" >/dev/null
+curl -s "http://localhost:8080/.env" >/dev/null   # shows up as an off-baseline behavior
+```

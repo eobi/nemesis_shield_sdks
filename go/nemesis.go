@@ -13,6 +13,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
+	"os"
 	"regexp"
 	"sort"
 	"strings"
@@ -21,6 +22,35 @@ import (
 )
 
 const defaultEndpoint = "https://shield.nemesislabs.xyz/api/v1/sketches"
+
+// Safe-unlock (break-glass): paths never blocked, so a still-learning baseline can't lock operators
+// out of the doors they need to fix it. Prefix-matched on the pathname. Override/extend with the
+// NEMESIS_SHIELD_BOOTSTRAP env (comma-separated).
+var defaultBootstrap = []string{"/login", "/signin", "/sign-in", "/auth", "/oauth", "/session", "/wp-login.php", "/wp-admin"}
+
+func bootstrapPaths() []string {
+	if env := strings.TrimSpace(os.Getenv("NEMESIS_SHIELD_BOOTSTRAP")); env != "" {
+		var out []string
+		for _, p := range strings.Split(env, ",") {
+			if p = strings.TrimSpace(p); p != "" {
+				out = append(out, p)
+			}
+		}
+		return out
+	}
+	return defaultBootstrap
+}
+
+// NeverBlock reports whether this path is on the never-block bootstrap allow-list (prefix match).
+func NeverBlock(path string) bool {
+	p := strings.ToLower(path)
+	for _, b := range bootstrapPaths() {
+		if b != "" && strings.HasPrefix(p, strings.ToLower(b)) {
+			return true
+		}
+	}
+	return false
+}
 
 // Canonical value taxonomy — must match the shared engine (tokenize.ts) so a Go app and a
 // Node/Python app produce identical shape hashes.
@@ -99,6 +129,10 @@ func normalizePath(path string) string {
 	segs := strings.Split(path, "/")
 	for i, s := range segs {
 		if s == "" {
+			continue
+		}
+		if strings.Contains(s, "..") {
+			segs[i] = "{traversal}" // path-traversal segment (also keeps ".." out of telemetry)
 			continue
 		}
 		switch kindOf(s) {
@@ -307,7 +341,7 @@ func (r *statusRecorder) WriteHeader(code int) { r.status = code; r.ResponseWrit
 func (c *Client) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authed := authedFrom(r)
-		if c.Enforcing() {
+		if c.Enforcing() && !NeverBlock(r.URL.Path) {
 			s := c.BuildSketch(r.Method, r.URL.Path, r.URL.Query(), authed, 0)
 			if block, reason := c.Decide(s); block {
 				c.Record(c.BuildSketch(r.Method, r.URL.Path, r.URL.Query(), authed, 403))

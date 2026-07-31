@@ -5,6 +5,7 @@
 //   // Program.cs (ASP.NET Core):
 //   app.UseMiddleware<NemesisShield.SentinelMiddleware>();
 using System.Collections.Concurrent;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -95,6 +96,30 @@ public sealed class SentinelClient
 
     public bool Enforcing => _mode == "enforce";
 
+    // Safe-unlock (break-glass): paths never blocked, so a still-learning baseline can't lock operators
+    // out of the doors they need to fix it. Prefix-matched. Override with NEMESIS_SHIELD_BOOTSTRAP env.
+    private static readonly string[] DefaultBootstrap =
+        { "/login", "/signin", "/sign-in", "/auth", "/oauth", "/session", "/wp-login.php", "/wp-admin" };
+
+    private static string[] Bootstrap()
+    {
+        var env = Environment.GetEnvironmentVariable("NEMESIS_SHIELD_BOOTSTRAP");
+        if (!string.IsNullOrWhiteSpace(env))
+            return env.Split(',').Select(s => s.Trim()).Where(s => s.Length > 0).ToArray();
+        return DefaultBootstrap;
+    }
+
+    /// <summary>Break-glass: is this path on the never-block bootstrap allow-list? Prefix match.</summary>
+    public static bool NeverBlock(string path)
+    {
+        var q = path.IndexOf('?'); if (q >= 0) path = path[..q];
+        var h = path.IndexOf('#'); if (h >= 0) path = path[..h];
+        var p = path.ToLowerInvariant();
+        foreach (var b in Bootstrap())
+            if (b.Length > 0 && p.StartsWith(b.ToLowerInvariant())) return true;
+        return false;
+    }
+
     public static string NormalizePath(string path)
     {
         var q = path.IndexOf('?');
@@ -105,6 +130,7 @@ public sealed class SentinelClient
         for (var i = 0; i < segs.Length; i++)
         {
             if (segs[i].Length == 0) continue;
+            if (segs[i].Contains("..")) { segs[i] = "{traversal}"; continue; } // keeps ".." out of telemetry
             switch (KindOf(segs[i]))
             {
                 case "int": case "float": segs[i] = "{int}"; break;
@@ -219,8 +245,8 @@ public sealed class SentinelMiddleware
         var method = ctx.Request.Method;
         var path = ctx.Request.Path.HasValue ? ctx.Request.Path.Value! : "/";
         var query = ctx.Request.QueryString.HasValue ? ctx.Request.QueryString.Value!.TrimStart('?') : null;
-        var authed = ctx.Request.Headers.ContainsKey("Authorization") || ctx.Request.Headers.ContainsKey("Cookie");
-        if (_client.Enforcing)
+        var authed = ctx.Request.Headers.ContainsKey("Authorization") || ctx.Request.Headers.ContainsKey("Cookie") || ctx.Request.Headers.ContainsKey("X-Api-Key");
+        if (_client.Enforcing && !SentinelClient.NeverBlock(path))
         {
             var reason = _client.Decide(_client.ShapeOf(method, path, query, authed));
             if (reason != null)

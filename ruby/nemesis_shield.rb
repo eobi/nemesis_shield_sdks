@@ -34,6 +34,7 @@ module NemesisShield
     clean = path.to_s.split("?", 2).first.to_s.split("#", 2).first.to_s
     out = clean.split("/").map do |seg|
       next seg if seg.empty?
+      next "{traversal}" if seg.include?("..") # path-traversal segment (keeps ".." out of telemetry)
       case kind_of(seg)
       when "int", "float" then "{int}"
       when "uuid" then "{uuid}"
@@ -82,8 +83,21 @@ module NemesisShield
     { route: route, method: method.to_s.upcase, authenticated: authed, status: status, params: params, shape: fnv1a(canon) }
   end
 
+  # Safe-unlock (break-glass): paths never blocked, so a still-learning baseline can't lock operators
+  # out of the doors they need to fix it. Prefix-matched. Override with the NEMESIS_SHIELD_BOOTSTRAP
+  # env (comma-separated) or the `bootstrap:` option.
+  DEFAULT_BOOTSTRAP = ["/login", "/signin", "/sign-in", "/auth", "/oauth", "/session", "/wp-login.php", "/wp-admin"].freeze
+
+  def resolve_bootstrap(cfg)
+    return cfg.map(&:to_s) if cfg.is_a?(Array)
+    env = ENV["NEMESIS_SHIELD_BOOTSTRAP"].to_s
+    return env.split(",").map(&:strip).reject(&:empty?) unless env.strip.empty?
+    DEFAULT_BOOTSTRAP.dup
+  end
+  module_function :resolve_bootstrap
+
   class Client
-    def initialize(token, endpoint: DEFAULT_ENDPOINT, flush_interval: 2)
+    def initialize(token, endpoint: DEFAULT_ENDPOINT, flush_interval: 2, bootstrap: nil)
       @token = token
       @uri = URI(endpoint)
       @mode = "observe"
@@ -91,6 +105,7 @@ module NemesisShield
       @known_bad = []
       @baseline = false
       @buffer = []
+      @bootstrap = NemesisShield.resolve_bootstrap(bootstrap)
       @mu = Mutex.new
       if token && flush_interval && flush_interval > 0
         refresh
@@ -102,6 +117,12 @@ module NemesisShield
 
     def enforcing?
       @mu.synchronize { @mode == "enforce" }
+    end
+
+    # Break-glass: is this path on the never-block bootstrap allow-list? Prefix match.
+    def never_block(path)
+      p = path.to_s.split("?").first.to_s.split("#").first.to_s.downcase
+      @bootstrap.any? { |b| !b.empty? && p.start_with?(b.downcase) }
     end
 
     def decide(sketch)
@@ -169,9 +190,14 @@ module NemesisShield
         require "rack/utils"
         Rack::Utils.parse_query(env["QUERY_STRING"].to_s)
       rescue StandardError
-        {}
+        # stdlib fallback so query-param STRUCTURE is still fed when rack isn't loaded
+        begin
+          URI.decode_www_form(env["QUERY_STRING"].to_s).to_h
+        rescue StandardError
+          {}
+        end
       end
-      if @client.enforcing?
+      if @client.enforcing? && !@client.never_block(path)
         block, reason = @client.decide(NemesisShield.build_sketch(method: method, path: path, query: query, authed: authed))
         if block
           @client.record(NemesisShield.build_sketch(method: method, path: path, query: query, authed: authed, status: 403))

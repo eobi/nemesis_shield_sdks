@@ -23,7 +23,7 @@ export function sentinel(config = {}) {
     const path = req.originalUrl || req.url || "/";
     const query = queryOf(req);
     const authenticated = authedOf(req, authFn);
-    if (client.mode === "enforce") {
+    if (client.mode === "enforce" && !client.neverBlock(path)) {
       const verdict = client.decide(buildSketch({ method: req.method, path, query, authenticated }));
       if (client.shouldBlock(verdict)) {
         client.record(buildSketch({ method: req.method, path, query, authenticated, status: 403 }));

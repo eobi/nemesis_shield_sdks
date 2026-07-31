@@ -14,7 +14,7 @@
  *
  * Config: SUPABASE_URL (var) = your real project URL; NEMESIS_TOKEN (secret) = the app install token.
  */
-import { createShield, type Shield } from "../../edge/nemesis-shield.ts";
+import { createShield, queryToObject, neverBlock, type Shield } from "../../edge/nemesis-shield.ts";
 
 export interface Env {
   SUPABASE_URL: string;
@@ -44,13 +44,16 @@ export default {
 
     const url = new URL(req.url);
     const path = url.pathname;
+    // Feed the query STRUCTURE — for PostgREST this is the operation itself (select/filter/order),
+    // so table + verb + query shape + auth all factor into the positive-security decision.
+    const query = queryToObject(url.searchParams);
     const isDbApi = path.startsWith("/rest/"); // only guard the PostgREST DB API
     const authed = req.headers.has("authorization") || req.headers.has("apikey");
 
-    if (isDbApi && shield.enforcing()) {
-      const reason = shield.decide(shield.buildSketch(req.method, path, authed, 0).shape);
+    if (isDbApi && shield.enforcing() && !neverBlock(path)) {
+      const reason = shield.decide(shield.buildSketch(req.method, path, query, authed, 0).shape);
       if (reason) {
-        shield.record(shield.buildSketch(req.method, path, authed, 403));
+        shield.record(shield.buildSketch(req.method, path, query, authed, 403));
         ctx.waitUntil(shield.flush());
         return Response.json({ error: "blocked_by_nemesis_shield", reason }, { status: 403 });
       }
@@ -64,7 +67,7 @@ export default {
     const resp = await fetch(new Request(url.toString(), req));
 
     if (isDbApi) {
-      shield.record(shield.buildSketch(req.method, path, authed, resp.status));
+      shield.record(shield.buildSketch(req.method, path, query, authed, resp.status));
       ctx.waitUntil(shield.flush());
     }
     return resp;

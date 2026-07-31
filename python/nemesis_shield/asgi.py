@@ -26,7 +26,10 @@ class SentinelMiddleware:
         method = scope.get("method", "GET")
         raw_path = scope.get("path", "/")
         qs = scope.get("query_string", b"").decode()
-        path = raw_path + (("?" + qs) if qs else "")
+        # query-param STRUCTURE (names + kinds, never values) so param tampering on a known route
+        # is off-baseline, not just unknown paths.
+        from urllib.parse import parse_qsl
+        query = dict(parse_qsl(qs, keep_blank_values=True))
         headers = {k.decode().lower(): v.decode() for k, v in scope.get("headers", [])}
         header_names = list(headers.keys())
         authenticated = any(h in headers for h in ("authorization", "cookie", "x-api-key"))
@@ -34,7 +37,8 @@ class SentinelMiddleware:
         def sketch_for(status: int) -> dict:
             return build_sketch(
                 method=method,
-                path=path,
+                path=raw_path,
+                query=query,
                 header_names=header_names,
                 authenticated=authenticated,
                 content_type=headers.get("content-type"),
@@ -43,7 +47,7 @@ class SentinelMiddleware:
             )
 
         # enforce: block known-bad request shapes before dispatch (status 0 = pre-response)
-        if self.client.mode == "enforce":
+        if self.client.mode == "enforce" and not self.client.never_block(raw_path):
             verdict = self.client.decide(sketch_for(0))
             if self.client.should_block(verdict):
                 self.client.record(sketch_for(403))

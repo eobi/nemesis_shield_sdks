@@ -43,3 +43,7 @@ It reuses the Web-standard [`edge/`](../edge/) SDK: computes a privacy-preservin
 request (`/rest/v1/<table>` + HTTP verb + whether the caller was authenticated — never row data),
 checks it against the compiled policy, and forwards to Supabase. Telemetry and policy refresh run in
 `ctx.waitUntil` so they never add latency to the response path.
+
+## Coverage & safe-unlock
+
+By design this Worker inspects **only the PostgREST DB API (`/rest/v1/`)** — `auth`, `storage`, and `realtime` pass straight through (use the [edge SDK](../edge/) inside those functions to guard them). For `/rest/`, the full query STRUCTURE is fed into the decision, so table + verb + **filter/select shape** + auth all factor in — off-baseline table/verb/query is blocked before it reaches your database. Shapes are byte-identical to every other Nemesis Shield SDK. Override the never-block list with `NEMESIS_SHIELD_BOOTSTRAP`.

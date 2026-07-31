@@ -37,13 +37,21 @@ class SentinelDjango:
             return self.get_response(request)
         method = request.method
         path = request.path
+        # Feed the query-param STRUCTURE (names + kinds, never values) so an attacker adding or
+        # mutating params on a known route is off-baseline, not just unknown paths.
+        query = dict(request.GET.items())
+        content_type = request.META.get("CONTENT_TYPE")
         authed = bool(request.headers.get("Authorization") or request.headers.get("Cookie") or request.headers.get("X-Api-Key"))
 
-        if self.client.mode == "enforce":
-            verdict = self.client.decide(build_sketch(method=method, path=path, authenticated=authed, status=0))
+        def _sketch(status):
+            return build_sketch(method=method, path=path, query=query, authenticated=authed,
+                                content_type=content_type, status=status)
+
+        if self.client.mode == "enforce" and not self.client.never_block(path):
+            verdict = self.client.decide(_sketch(0))
             if self.client.should_block(verdict):
                 try:
-                    self.client.record(build_sketch(method=method, path=path, authenticated=authed, status=403))
+                    self.client.record(_sketch(403))
                 except Exception:
                     pass
                 from django.http import JsonResponse
@@ -51,7 +59,7 @@ class SentinelDjango:
 
         response = self.get_response(request)
         try:
-            self.client.record(build_sketch(method=method, path=path, authenticated=authed, status=response.status_code))
+            self.client.record(_sketch(response.status_code))
         except Exception:
             pass
         return response

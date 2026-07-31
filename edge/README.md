@@ -53,3 +53,27 @@ End-to-end (learn → enforce → attack) as a Deno `Deno.serve` function agains
 `GET /products` → 200; auth bypass, BOLA (`/orders/999` unauth), path traversal (`/etc/passwd`) and
 scanner probes (`/wp-login.php`, `/.env`, `/phpmyadmin`) all blocked (403) and reported
 (`findings=11 medium=6`). `deno check` passes.
+
+## Full coverage & safe-unlock
+
+**Mount it first / outermost** so *every* route is inspected (not just API routes — attackers hit any path):
+
+```
+Deno.serve(withShield(handler, { token: Deno.env.get("NEMESIS_TOKEN") }));   // wraps the whole function
+```
+
+**What's inspected** (privacy-preserving): method + normalized route + **query-param structure** (names + kinds, never values) + auth flag + status. An off-baseline route, **param structure**, method, or auth state is blocked in enforce mode. Path-traversal segments normalize to `{traversal}`.
+
+**Safe-unlock (break-glass):** the login/auth path is never blocked, so a still-learning baseline can't lock you out. Defaults: `/login /signin /sign-in /auth /oauth /session /wp-login.php /wp-admin`. Override:
+
+```bash
+export NEMESIS_SHIELD_BOOTSTRAP="/login,/admin,/healthz"
+```
+
+**Verify coverage** — in observe mode, hit a normal route, a param, and a scanner path, then confirm all three appear in the console (Activity / Behaviors):
+
+```bash
+curl -s "http://localhost:8080/" >/dev/null
+curl -s "http://localhost:8080/search?q=shoes" >/dev/null
+curl -s "http://localhost:8080/.env" >/dev/null   # shows up as an off-baseline behavior
+```

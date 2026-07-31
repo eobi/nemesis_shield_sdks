@@ -1,0 +1,8 @@
+{"route":"\/","method":"GET","authenticated":false,"status":200,"params":[],"shape":"27b50e80"}
+{"route":"\/","method":"GET","authenticated":false,"status":301,"params":[{"name":"page_id","kind":"int","nested":false}],"shape":"7f80cfb6"}
+{"route":"\/sample-page\/","method":"GET","authenticated":false,"status":200,"params":[],"shape":"9fb20363"}
+{"route":"\/","method":"GET","authenticated":false,"status":200,"params":[],"shape":"27b50e80"}
+{"route":"\/sample-page\/","method":"GET","authenticated":false,"status":200,"params":[],"shape":"9fb20363"}
+{"route":"\/wp-config.php.bak","method":"GET","authenticated":false,"status":403,"params":[],"shape":"4e198c40"}
+{"route":"\/nemesis-scan-xyz","method":"GET","authenticated":false,"status":403,"params":[],"shape":"09353fc8"}
+{"route":"\/nemesis-scan-xyz","method":"GET","authenticated":false,"status":403,"params":[],"shape":"09353fc8"}

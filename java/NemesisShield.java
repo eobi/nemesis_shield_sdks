@@ -105,6 +105,31 @@ public class NemesisShield {
 
     public boolean enforcing() { return "enforce".equals(mode); }
 
+    // Safe-unlock (break-glass): paths never blocked, so a still-learning baseline can't lock operators
+    // out of the doors they need to fix it. Prefix-matched. Override with NEMESIS_SHIELD_BOOTSTRAP env.
+    private static final String[] DEFAULT_BOOTSTRAP =
+            {"/login", "/signin", "/sign-in", "/auth", "/oauth", "/session", "/wp-login.php", "/wp-admin"};
+
+    private static String[] bootstrap() {
+        String env = System.getenv("NEMESIS_SHIELD_BOOTSTRAP");
+        if (env != null && !env.trim().isEmpty()) {
+            java.util.List<String> out = new java.util.ArrayList<>();
+            for (String p : env.split(",")) { p = p.trim(); if (!p.isEmpty()) out.add(p); }
+            return out.toArray(new String[0]);
+        }
+        return DEFAULT_BOOTSTRAP;
+    }
+
+    /** Break-glass: is this path on the never-block bootstrap allow-list? Prefix match. */
+    public static boolean neverBlock(String path) {
+        if (path == null) return false;
+        int q = path.indexOf('?'); if (q >= 0) path = path.substring(0, q);
+        int h = path.indexOf('#'); if (h >= 0) path = path.substring(0, h);
+        String p = path.toLowerCase();
+        for (String b : bootstrap()) { if (!b.isEmpty() && p.startsWith(b.toLowerCase())) return true; }
+        return false;
+    }
+
     public static String normalizePath(String path) {
         if (path == null) return "/";
         int q = path.indexOf('?');
@@ -114,6 +139,7 @@ public class NemesisShield {
         String[] segs = path.split("/", -1);
         for (int i = 0; i < segs.length; i++) {
             if (segs[i].isEmpty()) continue;
+            if (segs[i].contains("..")) { segs[i] = "{traversal}"; continue; } // keeps ".." out of telemetry
             switch (kindOf(segs[i])) {
                 case "int": case "float": segs[i] = "{int}"; break;
                 case "uuid": segs[i] = "{uuid}"; break;
@@ -224,7 +250,7 @@ public class NemesisShield {
      * writes a 403 and returns true. Otherwise returns false (let the app handle it).
      */
     public boolean guard(String method, String path, boolean authed, com.sun.net.httpserver.HttpExchange ex) throws java.io.IOException {
-        if (!enforcing()) return false;
+        if (!enforcing() || neverBlock(path)) return false;
         String query = ex.getRequestURI().getRawQuery();
         String reason = decide(shapeOf(method, path, query, authed));
         if (reason == null) return false;

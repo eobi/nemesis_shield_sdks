@@ -45,6 +45,7 @@ export function normalizePath(path) {
     .split("/")
     .map((seg) => {
       if (seg === "") return seg;
+      if (seg.indexOf("..") >= 0) return "{traversal}"; // path-traversal segment (also keeps ".." out of telemetry)
       const k = kindOf(seg);
       if (k === "int" || k === "float") return "{int}";
       if (k === "uuid") return "{uuid}";

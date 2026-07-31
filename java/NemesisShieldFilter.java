@@ -23,8 +23,8 @@ public class NemesisShieldFilter implements Filter {
         HttpServletRequest r = (HttpServletRequest) req;
         HttpServletResponse w = (HttpServletResponse) res;
         String method = r.getMethod(), path = r.getRequestURI(), query = r.getQueryString();
-        boolean authed = r.getHeader("Authorization") != null || r.getHeader("Cookie") != null;
-        if (nemesis.enforcing()) {
+        boolean authed = r.getHeader("Authorization") != null || r.getHeader("Cookie") != null || r.getHeader("X-Api-Key") != null;
+        if (nemesis.enforcing() && !NemesisShield.neverBlock(path)) {
             String reason = nemesis.decide(nemesis.shapeOf(method, path, query, authed));
             if (reason != null) {
                 nemesis.observe(method, path, query, authed, 403);

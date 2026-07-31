@@ -4,8 +4,20 @@ import { buildSketch } from "./shape.js";
 
 const DEFAULT_ENDPOINT = "https://shield.nemesislabs.xyz/api/v1/sketches";
 
+// Safe-unlock (break-glass): paths never blocked, so a still-learning baseline can't lock operators
+// out of the doors they need to fix it. Prefix-matched on the raw pathname. Override/extend with the
+// NEMESIS_SHIELD_BOOTSTRAP env (comma-separated) or the `bootstrap` config option.
+const DEFAULT_BOOTSTRAP = ["/login", "/signin", "/sign-in", "/auth", "/oauth", "/session", "/wp-login.php", "/wp-admin"];
+
+function resolveBootstrap(cfg) {
+  if (Array.isArray(cfg)) return cfg;
+  const env = (typeof process !== "undefined" && process.env && process.env.NEMESIS_SHIELD_BOOTSTRAP) || "";
+  if (env.trim()) return env.split(",").map((s) => s.trim()).filter(Boolean);
+  return DEFAULT_BOOTSTRAP;
+}
+
 export class SentinelClient {
-  constructor({ token, endpoint = DEFAULT_ENDPOINT, mode = "observe", batchSize = 50, flushInterval = 5000, transport = null } = {}) {
+  constructor({ token, endpoint = DEFAULT_ENDPOINT, mode = "observe", batchSize = 50, flushInterval = 5000, transport = null, bootstrap = null } = {}) {
     if (!token) throw new Error("Nemesis Sentinel: token is required");
     this.token = token;
     this.endpoint = endpoint;
@@ -13,6 +25,7 @@ export class SentinelClient {
     this.batchSize = batchSize;
     this.flushInterval = flushInterval;
     this._transport = transport; // (batch, token) => Promise<policyResponse|null> (tests)
+    this._bootstrap = resolveBootstrap(bootstrap);
     this._policy = { shapes: {}, knownBad: [] };
     this._haveBaseline = false;
     this._buffer = [];
@@ -33,6 +46,12 @@ export class SentinelClient {
     return { action: "allow" }; // no baseline yet -> fail open
   }
   shouldBlock(verdict) { return this.mode === "enforce" && verdict.action === "block"; }
+
+  /** Break-glass: is this path on the never-block bootstrap allow-list? Prefix match on pathname. */
+  neverBlock(path) {
+    const p = String(path || "/").split("?")[0].split("#")[0].toLowerCase();
+    return this._bootstrap.some((b) => b && p.startsWith(b.toLowerCase()));
+  }
 
   _mergePolicy(p) {
     if (p.shapes != null) { this._policy.shapes = p.shapes; if (Object.keys(p.shapes).length) this._haveBaseline = true; }

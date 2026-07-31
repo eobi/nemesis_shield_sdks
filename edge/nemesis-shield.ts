@@ -21,9 +21,44 @@
 
 const DEFAULT_ENDPOINT = "https://shield.nemesislabs.xyz/api/v1/sketches";
 
-const RE_INT = /^\d+$/;
-const RE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const RE_HEX = /^[0-9a-f]{16,}$/i;
+// Full value taxonomy + sorted canon — byte-for-byte identical to the shared engine (node lib/shape.js)
+// so an edge function and a Node/Python/Go/PHP/Ruby/Java/.NET/Rust app produce the SAME shape hash
+// (cross-language baseline + threat-intel sharing). Previously this file used a reduced tokenizer, an
+// unsorted canon, and never fed query params — those shapes did NOT match the backend family.
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+const URLRE = /^https?:\/\/\S+$/i;
+const IPV4 = /^(\d{1,3}\.){3}\d{1,3}$/;
+const IPV6 = /^[0-9a-f:]+:[0-9a-f:]+$/i;
+const INT = /^-?\d+$/;
+const FLOATRE = /^-?\d*\.\d+$/;
+const DATE = /^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2})?)?/;
+const JWT = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
+const HEX = /^[0-9a-f]+$/i;
+const B64 = /^[A-Za-z0-9+/]+={0,2}$/;
+const ALPHA = /^[A-Za-z]+$/;
+const ALNUM = /^[A-Za-z0-9]+$/;
+
+function kindOf(v: unknown): string {
+  if (v == null || v === "") return "empty";
+  if (typeof v === "boolean") return "bool";
+  const s = String(v);
+  if (s === "") return "empty";
+  if (UUID.test(s)) return "uuid";
+  if (EMAIL.test(s)) return "email";
+  if (URLRE.test(s)) return "url";
+  if (IPV4.test(s)) return "ipv4";
+  if (IPV6.test(s)) return "ipv6";
+  if (JWT.test(s)) return "jwt";
+  if (DATE.test(s)) return "date";
+  if (INT.test(s)) return "int";
+  if (FLOATRE.test(s)) return "float";
+  if (s.length >= 16 && HEX.test(s)) return "hex";
+  if (s.length >= 16 && B64.test(s)) return "base64";
+  if (ALPHA.test(s)) return "alpha";
+  if (ALNUM.test(s)) return "alnum";
+  return "string";
+}
 
 function fnv1a(s: string): string {
   let h = 0x811c9dc5 >>> 0;
@@ -35,18 +70,72 @@ function fnv1a(s: string): string {
 }
 
 export function normalizePath(path: string): string {
-  path = path.split("?")[0];
-  return path
+  const clean = String(path || "/").split("?")[0].split("#")[0];
+  const out = clean
     .split("/")
-    .map((s) => (RE_INT.test(s) ? "{int}" : RE_UUID.test(s) ? "{uuid}" : RE_HEX.test(s) ? "{hex}" : s))
+    .map((seg) => {
+      if (seg === "") return seg;
+      if (seg.indexOf("..") >= 0) return "{traversal}"; // keeps ".." out of telemetry
+      const k = kindOf(seg);
+      if (k === "int" || k === "float") return "{int}";
+      if (k === "uuid") return "{uuid}";
+      if (k === "hex") return "{hex}";
+      if (k === "base64") return "{token}";
+      if (k === "alnum") return seg.length >= 12 ? "{id}" : seg;
+      return seg;
+    })
     .join("/");
+  return out || "/";
 }
 
-// Request signature: method + normalized route + auth (status excluded by design).
-function shapeOf(method: string, path: string, authed: boolean): string {
-  const route = normalizePath(path);
-  const canon = `{"route":"${route}","method":"${method.toUpperCase()}","params":[],"auth":${authed ? 1 : 0}}`;
-  return fnv1a(canon);
+export type Query = Record<string, string | string[]>;
+interface Param {
+  name: string;
+  kind: string;
+  nested: boolean;
+}
+
+function paramsOf(query: Query): Param[] {
+  return Object.keys(query || {})
+    .sort()
+    .map((name) => {
+      const val = query[name];
+      const isArr = Array.isArray(val);
+      return { name, kind: kindOf(isArr ? (val as string[])[0] : val), nested: isArr };
+    });
+}
+
+/** Convert URLSearchParams to a plain object (repeated keys → array), for buildSketch. */
+export function queryToObject(sp: URLSearchParams): Query {
+  const o: Query = {};
+  for (const [k, v] of sp) {
+    if (k in o) {
+      const cur = o[k];
+      o[k] = Array.isArray(cur) ? [...cur, v] : [cur as string, v];
+    } else o[k] = v;
+  }
+  return o;
+}
+
+// Safe-unlock (break-glass): paths never blocked, so a still-learning baseline can't lock operators
+// out. Prefix-matched. Override with the NEMESIS_SHIELD_BOOTSTRAP env (comma-separated).
+const DEFAULT_BOOTSTRAP = ["/login", "/signin", "/sign-in", "/auth", "/oauth", "/session", "/wp-login.php", "/wp-admin"];
+function envVar(name: string): string {
+  try {
+    // @ts-ignore Deno
+    if (typeof Deno !== "undefined" && Deno.env?.get) return Deno.env.get(name) ?? "";
+  } catch { /* not Deno */ }
+  try {
+    // @ts-ignore Node / Workers-with-process
+    if (typeof process !== "undefined" && process.env) return process.env[name] ?? "";
+  } catch { /* no process */ }
+  return "";
+}
+export function neverBlock(path: string): boolean {
+  const p = String(path || "/").split("?")[0].split("#")[0].toLowerCase();
+  const env = envVar("NEMESIS_SHIELD_BOOTSTRAP").trim();
+  const list = env ? env.split(",").map((s) => s.trim()).filter(Boolean) : DEFAULT_BOOTSTRAP;
+  return list.some((b) => b && p.startsWith(b.toLowerCase()));
 }
 
 export interface ShieldOptions {
@@ -61,6 +150,7 @@ interface Sketch {
   method: string;
   authenticated: boolean;
   status: number;
+  params: Param[];
   shape: string;
 }
 
@@ -86,14 +176,17 @@ export class Shield {
     return this.mode === "enforce";
   }
 
-  buildSketch(method: string, path: string, authed: boolean, status: number): Sketch {
-    return {
-      route: normalizePath(path),
+  buildSketch(method: string, path: string, query: Query, authed: boolean, status: number): Sketch {
+    const route = normalizePath(path);
+    const params = paramsOf(query);
+    // Canonical shape input: keys SORTED (auth, method, params, route); params [name, kind, nested].
+    const canon = JSON.stringify({
+      auth: authed ? 1 : 0,
       method: method.toUpperCase(),
-      authenticated: authed,
-      status,
-      shape: shapeOf(method, path, authed),
-    };
+      params: params.map((p) => [p.name, p.kind, p.nested ? 1 : 0]),
+      route,
+    });
+    return { route, method: method.toUpperCase(), authenticated: authed, status, params, shape: fnv1a(canon) };
   }
 
   /** Positive-security verdict. Returns the block reason, or null to allow. */
@@ -107,9 +200,7 @@ export class Shield {
   }
 
   record(s: Sketch): void {
-    this.buffer.push(
-      `{"route":"${s.route}","method":"${s.method}","authenticated":${s.authenticated},"status":${s.status},"params":[],"shape":"${s.shape}"}`,
-    );
+    this.buffer.push(JSON.stringify(s)); // includes params (names + kinds, never values)
     if (this.buffer.length >= 25) void this.flush();
   }
 
@@ -166,12 +257,17 @@ export class Shield {
     return async (req: Request): Promise<Response> => {
       await this.maybeRefresh();
       const url = new URL(req.url);
+      const query = queryToObject(url.searchParams);
       const authed =
-        req.headers.has("authorization") || req.headers.has("cookie") || req.headers.has("apikey");
-      if (this.enforcing()) {
-        const reason = this.decide(shapeOf(req.method, url.pathname, authed));
+        req.headers.has("authorization") ||
+        req.headers.has("cookie") ||
+        req.headers.has("apikey") ||
+        req.headers.has("x-api-key");
+      // enforce, but never block the login/auth path (break-glass)
+      if (this.enforcing() && !neverBlock(url.pathname)) {
+        const reason = this.decide(this.buildSketch(req.method, url.pathname, query, authed, 0).shape);
         if (reason) {
-          this.record(this.buildSketch(req.method, url.pathname, authed, 403));
+          this.record(this.buildSketch(req.method, url.pathname, query, authed, 403));
           void this.flush();
           return new Response(JSON.stringify({ error: "blocked_by_nemesis_shield", reason }), {
             status: 403,
@@ -180,7 +276,7 @@ export class Shield {
         }
       }
       const res = await fn(req);
-      this.record(this.buildSketch(req.method, url.pathname, authed, res.status));
+      this.record(this.buildSketch(req.method, url.pathname, query, authed, res.status));
       void this.flush();
       return res;
     };

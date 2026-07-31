@@ -229,8 +229,8 @@
           }
         } catch (e) {}
       }
-      // WebSocket / EventSource exfil channels.
-      ["WebSocket", "EventSource"].forEach(function (name) {
+      // WebSocket / EventSource / Worker / SharedWorker exfil + code-load channels.
+      ["WebSocket", "EventSource", "Worker", "SharedWorker"].forEach(function (name) {
         var Orig = env[name];
         if (typeof Orig !== "function") return;
         try {
@@ -247,6 +247,16 @@
           env[name] = Wrapped;
         } catch (e) {}
       });
+      // Service worker registration from an un-approved origin (persistent MITM of every request).
+      if (env.navigator && env.navigator.serviceWorker && env.navigator.serviceWorker.register) {
+        var reg = env.navigator.serviceWorker.register.bind(env.navigator.serviceWorker);
+        env.navigator.serviceWorker.register = function (url) {
+          try {
+            if (guardConnect(url)) return Promise.reject(new Error("blocked_by_nemesis_shield"));
+          } catch (e) {}
+          return reg.apply(this, arguments);
+        };
+      }
     }
 
     // ---- script inventory + integrity (§6.4.3) and injection blocking / tamper alerting (§11.6.1) ----
@@ -262,6 +272,40 @@
       } catch (e) {}
       return false;
     }
+    // Resource-bearing attributes across every tag a skimmer can exfil or code-load through — the
+    // img-beacon written via setAttribute (bypasses the Image.src property hook), <link rel=prefetch/
+    // preload>, <video>/<audio>/<source>/<track>/<embed> src, <object data>, and <a ping>. Off-baseline
+    // third-party loads are neutralized in enforce mode (blanked, not removed, so layout survives).
+    function firstUrl(v) {
+      return (v || "").split(",")[0].trim().split(/\s+/)[0];
+    }
+    function guardResource(node) {
+      try {
+        if (!node || node.nodeType !== 1 || !node.getAttribute) return;
+        var tag = node.tagName, checks = [];
+        if (tag === "IMG" || tag === "SOURCE") {
+          if (node.getAttribute("src")) checks.push(["connect", node.getAttribute("src"), "src"]);
+          if (node.getAttribute("srcset")) checks.push(["connect", firstUrl(node.getAttribute("srcset")), "srcset"]);
+        } else if (tag === "LINK") {
+          var rel = (node.getAttribute("rel") || "").toLowerCase();
+          if (/(prefetch|preload|preconnect|dns-prefetch|stylesheet)/.test(rel) && node.getAttribute("href"))
+            checks.push(["script", node.getAttribute("href"), "href"]);
+        } else if (tag === "VIDEO" || tag === "AUDIO" || tag === "TRACK" || tag === "EMBED") {
+          if (node.getAttribute("src")) checks.push(["connect", node.getAttribute("src"), "src"]);
+          if (node.getAttribute("poster")) checks.push(["connect", node.getAttribute("poster"), "poster"]);
+        } else if (tag === "OBJECT" && node.getAttribute("data")) {
+          checks.push(["script", node.getAttribute("data"), "data"]);
+        } else if (tag === "A" && node.getAttribute("ping")) {
+          checks.push(["connect", node.getAttribute("ping"), "ping"]);
+        }
+        for (var i = 0; i < checks.length; i++) {
+          if (shouldBlock(checks[i][0], originOf(checks[i][1], selfOrigin))) {
+            try { checks[i][2] === "ping" ? node.removeAttribute("ping") : node.setAttribute(checks[i][2], checks[i][2] === "srcset" ? "" : "about:blank"); } catch (e) {}
+          }
+        }
+      } catch (e) {}
+    }
+    var RES_TAGS = "img,source,link,video,audio,track,embed,object,a";
     function inspectNode(n) {
       try {
         if (!n || n.nodeType !== 1) return;
@@ -273,11 +317,17 @@
           }
         } else if (tag === "INPUT") {
           maybeFieldInjection(n);
+        } else {
+          guardResource(n);
         }
-        // scan nested (e.g. a wrapper div carrying a script or input)
+        // scan nested (e.g. a wrapper div carrying a script, input, or resource beacon)
         if (n.getElementsByTagName) {
           var s = n.getElementsByTagName("script");
           for (var i = 0; i < s.length; i++) inventoryScript(s[i]);
+        }
+        if (n.querySelectorAll) {
+          var res = n.querySelectorAll(RES_TAGS);
+          for (var j = 0; j < res.length; j++) guardResource(res[j]);
         }
       } catch (e) {}
     }
@@ -296,17 +346,31 @@
       if (!env.document) return;
       try {
         var ss = env.document.getElementsByTagName("script");
-        for (var i = 0; i < ss.length; i++) inventoryScript(ss[i]); // initial inventory
+        for (var i = 0; i < ss.length; i++) inventoryScript(ss[i]); // initial script inventory
+        if (env.document.querySelectorAll) {
+          var res = env.document.querySelectorAll(RES_TAGS); // initial resource inventory
+          for (var k = 0; k < res.length; k++) guardResource(res[k]);
+        }
       } catch (e) {}
       if (!env.MutationObserver) return;
       var mo = new env.MutationObserver(function (muts) {
         for (var i = 0; i < muts.length; i++) {
+          if (muts[i].type === "attributes") {
+            // src/href/srcset/etc. re-pointed on an existing node (setAttribute path)
+            guardResource(muts[i].target);
+            continue;
+          }
           var added = muts[i].addedNodes || [];
           for (var j = 0; j < added.length; j++) inspectNode(added[j]);
         }
       });
       try {
-        mo.observe(env.document.documentElement || env.document, { childList: true, subtree: true });
+        mo.observe(env.document.documentElement || env.document, {
+          childList: true,
+          subtree: true,
+          attributes: true,
+          attributeFilter: ["src", "srcset", "href", "poster", "data", "ping"],
+        });
       } catch (e) {}
     }
 
@@ -369,6 +433,7 @@
       decide: decide,
       shapeOf: shapeOf,
       shouldBlock: shouldBlock,
+      guardResource: guardResource,
       isPaymentField: isPaymentField,
       isPaymentForm: isPaymentForm,
       _applyPolicy: applyPolicy,

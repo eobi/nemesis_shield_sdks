@@ -26,14 +26,29 @@ use axum::{
 };
 use nemesis_shield::Client;
 
+// Feed the query-param STRUCTURE (names + kinds, never values) so param tampering on a known
+// route is caught, not just unknown paths.
+fn query_of(req: &Request) -> Vec<(String, String)> {
+    req.uri().query().map(|q| {
+        q.split('&').filter(|s| !s.is_empty()).map(|kv| {
+            let (k, v) = kv.split_once('=').unwrap_or((kv, ""));
+            (k.to_string(), v.to_string())
+        }).collect()
+    }).unwrap_or_default()
+}
+
 async fn shield(State(s): State<Arc<Client>>, req: Request, next: Next) -> Response {
     let method = req.method().to_string();
     let path = req.uri().path().to_string();
-    let authed = req.headers().contains_key("authorization") || req.headers().contains_key("cookie");
-    if s.enforcing() {
-        let sk = s.build_sketch(&method, &path, &[], authed, 0);
+    let query = query_of(&req);
+    let authed = req.headers().contains_key("authorization")
+        || req.headers().contains_key("cookie")
+        || req.headers().contains_key("x-api-key");
+    // enforce, but never block the login/auth path (break-glass) so a bad baseline can't lock you out
+    if s.enforcing() && !Client::never_block(&path) {
+        let sk = s.build_sketch(&method, &path, &query, authed, 0);
         if let Some(reason) = s.decide(&sk) {
-            s.record(s.build_sketch(&method, &path, &[], authed, 403));
+            s.record(s.build_sketch(&method, &path, &query, authed, 403));
             return (StatusCode::FORBIDDEN,
                 Json(serde_json::json!({"error": "blocked_by_nemesis_shield", "reason": reason})))
                 .into_response();
@@ -41,7 +56,7 @@ async fn shield(State(s): State<Arc<Client>>, req: Request, next: Next) -> Respo
     }
     let resp = next.run(req).await;
     let status = resp.status().as_u16();
-    s.record(s.build_sketch(&method, &path, &[], authed, status));
+    s.record(s.build_sketch(&method, &path, &query, authed, status));
     resp
 }
 
@@ -102,3 +117,27 @@ let score = nemesis_shield::ml_injection_score(&user_prompt); // 0..1
 ```
 
 Regex first, then ML. Blocks at ≥ 0.85 (high), flags at ≥ 0.45.
+
+## Full coverage & safe-unlock
+
+**Mount it first / outermost** so *every* route is inspected (not just API routes — attackers hit any path):
+
+```
+.layer(middleware::from_fn_with_state(shield.clone(), shield))   // outermost layer
+```
+
+**What's inspected** (privacy-preserving): method + normalized route + **query-param structure** (names + kinds, never values) + auth flag + status. An off-baseline route, **param structure**, method, or auth state is blocked in enforce mode. Path-traversal segments normalize to `{traversal}`.
+
+**Safe-unlock (break-glass):** the login/auth path is never blocked, so a still-learning baseline can't lock you out. Defaults: `/login /signin /sign-in /auth /oauth /session /wp-login.php /wp-admin`. Override:
+
+```bash
+export NEMESIS_SHIELD_BOOTSTRAP="/login,/admin,/healthz"
+```
+
+**Verify coverage** — in observe mode, hit a normal route, a param, and a scanner path, then confirm all three appear in the console (Activity / Behaviors):
+
+```bash
+curl -s "http://localhost:8080/" >/dev/null
+curl -s "http://localhost:8080/search?q=shoes" >/dev/null
+curl -s "http://localhost:8080/.env" >/dev/null   # shows up as an off-baseline behavior
+```
