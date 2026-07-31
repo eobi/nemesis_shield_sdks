@@ -1,9 +1,28 @@
 [project]
 name = "nemesis-shield"
-version = "0.0.0"
-description = "Nemesis Shield — Sentinel SDK for Python (web/API/LLM behavioral protection)"
+version = "0.1.0"
+description = "Nemesis Shield — Sentinel SDK for Python (web/API/LLM behavioral protection). Learn your app's normal behavior, then block off-baseline requests in enforce mode. ASGI/WSGI/Django middleware + OpenAI/Anthropic/LangChain LLM guards."
+readme = "README.md"
 requires-python = ">=3.9"
+license = "MIT"
+authors = [{ name = "Autogon Inc.", email = "support@nemesislabs.xyz" }]
+keywords = ["security", "waf", "rasp", "adr", "api-security", "appsec", "positive-security", "llm-security", "prompt-injection", "nemesis-shield"]
 dependencies = []
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Security",
+  "Topic :: Internet :: WWW/HTTP",
+  "Framework :: Django",
+  "Framework :: FastAPI",
+]
+
+[project.urls]
+Homepage = "https://nemesislabs.xyz"
+Repository = "https://github.com/eobi/nemesis_shield_sdks"
+Documentation = "https://github.com/eobi/nemesis_shield_sdks/tree/main/python"
 
 [build-system]
 requires = ["setuptools>=68"]
@@ -13,7 +32,7 @@ build-backend = "setuptools.build_meta"
 packages = ["nemesis_shield"]
 
 [tool.setuptools.package-data]
-# ship the trained HashLR weights inside the wheel
+# ship the trained HashLR weights inside the wheel (byte-identical across all SDKs)
 nemesis_shield = ["*.json"]
 
 [tool.pytest.ini_options]
