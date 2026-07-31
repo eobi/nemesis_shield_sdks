@@ -85,6 +85,7 @@ public class NemesisShield {
     }
 
     private final String token;
+    private final String endpoint;
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build();
     private volatile String mode = "observe";
     private volatile boolean haveBaseline = false;
@@ -93,6 +94,7 @@ public class NemesisShield {
 
     public NemesisShield(String token) {
         this.token = token;
+        this.endpoint = resolveEndpoint();
         if (token != null && !token.isEmpty()) {
             refresh();
             Thread t = new Thread(() -> {
@@ -103,6 +105,15 @@ public class NemesisShield {
             t.setDaemon(true);
             t.start();
         }
+    }
+
+    /** The sketches endpoint. Defaults to the Nemesis Shield cloud; override with the NEMESIS_ENDPOINT
+     *  env var (or -Dnemesis.endpoint=...) to point at a self-hosted / on-prem Shield or a local mock. */
+    private static String resolveEndpoint() {
+        String p = System.getProperty("nemesis.endpoint");
+        if (p != null && !p.isEmpty()) return p;
+        String e = System.getenv("NEMESIS_ENDPOINT");
+        return (e != null && !e.isEmpty()) ? e : ENDPOINT;
     }
 
     public boolean enforcing() { return "enforce".equals(mode); }
@@ -209,7 +220,7 @@ public class NemesisShield {
     private void send(String sketchesJson) {
         if (token == null || token.isEmpty()) return;
         try {
-            HttpRequest req = HttpRequest.newBuilder(URI.create(ENDPOINT))
+            HttpRequest req = HttpRequest.newBuilder(URI.create(endpoint))
                     .header("Authorization", "Bearer " + token)
                     .header("Content-Type", "application/json")
                     .timeout(Duration.ofSeconds(3))
