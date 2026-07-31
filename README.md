@@ -21,7 +21,7 @@ Nemesis is unreachable, your app is completely unaffected.
 | **PHP** | `composer require nemesislabs/sentinel` | Laravel auto-discovery / `register_shutdown_function` → [`php/`](php/) |
 | **WordPress** | drop-in plugin | Activate → set token; gates the front end, REST & admin-ajax → [`wordpress/`](wordpress/) |
 | **Java** | `io.github.eobi:sentinel` | Servlet filter / Spring Boot (JDK 11+) → [`java/`](java/) |
-| **.NET / C#** | `NemesisShield.cs` | ASP.NET Core middleware → [`dotnet/`](dotnet/) |
+| **.NET / C#** | `dotnet add package NemesisShield` | ASP.NET Core middleware (net8.0 + netstandard2.0) → [`dotnet/`](dotnet/) |
 | **Rust** | `nemesis-shield` | axum (tower) / actix-web middleware → [`rust/`](rust/) |
 | **Edge / Supabase** (Deno TS) | `nemesis-shield.ts` | `withShield()` for Supabase Edge Functions / Deno / CF Workers / Vercel Edge → [`edge/`](edge/) |
 | **Supabase direct DB API** | Cloudflare Worker | reverse-proxy that guards `supabase.from()` (PostgREST) — off-baseline table/verb/auth blocked before your DB → [`cloudflare-supabase-proxy/`](cloudflare-supabase-proxy/) |

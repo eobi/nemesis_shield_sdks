@@ -23,7 +23,7 @@ Legend: `[x]` done · `[ ]` not yet.
 | 6 | ruby | RubyGems | **`nemesis-shield`** (v0.1.0) | `gem install nemesis-shield` | ✅ 0.1.0 | ✅ works |
 | 7 | php | Packagist | **`nemesislabs/sentinel`** (v0.1.0) | `composer require nemesislabs/sentinel` | ✅ 0.1.0 | ✅ works |
 | 8 | java | Maven Central | **`io.github.eobi:sentinel`** (v0.1.1) | Maven/Gradle coord | ✅ 0.1.1 (canonical) | ✅ works |
-| 9 | dotnet | NuGet | **`NemesisShield`** (v0.1.1) | `dotnet add package NemesisShield` | ✅ pushed (validating) | ⏳ |
+| 9 | dotnet | NuGet | **`NemesisShield`** (v0.1.1) | `dotnet add package NemesisShield` | ✅ 0.1.1 | ✅ works |
 | 10 | rust | crates.io | **`nemesis-shield`** | `cargo add nemesis-shield` | [ ] | [ ] |
 | 11 | wordpress | WordPress.org | slug **`nemesis-shield`** | Plugins → search | [ ] | [ ] |
 | — | cloudflare-supabase-proxy | (deploy template) | `nemesis-supabase-proxy` | `wrangler deploy` | n/a | n/a |
@@ -40,7 +40,7 @@ Legend: `[x]` done · `[ ]` not yet.
 - [ ] **crates.io** — login (GitHub); `CARGO_REGISTRY_TOKEN`
 - [x] **RubyGems** — published with `rubygems` API key in `~/Documents/nemesis-shield/.env` (used locally); MFA lowered to UI-only for the push
 - [x] **Packagist** — split repo github.com/eobi/nemesis-shield-php submitted; auto-updates on tag
-- [ ] **NuGet** — nuget.org account; `NUGET_API_KEY`
+- [x] **NuGet** — Trusted Publishing (OIDC, keyless) policy on nuget.org (owner nemesislabs) -> .github/workflows/publish-nuget.yml; no stored key
 - [x] **Maven Central** — io.github.eobi verified (GitHub), GPG key on keyserver.ubuntu.com, published via Central Portal token (`maven_java_*` in .env)
 - [ ] **JSR** — scope `@nemesis-shield-autogon` (for edge); OIDC
 - [ ] **WordPress.org** — submit plugin for review; then SVN access
