@@ -26,3 +26,6 @@ demo/live-cve/goapp/app
 
 # ruby build artifacts
 *.gem
+
+# java build output
+java/target/
