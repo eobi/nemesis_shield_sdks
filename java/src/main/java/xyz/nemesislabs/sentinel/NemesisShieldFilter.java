@@ -1,3 +1,5 @@
+package xyz.nemesislabs.sentinel;
+
 // Servlet filter (Jakarta EE / Spring Boot 3+). Register it and set NEMESIS_TOKEN.
 // Spring Boot:  @Bean FilterRegistrationBean<NemesisShieldFilter> ... new NemesisShieldFilter()
 // Blocks off-baseline requests in enforce mode; records every request. Uses the same native

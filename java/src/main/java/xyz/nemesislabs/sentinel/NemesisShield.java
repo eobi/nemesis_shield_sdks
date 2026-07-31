@@ -1,3 +1,5 @@
+package xyz.nemesislabs.sentinel;
+
 // Nemesis Shield — Sentinel SDK for Java (native, JDK 11+, no dependencies). Learns your app's normal
 // behavior; in enforce mode blocks off-baseline requests (auth bypass, path traversal, scanners,
 // unusual methods) before your handlers run. Positive-security, fail-open, privacy-preserving.
