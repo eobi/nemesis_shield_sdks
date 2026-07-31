@@ -12,20 +12,20 @@ All share ONE behavioral contract (identical `ml_weights.json` + FNV-1a shape ha
 
 ## 1. Target registries + package identity
 
-| SDK dir | Registry | Package id / coordinate | Install command | Manifest today |
+| SDK dir | Registry | Package id / coordinate | Install command | Status (live) |
 |---|---|---|---|---|
-| `node` | **npm** | `@nemesis-shield-autogon/sentinel` | `npm i @nemesis-shield-autogon/sentinel` | ✅ package.json (v0.2.0) |
-| `browser` | **npm** (+ CDN) | `@nemesis-shield-autogon/browser` | `npm i @nemesis-shield-autogon/browser` / unpkg | ✅ package.json (v0.1.0) |
-| `edge` | **npm** + **JSR** | `@nemesis-shield-autogon/edge` | `npm i @nemesis-shield-autogon/edge` / `jsr add @nemesis-shield-autogon/edge` | ❌ needs package.json (+ jsr.json) |
-| `python` | **PyPI** | `nemesis-shield` | `pip install nemesis-shield` | ✅ pyproject.toml (v0.0.0 → bump) |
-| `go` | **Go modules** (proxy) | `github.com/eobi/nemesis_shield_sdks/go` | `go get github.com/eobi/nemesis_shield_sdks/go` | ✅ go.mod (tag only) |
-| `ruby` | **RubyGems** | `nemesis-shield` | `gem install nemesis-shield` | ❌ needs `.gemspec` |
-| `php` | **Packagist** | `nemesislabs/sentinel` | `composer require nemesislabs/sentinel` | ✅ composer.json |
-| `java` | **Maven Central** | `xyz.nemesislabs:sentinel` | Maven/Gradle coordinate | ❌ needs pom.xml (+ GPG + Central Portal) |
-| `dotnet` | **NuGet** | `NemesisShield` | `dotnet add package NemesisShield` | ❌ needs `.csproj` |
-| `rust` | **crates.io** | `nemesis-shield` | `cargo add nemesis-shield` | ✅ Cargo.toml (v0.1.0) |
-| `wordpress` | **WordPress.org** | slug `nemesis-shield` | Plugins → search "Nemesis Shield" | ❌ needs `readme.txt` (WP format) + assets + SVN |
-| `cloudflare-supabase-proxy` | not a package | deploy template | `wrangler deploy` (see note) | template only |
+| `node` | **npm** | `@nemesis-shield-autogon/sentinel` | `npm i @nemesis-shield-autogon/sentinel` | ✅ **PUBLISHED** v0.2.2 · pull-verified |
+| `browser` | **npm** (+ CDN) | `@nemesis-shield-autogon/browser` | `npm i @nemesis-shield-autogon/browser` / unpkg | ✅ **PUBLISHED** v0.1.1 · pull-verified |
+| `edge` | **npm** + **JSR** | `@nemesis-shield-autogon/edge` | `npm i @nemesis-shield-autogon/edge` / `jsr add @nemesis-shield-autogon/edge` | ⏳ pending — needs package.json (+ jsr.json) |
+| `python` | **PyPI** | `nemesis-shield` | `pip install nemesis-shield` | ✅ **PUBLISHED** v0.1.1 · pull-verified |
+| `go` | **Go modules** (proxy) | `github.com/eobi/nemesis_shield_sdks/go` | `go get github.com/eobi/nemesis_shield_sdks/go` | ✅ **PUBLISHED** tag `go/v0.1.0` · proxy-verified |
+| `ruby` | **RubyGems** | `nemesis-shield` | `gem install nemesis-shield` | ✅ **PUBLISHED** v0.1.0 · gemspec + pull-verified |
+| `php` | **Packagist** | `nemesislabs/sentinel` | `composer require nemesislabs/sentinel` | ✅ **PUBLISHED** v0.1.0 · split repo (eobi/nemesis-shield-php) · pull-verified |
+| `java` | **Maven Central** | `io.github.eobi:sentinel` | Maven/Gradle coordinate | ✅ pom.xml + GPG (keyserver) + Central Portal — v0.1.0 **validated + publish triggered**, propagating to Maven Central (io.github.eobi verified) |
+| `dotnet` | **NuGet** | `NemesisShield` | `dotnet add package NemesisShield` | ⏳ pending — needs `.csproj` |
+| `rust` | **crates.io** | `nemesis-shield` | `cargo add nemesis-shield` | ⏳ Cargo.toml ready (v0.1.0) — not yet pushed to crates.io |
+| `wordpress` | **WordPress.org** | slug `nemesis-shield` | Plugins → search "Nemesis Shield" | ⏳ pending — needs `readme.txt` (WP format) + assets + SVN |
+| `cloudflare-supabase-proxy` | not a package | deploy template | `wrangler deploy` (see note) | template only (ships via GitHub) |
 
 Note on the CF proxy: it `import`s `../../edge/nemesis-shield.ts` relatively, so it is a **deploy template**,
 not a registry artifact. Ship it via GitHub (a `degit`/template repo or the `examples`), and once `@nemesis-shield-autogon/edge`
