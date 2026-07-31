@@ -1,0 +1,42 @@
+name: publish-nuget
+
+# Keyless publish to NuGet.org via Trusted Publishing (OIDC). No API key stored anywhere.
+# Trigger manually (Actions tab → Run workflow) or via the API/dispatch token.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "NuGet package version to publish"
+        required: false
+        default: "0.1.1"
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # required: lets the job request a GitHub OIDC token
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Pack
+        run: dotnet pack dotnet/NemesisShield.csproj -c Release -o artifacts -p:Version=${{ github.event.inputs.version }}
+
+      - name: NuGet login (OIDC → short-lived API key)
+        uses: NuGet/login@v1
+        id: login
+        with:
+          # nuget.org profile/username that owns the Trusted Publishing policy (NOT an email).
+          # Package Owner in the policy is "nemesislabs"; change here if your login differs.
+          user: nemesislabs
+
+      - name: Push to NuGet.org
+        run: >
+          dotnet nuget push "artifacts/*.nupkg"
+          --api-key ${{ steps.login.outputs.NUGET_API_KEY }}
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate
