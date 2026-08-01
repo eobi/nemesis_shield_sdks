@@ -44,6 +44,55 @@ function esc_attr($s)        { return htmlspecialchars((string) $s, ENT_QUOTES);
 function esc_url_raw($s)     { return (string) $s; }
 function sanitize_text_field($s) { return trim((string) $s); }
 
+// Input unslashing (real WP strips one level of magic-quotes slashes). Tests pass clean data.
+function wp_unslash($v) { return is_array($v) ? array_map('wp_unslash', $v) : (is_string($v) ? stripslashes($v) : $v); }
+
+// i18n + escaping helpers (settings screen only; not exercised by the gate tests).
+function __($s, $d = 'default') { return (string) $s; }
+function esc_html__($s, $d = 'default') { return htmlspecialchars((string) $s, ENT_QUOTES); }
+function esc_html($s) { return htmlspecialchars((string) $s, ENT_QUOTES); }
+function wp_kses($s, $allowed = array()) { return (string) $s; }
+
+// ── WordPress HTTP API (real request to the mock endpoint; test-only transport) ──────────────────
+function wp_remote_post($url, $args = array()) {
+    if (!function_exists('curl_init')) {
+        return new WP_Error('http', 'curl unavailable');
+    }
+    $ch = curl_init($url);
+    $headers = array();
+    foreach (($args['headers'] ?? array()) as $k => $v) { $headers[] = $k . ': ' . $v; }
+    curl_setopt_array($ch, array(
+        CURLOPT_POST => true,
+        CURLOPT_HTTPHEADER => $headers,
+        CURLOPT_POSTFIELDS => $args['body'] ?? '',
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => (int) ($args['timeout'] ?? 5),
+        CURLOPT_CONNECTTIMEOUT => 2,
+    ));
+    $body = curl_exec($ch);
+    $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $err  = curl_error($ch);
+    curl_close($ch);
+    if ($body === false || $code === 0) {
+        return new WP_Error('http_request_failed', $err ?: 'request failed');
+    }
+    return array('body' => $body, 'response' => array('code' => $code));
+}
+function is_wp_error($t) { return $t instanceof WP_Error; }
+function wp_remote_retrieve_response_code($r) { return is_array($r) ? ($r['response']['code'] ?? 0) : 0; }
+function wp_remote_retrieve_body($r) { return is_array($r) ? ($r['body'] ?? '') : ''; }
+
+// ── Transients (in-process; each test child starts empty, which is fine — it just refetches policy) ─
+$GLOBALS['ns_transients'] = array();
+function get_transient($k) { return $GLOBALS['ns_transients'][$k] ?? false; }
+function set_transient($k, $v, $ttl = 0) { $GLOBALS['ns_transients'][$k] = $v; return true; }
+function delete_transient($k) { unset($GLOBALS['ns_transients'][$k]); return true; }
+
+function wp_json_file_decode($file, $opts = array()) {
+    $raw = @file_get_contents($file);
+    return $raw === false ? null : json_decode($raw, !empty($opts['associative']));
+}
+
 class WP_Error {
     public $code;
     public $message;

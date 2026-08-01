@@ -2,28 +2,31 @@
 /**
  * Plugin Name:       Nemesis Shield
  * Plugin URI:        https://shield.nemesislabs.xyz
- * Description:       Positive-security runtime protection for WordPress. Learns your site's normal behaviour and, in enforce mode, blocks off-baseline requests (auth bypass, path traversal, scanners, unusual methods) before WordPress runs. Privacy-preserving, fail-open.
+ * Description:       Connects your site to the Nemesis Shield service for positive-security runtime protection. The service learns your site's normal behaviour and, in enforce mode, tells the plugin to block off-baseline requests (auth bypass, path traversal, scanners, unusual methods). Privacy-preserving, fail-open.
  * Version:           1.0.0
- * Requires at least: 5.0
+ * Requires at least: 5.9
  * Requires PHP:      7.2
  * Author:            Nemesis Labs
  * Author URI:        https://nemesislabs.xyz
  * License:           MIT
+ * License URI:       https://opensource.org/licenses/MIT
  * Text Domain:       nemesis-shield
  *
- * How it works: the same native PHP SDK every Nemesis Shield integration uses. It
- * computes a privacy-preserving *shape* of each request locally (method + path
- * shape + param kinds + auth flag — never bodies, values, or secrets), caches the
- * compiled policy, and makes the block decision in-process. Observe → approve in
- * the console → enforce. Fail-open: if Shield is unreachable, the site is
- * unaffected. WordPress admin, login and cron are never blocked unless you opt in.
+ * Nemesis Shield is a client for an external service (see readme.txt for the data-and-privacy
+ * disclosure). It computes a privacy-preserving *shape* of each request locally (method + path shape +
+ * param kinds + auth flag, never bodies, values, or secrets), sends those shapes to the service, caches
+ * the compiled policy the service returns, and applies the service's decision in-process. Observe →
+ * approve in the console → enforce. Fail-open: if the service is unreachable, the site is unaffected.
+ * WordPress admin, login and cron are never blocked unless you opt in.
+ *
+ * @package Nemesis_Shield
  */
 
 if (!defined('ABSPATH')) {
     exit; // no direct access
 }
 
-require_once __DIR__ . '/lib/NemesisShield.php';
+require_once __DIR__ . '/lib/NemesisShieldWP.php';
 require_once __DIR__ . '/lib/NemesisShieldLLM.php';
 
 final class Nemesis_Shield_Plugin
@@ -37,19 +40,18 @@ final class Nemesis_Shield_Plugin
 
     public static function boot()
     {
-        // Let a wp-config constant point the SDK at a self-hosted / on-prem Shield.
+        // Let a wp-config constant / settings value point the plugin at a self-hosted service.
         $ep = self::opt('endpoint', '');
         if ($ep !== '' && !defined('NEMESIS_SHIELD_ENDPOINT')) {
             define('NEMESIS_SHIELD_ENDPOINT', $ep);
         }
 
-        // Gate: run as early as auth state is reliable. On `init` is_user_logged_in()
-        // works, and it fires for the front end, wp-admin, and admin-ajax alike —
-        // before the main query / template does its work.
+        // Gate: run as early as auth state is reliable. On `init` is_user_logged_in() works, and it
+        // fires for the front end, wp-admin, and admin-ajax alike, before the main query / template.
         add_action('init', array(__CLASS__, 'gate'), PHP_INT_MIN);
 
-        // REST gets its own pre-dispatch gate so we can block with a proper JSON 403
-        // before the route handler runs, with REST auth already resolved.
+        // REST gets its own pre-dispatch gate so we can block with a proper JSON 403 before the route
+        // handler runs, with REST auth already resolved.
         add_filter('rest_pre_dispatch', array(__CLASS__, 'gate_rest'), PHP_INT_MIN, 3);
 
         // Observe every request at the very end, once the status code exists.
@@ -76,8 +78,8 @@ final class Nemesis_Shield_Plugin
     }
 
     /**
-     * Token precedence: NEMESIS_SHIELD_TOKEN constant (wp-config) > NEMESIS_TOKEN
-     * env > the value saved in Settings. Constants/env keep the secret out of the DB.
+     * Token precedence: NEMESIS_SHIELD_TOKEN constant (wp-config) > NEMESIS_TOKEN env > the value saved
+     * in Settings. Constants/env keep the secret out of the database.
      */
     private static function token()
     {
@@ -95,16 +97,20 @@ final class Nemesis_Shield_Plugin
         return self::$token = trim($t);
     }
 
-    // ---- request extraction ---------------------------------------------------
+    // ---- request extraction (all superglobal reads unslashed + sanitized) -----
 
     private static function method()
     {
-        return isset($_SERVER['REQUEST_METHOD']) ? (string) $_SERVER['REQUEST_METHOD'] : 'GET';
+        return isset($_SERVER['REQUEST_METHOD'])
+            ? sanitize_text_field(wp_unslash($_SERVER['REQUEST_METHOD']))
+            : 'GET';
     }
 
     private static function path()
     {
-        $uri = isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '/';
+        $uri = isset($_SERVER['REQUEST_URI'])
+            ? sanitize_text_field(wp_unslash($_SERVER['REQUEST_URI']))
+            : '/';
         return '/' . ltrim(strtok($uri, '?'), '/');
     }
 
@@ -113,19 +119,48 @@ final class Nemesis_Shield_Plugin
         if (function_exists('is_user_logged_in') && is_user_logged_in()) {
             return true;
         }
-        // API callers (application passwords, bearer/basic) show up as headers. Apache's
-        // common "pass the Authorization header" rewrite sets these to an EMPTY string on
-        // anonymous requests, so test for a non-empty value, not mere presence — otherwise
-        // every visitor would be mislabelled authenticated and poison the baseline.
-        $h = isset($_SERVER['HTTP_AUTHORIZATION']) ? $_SERVER['HTTP_AUTHORIZATION']
-           : (isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION']) ? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] : '');
-        return is_string($h) && $h !== '';
+        // API callers (application passwords, bearer/basic) show up as headers. Apache's common
+        // "pass the Authorization header" rewrite sets these to an EMPTY string on anonymous requests,
+        // so test for a non-empty value, not mere presence, or every visitor would be mislabelled
+        // authenticated and poison the baseline.
+        $h = '';
+        if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
+            $h = sanitize_text_field(wp_unslash($_SERVER['HTTP_AUTHORIZATION']));
+        } elseif (isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+            $h = sanitize_text_field(wp_unslash($_SERVER['REDIRECT_HTTP_AUTHORIZATION']));
+        }
+        return $h !== '';
     }
 
     /**
-     * Whether we should *enforce* (block) on this request. Observation always runs;
-     * blocking is held back on the surfaces that could lock an operator out unless
-     * they explicitly opt in. Login and cron are never blocked; WP-CLI is exempt.
+     * The query parameters, unslashed and sanitized. Only the parameter NAMES and value KINDS shape
+     * the request signature, so scalar values are sanitized and arrays reduced to sanitized scalars.
+     * No nonce applies: this is a read-only request gate, not form processing.
+     */
+    private static function query()
+    {
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only positive-security request gate, not form processing.
+        if (empty($_GET) || !is_array($_GET)) {
+            return array();
+        }
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only positive-security request gate, not form processing.
+        $raw = wp_unslash($_GET);
+        $out = array();
+        foreach ($raw as $k => $v) {
+            $key = sanitize_text_field($k);
+            if (is_array($v)) {
+                $out[$key] = array_map('sanitize_text_field', array_map('strval', $v));
+            } else {
+                $out[$key] = sanitize_text_field((string) $v);
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * Whether we should *enforce* (block) on this request. Observation always runs; blocking is held
+     * back on the surfaces that could lock an operator out unless they explicitly opt in. Login and
+     * cron are never blocked; WP-CLI is exempt.
      */
     private static function enforceable()
     {
@@ -135,12 +170,14 @@ final class Nemesis_Shield_Plugin
         if (defined('DOING_CRON') && DOING_CRON) {
             return false;
         }
-        $script = isset($_SERVER['SCRIPT_NAME']) ? (string) $_SERVER['SCRIPT_NAME'] : '';
+        $script = isset($_SERVER['SCRIPT_NAME'])
+            ? sanitize_text_field(wp_unslash($_SERVER['SCRIPT_NAME']))
+            : '';
         if (substr($script, -13) === 'wp-login.php' || substr($script, -11) === 'wp-cron.php') {
             return false;
         }
-        // Admin & admin-ajax are observe-only unless the operator opts in — a default
-        // that guarantees a wrong baseline can never lock you out of your own site.
+        // Admin & admin-ajax are observe-only unless the operator opts in, a default that guarantees a
+        // wrong baseline can never lock you out of your own site.
         if (is_admin() && self::opt('protect_admin', '0') !== '1') {
             return false;
         }
@@ -160,7 +197,7 @@ final class Nemesis_Shield_Plugin
             if ($token === '' || !self::enforceable()) {
                 return;
             }
-            list($block, $reason) = NemesisShield::verdict(
+            list($block, $reason) = NemesisShieldWP::verdict(
                 $token, self::method(), self::path(), self::query(), self::authed()
             );
             if ($block) {
@@ -169,6 +206,7 @@ final class Nemesis_Shield_Plugin
             }
         } catch (\Throwable $e) {
             // fail-open: never let the shield break the site
+            unset($e);
         }
     }
 
@@ -183,10 +221,10 @@ final class Nemesis_Shield_Plugin
             if ($token === '' || !self::enforceable()) {
                 return $result;
             }
-            $path   = method_exists($request, 'get_route') ? '/wp-json' . $request->get_route() : self::path();
-            $method = method_exists($request, 'get_method') ? $request->get_method() : self::method();
-            $query  = method_exists($request, 'get_query_params') ? (array) $request->get_query_params() : self::query();
-            list($block, $reason) = NemesisShield::verdict($token, $method, $path, $query, self::authed());
+            $path   = (is_object($request) && method_exists($request, 'get_route')) ? '/wp-json' . $request->get_route() : self::path();
+            $method = (is_object($request) && method_exists($request, 'get_method')) ? $request->get_method() : self::method();
+            $query  = (is_object($request) && method_exists($request, 'get_query_params')) ? (array) $request->get_query_params() : self::query();
+            list($block, $reason) = NemesisShieldWP::verdict($token, $method, $path, $query, self::authed());
             if ($block) {
                 self::$blocked = true;
                 return new WP_Error(
@@ -196,7 +234,7 @@ final class Nemesis_Shield_Plugin
                 );
             }
         } catch (\Throwable $e) {
-            // fail-open
+            unset($e); // fail-open
         }
         return $result;
     }
@@ -213,18 +251,13 @@ final class Nemesis_Shield_Plugin
                 return;
             }
             $status = function_exists('http_response_code') ? (http_response_code() ?: 200) : 200;
-            NemesisShield::observe($token, self::method(), self::path(), self::query(), self::authed(), $status);
+            NemesisShieldWP::observe($token, self::method(), self::path(), self::query(), self::authed(), $status);
         } catch (\Throwable $e) {
-            // fail-open
+            unset($e); // fail-open
         }
     }
 
-    private static function query()
-    {
-        return isset($_GET) && is_array($_GET) ? $_GET : array();
-    }
-
-    /** Emit the 403 and stop, matching the SDK's raw-PHP guard() contract. */
+    /** Emit the 403 and stop. */
     private static function deny($reason)
     {
         if (!headers_sent()) {
@@ -244,14 +277,17 @@ final class Nemesis_Shield_Plugin
     public static function menu()
     {
         add_options_page(
-            'Nemesis Shield', 'Nemesis Shield', 'manage_options', 'nemesis-shield',
+            'Nemesis Shield',
+            'Nemesis Shield',
+            'manage_options',
+            'nemesis-shield',
             array(__CLASS__, 'render_settings')
         );
     }
 
     public static function register_settings()
     {
-        register_setting('nemesis_shield', self::OPT, array(__CLASS__, 'sanitize'));
+        register_setting('nemesis_shield', self::OPT, array('sanitize_callback' => array(__CLASS__, 'sanitize')));
     }
 
     public static function sanitize($input)
@@ -270,50 +306,50 @@ final class Nemesis_Shield_Plugin
         }
         $token_from_env = (defined('NEMESIS_SHIELD_TOKEN') && NEMESIS_SHIELD_TOKEN)
             || ((getenv('NEMESIS_TOKEN') !== false) && getenv('NEMESIS_TOKEN') !== '');
+        $allowed = array('strong' => array(), 'code' => array(), 'a' => array('href' => array(), 'target' => array(), 'rel' => array()));
         ?>
         <div class="wrap">
-            <h1>Nemesis Shield</h1>
-            <p>Positive-security runtime protection. Traffic builds a per-site baseline in
-               <strong>observe</strong> mode; approve behaviours in the
-               <a href="https://shield.nemesislabs.xyz" target="_blank" rel="noopener">Shield console</a>,
-               then flip the app to <strong>enforce</strong> and off-baseline requests are blocked with
-               <code>403 blocked_by_nemesis_shield</code>. No redeploy. The mode is pulled live.</p>
+            <h1><?php echo esc_html__('Nemesis Shield', 'nemesis-shield'); ?></h1>
+            <p><?php echo wp_kses(
+                __('Positive-security runtime protection powered by the <a href="https://shield.nemesislabs.xyz" target="_blank" rel="noopener">Nemesis Shield service</a>. Your traffic builds a per-site baseline in <strong>observe</strong> mode; you approve behaviours in the console, then set the app to <strong>enforce</strong> and off-baseline requests are blocked with <code>403 blocked_by_nemesis_shield</code>. No redeploy. The mode is pulled live.', 'nemesis-shield'),
+                $allowed
+            ); ?></p>
             <form method="post" action="options.php">
                 <?php settings_fields('nemesis_shield'); ?>
                 <table class="form-table" role="presentation">
                     <tr>
-                        <th scope="row"><label for="ns_token">Install token</label></th>
+                        <th scope="row"><label for="ns_token"><?php echo esc_html__('Install token', 'nemesis-shield'); ?></label></th>
                         <td>
                             <input name="<?php echo esc_attr(self::OPT); ?>[token]" id="ns_token" type="text"
                                    class="regular-text" value="<?php echo esc_attr(self::opt('token', '')); ?>"
-                                   placeholder="nsk_…" autocomplete="off" <?php disabled($token_from_env); ?> />
+                                   placeholder="nsk_..." autocomplete="off" <?php disabled($token_from_env); ?> />
                             <p class="description">
-                                <?php if ($token_from_env): ?>
-                                    Provided via the <code>NEMESIS_SHIELD_TOKEN</code> constant / <code>NEMESIS_TOKEN</code> env, so this field is ignored.
-                                <?php else: ?>
-                                    From <a href="https://shield.nemesislabs.xyz" target="_blank" rel="noopener">Protect an app</a>. Prefer setting <code>NEMESIS_SHIELD_TOKEN</code> in <code>wp-config.php</code> to keep it out of the database.
+                                <?php if ($token_from_env) : ?>
+                                    <?php echo wp_kses(__('Provided via the <code>NEMESIS_SHIELD_TOKEN</code> constant / <code>NEMESIS_TOKEN</code> environment variable, so this field is ignored.', 'nemesis-shield'), $allowed); ?>
+                                <?php else : ?>
+                                    <?php echo wp_kses(__('From <a href="https://shield.nemesislabs.xyz" target="_blank" rel="noopener">Protect an app</a> in the Nemesis Shield console. Prefer setting <code>NEMESIS_SHIELD_TOKEN</code> in <code>wp-config.php</code> to keep it out of the database.', 'nemesis-shield'), $allowed); ?>
                                 <?php endif; ?>
                             </p>
                         </td>
                     </tr>
                     <tr>
-                        <th scope="row">Protect wp-admin</th>
+                        <th scope="row"><?php echo esc_html__('Protect wp-admin', 'nemesis-shield'); ?></th>
                         <td>
                             <label>
                                 <input type="checkbox" name="<?php echo esc_attr(self::OPT); ?>[protect_admin]" value="1"
                                        <?php checked(self::opt('protect_admin', '0'), '1'); ?> />
-                                Also enforce inside wp-admin and admin-ajax
+                                <?php echo esc_html__('Also enforce inside wp-admin and admin-ajax', 'nemesis-shield'); ?>
                             </label>
-                            <p class="description">Off by default so a still-learning baseline can never lock you out of your own dashboard. Login and cron are never blocked.</p>
+                            <p class="description"><?php echo esc_html__('Off by default so a still-learning baseline can never lock you out of your own dashboard. Login and cron are never blocked.', 'nemesis-shield'); ?></p>
                         </td>
                     </tr>
                     <tr>
-                        <th scope="row"><label for="ns_endpoint">Endpoint (advanced)</label></th>
+                        <th scope="row"><label for="ns_endpoint"><?php echo esc_html__('Endpoint (advanced)', 'nemesis-shield'); ?></label></th>
                         <td>
                             <input name="<?php echo esc_attr(self::OPT); ?>[endpoint]" id="ns_endpoint" type="url"
                                    class="regular-text" value="<?php echo esc_attr(self::opt('endpoint', '')); ?>"
                                    placeholder="https://shield.nemesislabs.xyz/api/v1/sketches" autocomplete="off" />
-                            <p class="description">Leave blank for Nemesis Shield cloud. Set only for a self-hosted / on-prem Shield.</p>
+                            <p class="description"><?php echo esc_html__('Leave blank for the Nemesis Shield cloud. Set only for a self-hosted service.', 'nemesis-shield'); ?></p>
                         </td>
                     </tr>
                 </table>
@@ -327,18 +363,22 @@ final class Nemesis_Shield_Plugin
 Nemesis_Shield_Plugin::boot();
 
 /**
- * LLM Guard helper for AI features / chatbot plugins. Wrap the user prompt before
- * you send it to a model. Returns the SDK verdict array
- * (['blocked'=>bool,'severity'=>,'kind'=>,'score'=>,'owasp'=>]).
+ * LLM Guard helper for AI features / chatbot plugins. Wrap the user prompt before you send it to a
+ * model. Returns the classifier verdict array (array('blocked'=>bool,'severity'=>,'kind'=>,'score'=>,'owasp'=>)).
  *
- *   $v = nemesis_shield_guard_llm($prompt, true); // enforce
- *   if ($v['blocked']) { return; } // refuse the prompt
+ *   $v = nemesis_shield_guard_llm( $prompt, true ); // enforce
+ *   if ( $v['blocked'] ) { return; } // refuse the prompt
+ *
+ * @param string $prompt  The user prompt to classify.
+ * @param bool   $enforce Whether a high-risk prompt should be marked blocked.
+ * @return array
  */
 function nemesis_shield_guard_llm($prompt, $enforce = false)
 {
     try {
         return NemesisShieldLLM::guardLLM((string) $prompt, (bool) $enforce);
     } catch (\Throwable $e) {
+        unset($e);
         return array('blocked' => false, 'severity' => 'none', 'score' => 0.0);
     }
 }

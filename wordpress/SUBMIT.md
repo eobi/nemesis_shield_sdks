@@ -17,14 +17,24 @@ A **WordPress.org account** whose username becomes the `Contributors:` value in 
 ## Step 1 — Build the zip
 
 ```bash
-./build-zip.sh          # writes nemesis-shield.zip (re-syncs the vendored PHP SDK first)
+./build-zip.sh          # writes nemesis-shield.zip (WP-native lib; re-syncs only ml_weights.json)
+./run-tests.sh          # 17 checks, byte-for-byte shape parity, no Docker
 ```
 
-Sanity-check before uploading (optional but recommended):
+## Step 1b — Run Plugin Check (required attestation on the submit form)
 
-```bash
-./run-tests.sh          # 17 checks, no Docker
-```
+The submit form asks you to confirm the plugin passes **Plugin Check**. Do this in a real WordPress
+install before you check that box:
+
+1. Install WordPress locally (Local by Flywheel, wp-env, or any test site).
+2. Plugins → Add New → search **"Plugin Check"** (by WordPress.org Plugin Review Team) → install + activate.
+3. Copy this plugin in: unzip `nemesis-shield.zip` into `wp-content/plugins/`, or upload the zip via Plugins → Add New → Upload.
+4. Tools → **Plugin Check** → select **Nemesis Shield** → Check it.
+5. Resolve anything under **Errors**. Warnings are usually acceptable; note any you believe are false positives (you attest to that on the form).
+
+This build was written to pass it: WordPress HTTP API (no cURL), Transients (no direct file writes),
+all superglobals unslashed + sanitized, escaped output, `wp_json_encode`, no error suppression, i18n'd
+strings, and a required "External services" disclosure in `readme.txt`.
 
 ## Step 2 — Submit for review
 

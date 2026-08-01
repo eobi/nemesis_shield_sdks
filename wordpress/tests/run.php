@@ -7,7 +7,9 @@
 // Requires a running mock (see run-tests.sh) and these env vars:
 //   NEMESIS_ENDPOINT, NEMESIS_MOCK_POLICY, NEMESIS_MOCK_RECORD, NEMESIS_TOKEN
 
-require dirname(__DIR__) . '/nemesis-shield/lib/NemesisShield.php';
+// Parity oracle = the canonical PHP SDK. We assert the WordPress-native class produces byte-identical
+// shapes to it, so a WP site is treated exactly like every other Nemesis Shield integration.
+require dirname(dirname(__DIR__)) . '/php/NemesisShield.php';
 
 $TOKEN      = getenv('NEMESIS_TOKEN');
 $ENDPOINT   = getenv('NEMESIS_ENDPOINT');

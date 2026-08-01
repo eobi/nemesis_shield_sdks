@@ -1,14 +1,18 @@
 # Nemesis Shield — WordPress
 
-A WordPress plugin that brings [Nemesis Shield](https://shield.nemesislabs.xyz) positive-security
-runtime protection to any WordPress site. It **learns your site's normal behaviour** and, in enforce
-mode, **blocks off-baseline requests** (auth bypass, path traversal, scanners, unusual methods)
-**before WordPress runs** — front end, REST API, and admin-ajax. Privacy-preserving and fail-open:
-if Shield is unreachable, your site is completely unaffected.
+A WordPress plugin that connects your site to the [Nemesis Shield](https://shield.nemesislabs.xyz)
+service for positive-security runtime protection. The service **learns your site's normal behaviour**
+and, in enforce mode, has the plugin **block off-baseline requests** (auth bypass, path traversal,
+scanners, unusual methods) across the front end, REST API, and admin-ajax. Privacy-preserving and
+fail-open: if the service is unreachable, your site is completely unaffected.
 
-It wraps the same native [PHP SDK](../php) every Nemesis Shield integration uses (vendored into
-[`nemesis-shield/lib/`](nemesis-shield/lib/) so the plugin is self-contained) — the block decision is
-made **in-process**, no proxy, no sidecar.
+The plugin ships **WordPress-native** classes ([`nemesis-shield/lib/`](nemesis-shield/lib/)): all
+network calls go through the WordPress HTTP API (`wp_remote_post`) and the compiled policy is cached
+with the Transients API. The shape/decision math is byte-for-byte identical to the shared
+[PHP SDK](../php) (enforced by the parity test below), so a WordPress site is treated exactly like
+every other Nemesis Shield integration. The block decision is applied **in-process** from the policy
+the service returns; no proxy, no sidecar. The bundled LLM Guard classifier runs entirely on your
+server.
 
 ## Install
 
@@ -96,10 +100,13 @@ docker compose down -v    # teardown
 
 ## Maintenance
 
-The plugin vendors a copy of the PHP SDK. After changing [`../php`](../php), re-sync it:
+The WP-native classes are hand-maintained here (they use the WP HTTP API + Transients, unlike the
+generic PHP SDK). Only the shared ML model is synced. After the shared model changes in
+[`../php`](../php), re-sync it, then run the parity test:
 
 ```bash
-./sync-lib.sh
+./sync-lib.sh     # copies ml_weights.json only
+./run-tests.sh    # asserts byte-for-byte shape parity with the canonical PHP SDK
 ```
 
 MIT © Nemesis Labs
