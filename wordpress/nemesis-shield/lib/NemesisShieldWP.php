@@ -41,7 +41,13 @@ class NemesisShieldWP
     // Safe-unlock (break-glass): paths the service never blocks, so a still-learning baseline can't
     // lock operators out of the doors they need to fix it. Prefix-matched on the pathname. Extend with
     // the NEMESIS_SHIELD_BOOTSTRAP environment variable (comma-separated).
-    const DEFAULT_BOOTSTRAP = array('/login', '/signin', '/sign-in', '/auth', '/oauth', '/session', '/wp-login.php', '/wp-admin');
+    //
+    // Note: /wp-admin is deliberately NOT here. Lockout safety for the dashboard is handled more
+    // precisely in the plugin's enforceable() gate (regular wp-admin page loads are always observe-only;
+    // only the admin-ajax / admin-post APIs are enforceable, and only when "Protect wp-admin" is on).
+    // A blanket /wp-admin never-block here would make admin-ajax unblockable, which is a WordPress
+    // attack surface we do want to be able to enforce. The login path stays fully break-glass.
+    const DEFAULT_BOOTSTRAP = array('/login', '/signin', '/sign-in', '/auth', '/oauth', '/session', '/wp-login.php');
 
     private static function bootstrap()
     {

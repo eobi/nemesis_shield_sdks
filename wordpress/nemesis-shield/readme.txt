@@ -18,15 +18,17 @@ The service is where the value lives: the behavioural learning, the approval con
 
 **How it works, in three steps: observe, approve, enforce.**
 
-1. **Observe** (default). Each request's privacy-preserving *shape* is sent to the service to build your baseline: the HTTP method, a normalized path (`/shop/product/123` becomes `/shop/product/{int}`), the kinds of parameters present, and whether the caller is authenticated. **Never** bodies, values, cookies, or secrets.
+1. **Observe** (default). Each request's privacy-preserving *shape* is sent to the service to build your baseline: the HTTP method, a normalized path (`/shop/product/123` becomes `/shop/product/{int}`), the names and value-kinds of the query, POST body, and REST body parameters, the `admin-ajax` action, and whether the caller is authenticated. **Never** bodies, parameter values, cookies, or secrets.
 2. **Approve.** Review the learned behaviours in the [Shield console](https://shield.nemesislabs.xyz) and approve the legitimate ones.
 3. **Enforce.** Set the app to enforce in the console. Requests whose shape the service has not approved are blocked with `403 blocked_by_nemesis_shield`. No redeploy: the mode is pulled live.
 
-**Privacy-preserving.** Only the abstract shape of a request is computed. Request bodies, query values, cookies, headers, and secrets are never sent.
+**Deep coverage.** Protection is not limited to the URL. The shape captures the structure of each request, including POST-form and REST write payloads (parameter names and value kinds) and the `admin-ajax` / `admin-post` action, so state-changing WordPress requests are distinguished, not collapsed into one generic shape.
+
+**Privacy-preserving.** Only the abstract shape of a request is computed. Request bodies, parameter values, cookies, headers, and secrets are never sent.
 
 **Fail-open by design.** If the service is ever unreachable, requests are forwarded untouched. The plugin can never take your site offline.
 
-**Never locks you out.** The front end and REST API are enforced; **wp-admin, admin-ajax, wp-login.php, and cron are observe-only by default** so a still-learning baseline can never lock you out of your own dashboard. Tick *Protect wp-admin* to enforce there too. The login and auth paths are never blocked.
+**Never locks you out.** The front end and REST API are enforced; **wp-login.php and cron are never blocked, and regular wp-admin page loads are always observe-only** so a still-learning baseline can never lock you out of your dashboard or this plugin's settings. Tick *Protect wp-admin* to additionally enforce the `admin-ajax` / `admin-post` APIs (off-baseline actions blocked), while dashboard pages stay recoverable.
 
 **Global threat intelligence.** Beyond your own baseline, the service's shared threat list blocks shapes seen attacking other sites (for example `POST /xmlrpc.php` floods) out of the box.
 
@@ -41,7 +43,7 @@ Nemesis Shield is part of the [Nemesis Labs](https://nemesislabs.xyz) security p
 
 This plugin connects to the Nemesis Shield service, operated by Nemesis Labs, to provide its protection. It is required for the plugin to function.
 
-**What is sent, and when.** On each request to your site, the plugin sends a privacy-preserving *shape* of that request to `https://shield.nemesislabs.xyz/api/v1/sketches`, authenticated with the install token you configure. A shape consists of: the HTTP method, a normalized request path (numeric and identifier segments are replaced with placeholders such as `{int}`), the *kinds* of query parameters present (for example "integer" or "email", never their values), whether the request was authenticated, and the resulting HTTP status. In enforce mode the plugin also fetches the compiled allow-list policy from the same endpoint. **The plugin never sends request bodies, query values, cookie values, headers, personal data, or secrets.**
+**What is sent, and when.** On each request to your site, the plugin sends a privacy-preserving *shape* of that request to `https://shield.nemesislabs.xyz/api/v1/sketches`, authenticated with the install token you configure. A shape consists of: the HTTP method; a normalized request path (numeric and identifier segments are replaced with placeholders such as `{int}`); the *names* of the query, POST body, and REST body parameters and the *kind* of each value (for example "integer" or "email", never the value itself); whether the request was authenticated; and the resulting HTTP status. For `admin-ajax.php` and `admin-post.php` the routing `action` selector (a registered hook name, not user data) is included as part of the path so different actions are distinguished. In enforce mode the plugin also fetches the compiled allow-list policy from the same endpoint. **The plugin never sends request bodies, parameter values, cookie values, headers, personal data, or secrets.**
 
 If you set a custom endpoint in the plugin settings, requests go to that endpoint instead of the Nemesis Shield cloud.
 
@@ -70,7 +72,7 @@ Not in observe mode, which is the default. Nothing is ever blocked until you rev
 
 = What data leaves my site? =
 
-Only a privacy-preserving *shape* of each request: the HTTP method, a normalized path, the kinds of parameters present, and an authenticated flag. Request bodies, query values, cookies, headers, and secrets are never sent.
+Only a privacy-preserving *shape* of each request: the HTTP method, a normalized path, the *names* and value *kinds* of the query/POST/REST parameters, the admin-ajax action, and an authenticated flag. Request bodies, parameter values, cookies, headers, and secrets are never sent.
 
 = What happens if Nemesis Shield is unreachable? =
 
@@ -108,7 +110,8 @@ Yes. Set the endpoint under **Settings → Nemesis Shield → Endpoint (advanced
 * Connects your site to the Nemesis Shield service for positive-security protection on the front end and REST API (rest_pre_dispatch), with observe / approve / enforce driven live from the console.
 * All network calls use the WordPress HTTP API; the compiled policy is cached with the Transients API.
 * wp-admin, admin-ajax, wp-login.php, and cron observe-only by default; optional Protect wp-admin toggle.
-* Privacy-preserving request shaping: only the request shape is sent; bodies, values, and secrets never leave the site.
+* Deep request shaping: query, POST-form, and REST body parameter names + value kinds, plus the admin-ajax / admin-post action, so state-changing requests are distinguished. Only the shape is sent; bodies, values, and secrets never leave the site.
+* Protect wp-admin now enforces the admin-ajax / admin-post APIs (off-baseline actions blocked) while regular wp-admin page loads stay observe-only, so the dashboard can never be locked out.
 * Global threat-intelligence blocking from the service.
 * Fail-open when the service is unreachable.
 * Optional LLM Guard helper (nemesis_shield_guard_llm) with the OWASP-LLM-Top-10 classifier, running entirely on your server.

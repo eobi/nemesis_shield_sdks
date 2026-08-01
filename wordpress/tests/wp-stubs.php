@@ -43,6 +43,7 @@ function nocache_headers()           {}
 function esc_attr($s)        { return htmlspecialchars((string) $s, ENT_QUOTES); }
 function esc_url_raw($s)     { return (string) $s; }
 function sanitize_text_field($s) { return trim((string) $s); }
+function sanitize_key($s) { $s = strtolower((string) $s); return preg_replace('/[^a-z0-9_\-]/', '', $s); }
 
 // Input unslashing (real WP strips one level of magic-quotes slashes). Tests pass clean data.
 function wp_unslash($v) { return is_array($v) ? array_map('wp_unslash', $v) : (is_string($v) ? stripslashes($v) : $v); }

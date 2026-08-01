@@ -61,6 +61,9 @@ function req($opts) {
         'NS_AUTH_HEADER'  => !empty($opts['authHeader']) ? '1' : '0',
         'NS_REST'         => !empty($opts['rest'])       ? '1' : '0',
         'NS_ROUTE'        => $opts['route'] ?? '',
+        'NS_POST'         => $opts['post'] ?? '',
+        'NS_REST_BODY'    => $opts['body'] ?? '',
+        'NS_PROTECT_ADMIN'=> !empty($opts['protectAdmin']) ? '1' : '0',
         'NEMESIS_TOKEN'   => getenv('NEMESIS_TOKEN'),
         'NEMESIS_ENDPOINT'=> $opts['endpoint'] ?? getenv('NEMESIS_ENDPOINT'),
         'TMPDIR'          => sys_get_temp_dir(),
@@ -171,6 +174,55 @@ clearCache($TOKEN);
 $r = req(array('method' => 'GET', 'uri' => '/wp-config.php.bak',
                'endpoint' => 'http://127.0.0.1:1/api/v1/sketches')); // dead endpoint
 ok(empty($r['blocked']), 'off-baseline request passes (fail-open) when Shield is unreachable');
+
+// ---------------------------------------------------------------------------
+section('7 · Depth — POST body structure is part of the shape');
+setPolicy($POLICYFILE, 'observe'); clearRecord($RECORDFILE); clearCache($TOKEN);
+req(array('method' => 'POST', 'uri' => '/contact', 'post' => 'name=Ada&email=ada@example.com'));
+req(array('method' => 'POST', 'uri' => '/contact', 'post' => 'api_key=zzzz'));
+usleep(150000);
+$depthShapes = recordedShapes($RECORDFILE);
+$skBodyA = sketch('POST', '/contact', array('name' => 'Ada', 'email' => 'ada@example.com'), false)['shape'];
+$skBodyB = sketch('POST', '/contact', array('api_key' => 'zzzz'), false)['shape'];
+ok(in_array($skBodyA, $depthShapes, true), 'POST body {name,email} is shaped + recorded (not just the path)');
+ok($skBodyA !== $skBodyB, 'different POST bodies produce different shapes (body structure matters)');
+
+// ---------------------------------------------------------------------------
+section('7b · Depth — admin-ajax action distinguishes shapes');
+setPolicy($POLICYFILE, 'observe'); clearRecord($RECORDFILE); clearCache($TOKEN);
+$ajax = array('method' => 'POST', 'uri' => '/wp-admin/admin-ajax.php', 'script' => '/wp-admin/admin-ajax.php', 'admin' => true);
+req(array_merge($ajax, array('post' => 'action=heartbeat')));
+req(array_merge($ajax, array('post' => 'action=delete_user')));
+usleep(150000);
+$ajaxShapes = recordedShapes($RECORDFILE);
+$skHeartbeat = sketch('POST', '/wp-admin/admin-ajax.php/heartbeat', array('action' => 'heartbeat'), false)['shape'];
+$skDeleteUser = sketch('POST', '/wp-admin/admin-ajax.php/delete_user', array('action' => 'delete_user'), false)['shape'];
+ok(in_array($skHeartbeat, $ajaxShapes, true) && in_array($skDeleteUser, $ajaxShapes, true), 'both admin-ajax actions observed (learned) even while observe-only');
+ok($skHeartbeat !== $skDeleteUser, 'action=heartbeat and action=delete_user are DISTINCT shapes');
+
+// ---------------------------------------------------------------------------
+section('7c · Depth — admin-ajax enforce (Protect wp-admin) blocks off-baseline actions');
+setPolicy($POLICYFILE, 'enforce', array($skHeartbeat => 'allow')); clearCache($TOKEN);
+$r = req(array_merge($ajax, array('protectAdmin' => true, 'post' => 'action=heartbeat')));
+ok(empty($r['blocked']), 'approved admin-ajax action=heartbeat passes');
+$r = req(array_merge($ajax, array('protectAdmin' => true, 'post' => 'action=delete_user')));
+ok(!empty($r['blocked']) && $r['status'] === 403, 'off-baseline admin-ajax action=delete_user blocked (403)');
+
+// ---------------------------------------------------------------------------
+section('7d · Safety — a wp-admin PAGE load is never blocked, even with Protect wp-admin on');
+setPolicy($POLICYFILE, 'enforce', array($skHeartbeat => 'allow')); clearCache($TOKEN);
+$r = req(array('method' => 'GET', 'uri' => '/wp-admin/options-general.php?page=nemesis-shield',
+               'script' => '/wp-admin/options-general.php', 'admin' => true, 'authed' => true, 'protectAdmin' => true));
+ok(empty($r['blocked']), 'settings/dashboard page not blocked, so you can always recover');
+
+// ---------------------------------------------------------------------------
+section('7e · Depth — REST body parameters are part of the shape');
+$skRestOk = sketch('POST', '/wp-json/wp/v2/posts', array('title' => 'Hello'), false)['shape'];
+setPolicy($POLICYFILE, 'enforce', array($skRestOk => 'allow')); clearCache($TOKEN);
+$r = req(array('rest' => true, 'method' => 'POST', 'route' => '/wp/v2/posts', 'body' => 'title=Hello'));
+ok(empty($r['blocked']), 'approved REST write (body {title}) passes');
+$r = req(array('rest' => true, 'method' => 'POST', 'route' => '/wp/v2/posts', 'body' => 'title=Hello&inject=1'));
+ok(!empty($r['blocked']) && $r['status'] === 403, 'REST write with an off-baseline body param blocked (403)');
 
 // ---------------------------------------------------------------------------
 echo "\n" . str_repeat('─', 52) . "\n";

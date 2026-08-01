@@ -145,9 +145,33 @@ final class Nemesis_Shield_Plugin
         }
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only positive-security request gate, not form processing.
         $raw = wp_unslash($_GET);
+        return self::shapeParams($raw);
+    }
+
+    /**
+     * The POST body parameters, unslashed and reduced to NAMES + value KINDS (never values). This is
+     * what makes state-changing WordPress requests (settings saves, post edits, comments, WooCommerce,
+     * plugin forms) have a real signature instead of collapsing to a bare "POST /path".
+     * No nonce applies: this is a read-only request gate that inspects the request's structure, not a
+     * form handler acting on the data.
+     */
+    private static function post()
+    {
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- read-only positive-security request gate, not form processing.
+        if (empty($_POST) || !is_array($_POST)) {
+            return array();
+        }
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- read-only positive-security request gate, not form processing.
+        $raw = wp_unslash($_POST);
+        return self::shapeParams($raw);
+    }
+
+    /** Sanitize a superglobal array into name => scalar/array-of-scalars for shape computation. */
+    private static function shapeParams($raw)
+    {
         $out = array();
         foreach ($raw as $k => $v) {
-            $key = sanitize_text_field($k);
+            $key = sanitize_text_field((string) $k);
             if (is_array($v)) {
                 $out[$key] = array_map('sanitize_text_field', array_map('strval', $v));
             } else {
@@ -155,6 +179,68 @@ final class Nemesis_Shield_Plugin
             }
         }
         return $out;
+    }
+
+    /** The request's parameters (query + body) as names + kinds, for the shape. Body names win on collision. */
+    private static function params()
+    {
+        return array_merge(self::query(), self::post());
+    }
+
+    /**
+     * WordPress routes a large share of functionality through wp-admin/admin-ajax.php and admin-post.php
+     * with an `action` selector (in GET or POST). That selector IS the effective endpoint, so we fold it
+     * into the route (as a routing identifier, like a path segment) to give each action its own shape.
+     * `action` values are registered hook names, not user data. Returns '' when there is no action.
+     */
+    private static function ajaxAction()
+    {
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reads only the routing selector, not acted-on data.
+        if (!isset($_REQUEST['action'])) {
+            return '';
+        }
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reads only the routing selector, not acted-on data.
+        $a = sanitize_key(wp_unslash($_REQUEST['action']));
+        return strlen($a) > 64 ? substr($a, 0, 64) : $a;
+    }
+
+    /**
+     * The path used for shaping. For admin-ajax.php / admin-post.php the `action` selector is folded in
+     * so distinct actions are distinct shapes (a heartbeat and a user-delete are no longer the same).
+     */
+    private static function effectivePath()
+    {
+        $path = self::path();
+        $lc = strtolower($path);
+        if (substr($lc, -14) === 'admin-ajax.php' || substr($lc, -15) === 'admin-post.php') {
+            $a = self::ajaxAction();
+            if ($a !== '') {
+                $path = rtrim($path, '/') . '/' . $a;
+            }
+        }
+        return $path;
+    }
+
+    /**
+     * REST request parameters for the shape: query params plus the body/JSON param NAMES (their value
+     * KINDS are derived but values are never sent). WordPress has already parsed and slash-handled these
+     * on the request object, so no extra unslashing is needed.
+     */
+    private static function restParams($request)
+    {
+        if (!is_object($request)) {
+            return self::params();
+        }
+        $merged = array();
+        foreach (array('get_query_params', 'get_body_params', 'get_json_params') as $m) {
+            if (method_exists($request, $m)) {
+                $p = $request->$m();
+                if (is_array($p)) {
+                    $merged = array_merge($merged, $p);
+                }
+            }
+        }
+        return $merged;
     }
 
     /**
@@ -176,10 +262,16 @@ final class Nemesis_Shield_Plugin
         if (substr($script, -13) === 'wp-login.php' || substr($script, -11) === 'wp-cron.php') {
             return false;
         }
-        // Admin & admin-ajax are observe-only unless the operator opts in, a default that guarantees a
-        // wrong baseline can never lock you out of your own site.
-        if (is_admin() && self::opt('protect_admin', '0') !== '1') {
-            return false;
+        if (is_admin()) {
+            // Admin context. Regular wp-admin PAGE loads are ALWAYS observe-only so a wrong baseline can
+            // never lock you out of your dashboard (including this plugin's own settings page). Only the
+            // admin-ajax / admin-post APIs are enforceable, and only when "Protect wp-admin" is on.
+            if (self::opt('protect_admin', '0') !== '1') {
+                return false;
+            }
+            $lc = strtolower(self::path());
+            $is_api = (substr($lc, -14) === 'admin-ajax.php' || substr($lc, -14) === 'admin-post.php');
+            return $is_api;
         }
         return true;
     }
@@ -198,7 +290,7 @@ final class Nemesis_Shield_Plugin
                 return;
             }
             list($block, $reason) = NemesisShieldWP::verdict(
-                $token, self::method(), self::path(), self::query(), self::authed()
+                $token, self::method(), self::effectivePath(), self::params(), self::authed()
             );
             if ($block) {
                 self::$blocked = true;
@@ -223,7 +315,9 @@ final class Nemesis_Shield_Plugin
             }
             $path   = (is_object($request) && method_exists($request, 'get_route')) ? '/wp-json' . $request->get_route() : self::path();
             $method = (is_object($request) && method_exists($request, 'get_method')) ? $request->get_method() : self::method();
-            $query  = (is_object($request) && method_exists($request, 'get_query_params')) ? (array) $request->get_query_params() : self::query();
+            // Shape includes the REST body's parameter names + kinds (never values), so a POST/PUT/PATCH
+            // write to an endpoint is distinguished by its payload structure, not just its route.
+            $query  = self::restParams($request);
             list($block, $reason) = NemesisShieldWP::verdict($token, $method, $path, $query, self::authed());
             if ($block) {
                 self::$blocked = true;
@@ -251,7 +345,7 @@ final class Nemesis_Shield_Plugin
                 return;
             }
             $status = function_exists('http_response_code') ? (http_response_code() ?: 200) : 200;
-            NemesisShieldWP::observe($token, self::method(), self::path(), self::query(), self::authed(), $status);
+            NemesisShieldWP::observe($token, self::method(), self::effectivePath(), self::params(), self::authed(), $status);
         } catch (\Throwable $e) {
             unset($e); // fail-open
         }
@@ -338,9 +432,9 @@ final class Nemesis_Shield_Plugin
                             <label>
                                 <input type="checkbox" name="<?php echo esc_attr(self::OPT); ?>[protect_admin]" value="1"
                                        <?php checked(self::opt('protect_admin', '0'), '1'); ?> />
-                                <?php echo esc_html__('Also enforce inside wp-admin and admin-ajax', 'nemesis-shield'); ?>
+                                <?php echo esc_html__('Also enforce the admin-ajax and admin-post APIs', 'nemesis-shield'); ?>
                             </label>
-                            <p class="description"><?php echo esc_html__('Off by default so a still-learning baseline can never lock you out of your own dashboard. Login and cron are never blocked.', 'nemesis-shield'); ?></p>
+                            <p class="description"><?php echo esc_html__('Off by default. When on, off-baseline admin-ajax / admin-post actions are blocked. Regular wp-admin page loads are always observe-only, so a still-learning baseline can never lock you out of your dashboard or this settings page. Login and cron are never blocked.', 'nemesis-shield'); ?></p>
                         </td>
                     </tr>
                     <tr>

@@ -15,7 +15,19 @@ $GLOBALS['ns_logged_in']   = getenv('NS_AUTHED') === '1';
 $_GET = array();
 $qs = parse_url($_SERVER['REQUEST_URI'], PHP_URL_QUERY);
 if ($qs) { parse_str($qs, $_GET); }
+
+// POST body (querystring-encoded via NS_POST, e.g. "action=delete_user&id=5").
+$_POST = array();
+$np = getenv('NS_POST');
+if ($np) { parse_str($np, $_POST); }
+$_REQUEST = array_merge($_GET, $_POST);
+
 if (getenv('NS_AUTH_HEADER') === '1') { $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer test'; }
+
+// Opt into wp-admin / admin-ajax enforcement (mirrors the "Protect wp-admin" setting).
+if (getenv('NS_PROTECT_ADMIN') === '1') {
+    $GLOBALS['ns_options']['nemesis_shield_options'] = array('protect_admin' => '1');
+}
 
 // Always emit a RESULT line, even when the plugin blocks (exit still runs PHP
 // shutdown callbacks). Status 403 == blocked.
@@ -30,12 +42,17 @@ require dirname(__DIR__) . '/nemesis-shield/nemesis-shield.php';
 if (getenv('NS_REST') === '1') {
     if (!defined('REST_REQUEST')) { define('REST_REQUEST', true); }
     $route = getenv('NS_ROUTE') ?: '/wp/v2/posts';
-    $req = new class($route, $_SERVER['REQUEST_METHOD'], $_GET) {
-        private $r, $m, $q;
-        public function __construct($r, $m, $q) { $this->r = $r; $this->m = $m; $this->q = $q; }
+    $body = array();
+    $rb = getenv('NS_REST_BODY'); // querystring-encoded REST body, e.g. "title=x&status=y"
+    if ($rb) { parse_str($rb, $body); }
+    $req = new class($route, $_SERVER['REQUEST_METHOD'], $_GET, $body) {
+        private $r, $m, $q, $b;
+        public function __construct($r, $m, $q, $b) { $this->r = $r; $this->m = $m; $this->q = $q; $this->b = $b; }
         public function get_route()        { return $this->r; }
         public function get_method()       { return $this->m; }
         public function get_query_params() { return $this->q; }
+        public function get_body_params()  { return $this->b; }
+        public function get_json_params()  { return $this->b; }
     };
     $res = ns_apply_filters('rest_pre_dispatch', null, null, $req);
     if ($res instanceof WP_Error) {

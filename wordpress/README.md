@@ -38,16 +38,22 @@ That's it. Traffic starts building a per-site baseline immediately.
    blocked with `403 blocked_by_nemesis_shield`. No redeploy — the mode is pulled live (short-TTL
    policy cache).
 
-**Where it gates:** the front end and REST API (`rest_pre_dispatch`) are enforced. **wp-admin,
-admin-ajax, wp-login.php, and cron are observe-only by default** so a still-learning baseline can
-never lock you out of your own dashboard — tick **Protect wp-admin** in settings to enforce there too.
+**Where it gates:** the front end and REST API (`rest_pre_dispatch`) are enforced. Regular **wp-admin
+page loads, wp-login.php, and cron are never blocked** so a still-learning baseline can never lock you
+out of your dashboard. Tick **Protect wp-admin** to additionally enforce the `admin-ajax` /
+`admin-post` APIs (off-baseline actions blocked), while dashboard page loads stay recoverable.
+
+**How deep the shape goes:** not just the URL. The signature includes the request method, the
+normalized path, the **names + value-kinds of the query, POST-form, and REST body parameters**, and
+the `admin-ajax` / `admin-post` action, so state-changing writes are distinguished instead of
+collapsing into a single "POST /path". Values, bodies, cookies, and secrets are never sent.
 
 ### Settings
 
 | Setting | Purpose |
 |---|---|
 | **Install token** | `nsk_…`. Overridden by the `NEMESIS_SHIELD_TOKEN` constant / `NEMESIS_TOKEN` env if set. |
-| **Protect wp-admin** | Also enforce inside wp-admin / admin-ajax (off by default). |
+| **Protect wp-admin** | Also enforce the `admin-ajax` / `admin-post` APIs (off by default). Dashboard page loads stay observe-only regardless, so you can't be locked out. |
 | **Endpoint (advanced)** | Point at a self-hosted / on-prem Shield. Blank = Nemesis Shield cloud. |
 
 ### LLM Guard (optional)
@@ -83,7 +89,7 @@ pass, on both the front end and REST), and **fails open**.
 4 · Gates the REST API (rest_pre_dispatch)                            ✓✓
 5 · Never locks the admin out (admin observe-only by default)         ✓
 6 · Fails open — Shield unreachable never breaks the site            ✓
-ALL 17 CHECKS PASSED
+ALL 26 CHECKS PASSED
 ```
 
 ### 2. Real-WordPress end-to-end — Docker
@@ -126,4 +132,4 @@ MIT © Nemesis Labs
 
 ## Safe-unlock (break-glass)
 
-The front end and REST API are enforced; **wp-admin, admin-ajax, wp-login.php and cron are observe-only by default** so a still-learning baseline can never lock you out (tick *Protect wp-admin* to enforce there too). Beyond that, the SDK never blocks the login/auth path — defaults `/login /signin /auth /oauth /session /wp-login.php /wp-admin`, overridable with the `NEMESIS_SHIELD_BOOTSTRAP` env (comma-separated). Query-param structure is fed into the shape, and path-traversal segments normalize to `{traversal}`.
+The front end and REST API are enforced. Regular **wp-admin page loads, wp-login.php and cron are never blocked** so a still-learning baseline can never lock you out; the `admin-ajax` / `admin-post` APIs become enforceable when you tick *Protect wp-admin* (dashboard pages stay observe-only either way, so the settings page is always reachable). The login/auth path is always break-glass — defaults `/login /signin /sign-in /auth /oauth /session /wp-login.php`, overridable with the `NEMESIS_SHIELD_BOOTSTRAP` env (comma-separated). Query, POST-form and REST body parameter structure is fed into the shape, the admin-ajax action is folded into the route, and path-traversal segments normalize to `{traversal}`.
