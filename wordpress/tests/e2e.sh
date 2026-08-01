@@ -11,7 +11,9 @@ cd "$here"
 
 BASE="http://localhost:8080"
 SHARED="$here/tests/.e2e"
-SDK="$here/nemesis-shield/lib/NemesisShield.php"
+# Shape oracle = the canonical PHP SDK (pure buildSketch, no WP funcs). The plugin ships WP-native
+# classes, but their shape math is byte-identical to this, so it is the right oracle.
+SDK="$here/../php/NemesisShield.php"
 dc() { docker compose "$@"; }
 wpcli() { docker compose run --rm -T wpcli wp "$@"; }
 
@@ -27,7 +29,9 @@ set_policy() { # mode  [shape=allow ...]  as a JSON policy file the mock serves
   fi
   printf '{"mode":"%s","policy":{"shapes":%s,"knownBad":[]}}' "$mode" "$shapes" > "$SHARED/policy.json"
 }
-clear_sdk_cache() { dc exec -T wp sh -c 'rm -f /tmp/nemesis_*.json' >/dev/null 2>&1 || true; }
+# The plugin caches the compiled policy in a WordPress transient (2s TTL). Clear it via wp-cli so a
+# policy change (observe -> enforce) takes effect immediately instead of waiting out the TTL.
+clear_sdk_cache() { wpcli transient delete --all >/dev/null 2>&1 || true; }
 status_of() { curl -s -o /dev/null -w '%{http_code}' "$BASE$1"; }
 
 pass=0; fail=0

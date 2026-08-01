@@ -64,7 +64,7 @@ if ( $v['blocked'] ) {
 
 ## Testing
 
-Two layers, both included.
+Three ways to test locally, all included.
 
 ### 1. Deterministic behaviour test — no Docker, just PHP
 
@@ -83,7 +83,7 @@ pass, on both the front end and REST), and **fails open**.
 4 · Gates the REST API (rest_pre_dispatch)                            ✓✓
 5 · Never locks the admin out (admin observe-only by default)         ✓
 6 · Fails open — Shield unreachable never breaks the site            ✓
-ALL 15 CHECKS PASSED
+ALL 17 CHECKS PASSED
 ```
 
 ### 2. Real-WordPress end-to-end — Docker
@@ -97,6 +97,19 @@ blocked_by_nemesis_shield`, plus fail-open when the mock is stopped.
 ./tests/e2e.sh            # needs Docker
 docker compose down -v    # teardown
 ```
+
+### 3. Interactive real WordPress — no Docker
+
+Boots a real WordPress with the plugin active (SQLite via wp-now / WordPress Playground) so you can
+click through the settings screen, test with your real install token, and run the **Plugin Check**
+plugin before submitting to WordPress.org. Needs Node.
+
+```bash
+./test-local.sh          # opens http://localhost:8881 ; Ctrl-C to stop
+```
+
+Then in the browser: log in, set your token under **Settings → Nemesis Shield**, browse to generate
+observed behaviors, and run **Tools → Plugin Check** after installing the Plugin Check plugin.
 
 ## Maintenance
 
