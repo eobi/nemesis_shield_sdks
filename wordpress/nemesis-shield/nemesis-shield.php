@@ -29,6 +29,7 @@ if (!defined('ABSPATH')) {
 require_once __DIR__ . '/lib/NemesisShieldWP.php';
 require_once __DIR__ . '/lib/NemesisShieldLLM.php';
 require_once __DIR__ . '/lib/class-login-guard.php';
+require_once __DIR__ . '/lib/class-scanner.php';
 
 final class Nemesis_Shield_Plugin
 {
@@ -62,11 +63,27 @@ final class Nemesis_Shield_Plugin
         // malicious login has the same shape as a real one).
         Nemesis_Shield_Login_Guard::init();
 
+        // Complement: file-integrity / malware scanning (behavioral can't see a malicious file at rest).
+        Nemesis_Shield_Scanner::init();
+
         if (is_admin()) {
             add_action('admin_menu', array(__CLASS__, 'menu'));
             add_action('admin_init', array(__CLASS__, 'register_settings'));
             add_action('admin_post_nemesis_shield_unlock', array(__CLASS__, 'handle_unlock'));
+            add_action('admin_post_nemesis_shield_scan', array(__CLASS__, 'handle_scan'));
         }
+    }
+
+    /** Activation: schedule the daily malware scan. */
+    public static function activate()
+    {
+        Nemesis_Shield_Scanner::schedule();
+    }
+
+    /** Deactivation: clear scheduled jobs. */
+    public static function deactivate()
+    {
+        Nemesis_Shield_Scanner::unschedule();
     }
 
     // ---- config ---------------------------------------------------------------
@@ -485,6 +502,9 @@ final class Nemesis_Shield_Plugin
                 </table>
                 <?php submit_button(); ?>
             </form>
+            <hr />
+            <?php self::render_scan(); ?>
+            <hr />
             <?php self::render_lockouts(); ?>
         </div>
         <?php
@@ -517,6 +537,69 @@ final class Nemesis_Shield_Plugin
         echo '</tbody></table>';
     }
 
+    /** Run an on-demand malware scan (capability + nonce checked), then return to the settings page. */
+    public static function handle_scan()
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die(esc_html__('You are not allowed to do this.', 'nemesis-shield'));
+        }
+        check_admin_referer('nemesis_shield_scan');
+        Nemesis_Shield_Scanner::scan();
+        wp_safe_redirect(admin_url('options-general.php?page=nemesis-shield&scanned=1'));
+        exit;
+    }
+
+    /** Malware-scan panel: run button + last result. */
+    public static function render_scan()
+    {
+        $r = Nemesis_Shield_Scanner::last();
+        $issues = Nemesis_Shield_Scanner::issue_count($r);
+        echo '<h2>' . esc_html__('Malware & file-integrity scan', 'nemesis-shield') . '</h2>';
+        echo '<p class="description" style="max-width:640px">' . esc_html__('Verifies WordPress core against the official checksums and scans wp-content for backdoor and obfuscation patterns. Complements the behavioral shield, which cannot see a malicious file at rest.', 'nemesis-shield') . '</p>';
+        $url = wp_nonce_url(admin_url('admin-post.php?action=nemesis_shield_scan'), 'nemesis_shield_scan');
+        echo '<p><a class="button button-primary" href="' . esc_url($url) . '">' . esc_html__('Scan now', 'nemesis-shield') . '</a>';
+        if ($r) {
+            /* translators: %1$s scan time (UTC), %2$d files scanned */
+            echo ' <span class="description">' . esc_html(sprintf(__('Last scan: %1$s UTC, %2$d files.', 'nemesis-shield'), (string) ($r['ts'] ?? '?'), (int) ($r['scanned'] ?? 0))) . '</span>';
+        }
+        echo '</p>';
+
+        if (!$r) {
+            echo '<p class="description">' . esc_html__('No scan has run yet.', 'nemesis-shield') . '</p>';
+            return;
+        }
+        if ($issues === 0) {
+            echo '<p style="color:#00713b;font-weight:600">' . esc_html__('No issues found.', 'nemesis-shield') . '</p>';
+            return;
+        }
+        echo '<div class="notice notice-error inline"><p><strong>' . esc_html(sprintf(/* translators: %d issue count */ _n('%d issue found.', '%d issues found.', $issues, 'nemesis-shield'), $issues)) . '</strong></p></div>';
+
+        if (!empty($r['php_in_uploads'])) {
+            echo '<h3>' . esc_html__('PHP files under uploads (should not exist)', 'nemesis-shield') . '</h3><ul>';
+            foreach ($r['php_in_uploads'] as $f) {
+                echo '<li><code>' . esc_html((string) $f) . '</code></li>';
+            }
+            echo '</ul>';
+        }
+        if (!empty($r['suspicious'])) {
+            echo '<h3>' . esc_html__('Suspicious code', 'nemesis-shield') . '</h3><table class="widefat striped" style="max-width:760px"><thead><tr>';
+            echo '<th>' . esc_html__('File', 'nemesis-shield') . '</th><th>' . esc_html__('Line', 'nemesis-shield') . '</th><th>' . esc_html__('Patterns', 'nemesis-shield') . '</th></tr></thead><tbody>';
+            foreach ($r['suspicious'] as $s) {
+                echo '<tr><td><code>' . esc_html((string) ($s['file'] ?? '')) . '</code></td>';
+                echo '<td>' . esc_html((string) ($s['line'] ?? 0)) . '</td>';
+                echo '<td>' . esc_html(implode(', ', (array) ($s['patterns'] ?? array()))) . '</td></tr>';
+            }
+            echo '</tbody></table>';
+        }
+        if (!empty($r['core_modified'])) {
+            echo '<h3>' . esc_html__('Modified core files', 'nemesis-shield') . '</h3><ul>';
+            foreach ($r['core_modified'] as $f) {
+                echo '<li><code>' . esc_html((string) $f) . '</code></li>';
+            }
+            echo '</ul>';
+        }
+    }
+
     /** Handle the unlock action: capability + nonce checked, IP sanitized. */
     public static function handle_unlock()
     {
@@ -533,6 +616,9 @@ final class Nemesis_Shield_Plugin
         exit;
     }
 }
+
+register_activation_hook(__FILE__, array('Nemesis_Shield_Plugin', 'activate'));
+register_deactivation_hook(__FILE__, array('Nemesis_Shield_Plugin', 'deactivate'));
 
 Nemesis_Shield_Plugin::boot();
 

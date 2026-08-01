@@ -17,6 +17,13 @@ $GLOBALS['ns_logged_in'] = false;
 function add_action($hook, $cb, $prio = 10, $args = 1) { $GLOBALS['ns_hooks'][$hook][] = $cb; }
 function add_filter($hook, $cb, $prio = 10, $args = 1) { $GLOBALS['ns_hooks'][$hook][] = $cb; }
 
+// Lifecycle + cron stubs (no-ops): the plugin registers these at load; the gate tests don't exercise them.
+function register_activation_hook($file, $cb) {}
+function register_deactivation_hook($file, $cb) {}
+function wp_next_scheduled($hook) { return false; }
+function wp_schedule_event($ts, $recur, $hook) { return true; }
+function wp_unschedule_event($ts, $hook) { return true; }
+
 // Test-side dispatchers (a real WP core fires these; here we fire them by hand).
 function ns_do_action($hook, ...$a) {
     foreach ($GLOBALS['ns_hooks'][$hook] ?? array() as $cb) { call_user_func_array($cb, $a); }

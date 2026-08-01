@@ -31,3 +31,5 @@ done
 php "$here/tests/run.php"
 echo ""
 php "$here/tests/login-test.php"
+echo ""
+php "$here/tests/scanner-test.php"
