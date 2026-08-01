@@ -19,7 +19,7 @@ Nemesis is unreachable, your app is completely unaffected.
 | **Go** | `github.com/eobi/nemesis_shield_sdks/go` | `net/http` middleware → [`go/`](go/) |
 | **Ruby** | `nemesis_shield.rb` | Rack middleware (Rails/Sinatra) → [`ruby/`](ruby/) |
 | **PHP** | `composer require nemesislabs/sentinel` | Laravel auto-discovery / `register_shutdown_function` → [`php/`](php/) |
-| **WordPress** | drop-in plugin | Activate → set token; gates the front end, REST & admin-ajax → [`wordpress/`](wordpress/) |
+| **WordPress** | drop-in plugin | Behavioral firewall (front end, REST & admin-ajax) **+ brute-force lockout, malware / file-integrity scan & vulnerability alerts** → [`wordpress/`](wordpress/) |
 | **Java** | `io.github.eobi:sentinel` | Servlet filter / Spring Boot (JDK 11+) → [`java/`](java/) |
 | **.NET / C#** | `dotnet add package NemesisShield` | ASP.NET Core middleware (net8.0 + netstandard2.0) → [`dotnet/`](dotnet/) |
 | **Rust** | `cargo add nemesis-shield` | axum (tower) / actix-web middleware → [`rust/`](rust/) |
@@ -89,7 +89,7 @@ NemesisShield::guard(getenv('NEMESIS_TOKEN'));                                  
 register_shutdown_function(fn() => NemesisShield::observe(getenv('NEMESIS_TOKEN'))); // learn
 ```
 
-**WordPress** — drop the [`wordpress/nemesis-shield/`](wordpress/) plugin into `wp-content/plugins/`, activate, and set the token:
+**WordPress** — a full security plugin: the AI behavioral firewall plus brute-force login lockout, malware / file-integrity scanning, and vulnerability alerts. Drop the [`wordpress/nemesis-shield/`](wordpress/) plugin into `wp-content/plugins/`, activate, and set the token:
 ```php
 // wp-config.php
 define('NEMESIS_SHIELD_TOKEN', 'nsk_your_site_token');
