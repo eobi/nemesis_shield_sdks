@@ -41,3 +41,4 @@ dotnet/**/obj/
 edge/dist/
 edge/node_modules/
 edge/package-lock.json
+wordpress/nemesis-shield.zip

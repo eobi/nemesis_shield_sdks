@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-label="Nemesis Shield">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="256" y2="256" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5b8cff"/>
+      <stop offset="1" stop-color="#3ecbcf"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="58" fill="#08090d"/>
+  <rect x="3" y="3" width="250" height="250" rx="56" fill="none" stroke="#1c1f2a" stroke-width="2"/>
+  <path d="M128 40 L212 100 L180 202 L76 202 L44 100 Z"
+        fill="none" stroke="url(#g)" stroke-width="15" stroke-linejoin="round"/>
+</svg>

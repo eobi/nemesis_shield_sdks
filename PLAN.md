@@ -24,7 +24,7 @@ All share ONE behavioral contract (identical `ml_weights.json` + FNV-1a shape ha
 | `java` | **Maven Central** | `io.github.eobi:sentinel` | Maven/Gradle coordinate | ✅ **PUBLISHED** v0.1.0 · Central-pull-verified · live-tested Raw HttpServer + Spring Boot |
 | `dotnet` | **NuGet** | `NemesisShield` | `dotnet add package NemesisShield` | ✅ **PUBLISHED** v0.1.1 · Trusted Publishing (keyless OIDC) · nuget-pull-verified · multi-target net8.0+netstandard2.0 · deep ASP.NET Core tested |
 | `rust` | **crates.io** | `nemesis-shield` | `cargo add nemesis-shield` | ✅ **PUBLISHED** v0.1.0 · pull-verified (embedded model, ML parity) |
-| `wordpress` | **WordPress.org** | slug `nemesis-shield` | Plugins → search "Nemesis Shield" | ⏳ pending — needs `readme.txt` (WP format) + assets + SVN |
+| `wordpress` | **WordPress.org** | slug `nemesis-shield` | Plugins → search "Nemesis Shield" | 🟡 ready to submit — `readme.txt` + assets + `build-zip.sh` + `SUBMIT.md` done; awaiting manual review + SVN |
 | `cloudflare-supabase-proxy` | not a package | deploy template | `wrangler deploy` (see note) | template only (ships via GitHub) |
 
 Note on the CF proxy: it `import`s `../../edge/nemesis-shield.ts` relatively, so it is a **deploy template**,

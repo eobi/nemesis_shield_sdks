@@ -277,7 +277,7 @@ final class Nemesis_Shield_Plugin
                <strong>observe</strong> mode; approve behaviours in the
                <a href="https://shield.nemesislabs.xyz" target="_blank" rel="noopener">Shield console</a>,
                then flip the app to <strong>enforce</strong> and off-baseline requests are blocked with
-               <code>403 blocked_by_nemesis_shield</code>. No redeploy — the mode is pulled live.</p>
+               <code>403 blocked_by_nemesis_shield</code>. No redeploy. The mode is pulled live.</p>
             <form method="post" action="options.php">
                 <?php settings_fields('nemesis_shield'); ?>
                 <table class="form-table" role="presentation">
@@ -289,7 +289,7 @@ final class Nemesis_Shield_Plugin
                                    placeholder="nsk_…" autocomplete="off" <?php disabled($token_from_env); ?> />
                             <p class="description">
                                 <?php if ($token_from_env): ?>
-                                    Provided via the <code>NEMESIS_SHIELD_TOKEN</code> constant / <code>NEMESIS_TOKEN</code> env — this field is ignored.
+                                    Provided via the <code>NEMESIS_SHIELD_TOKEN</code> constant / <code>NEMESIS_TOKEN</code> env, so this field is ignored.
                                 <?php else: ?>
                                     From <a href="https://shield.nemesislabs.xyz" target="_blank" rel="noopener">Protect an app</a>. Prefer setting <code>NEMESIS_SHIELD_TOKEN</code> in <code>wp-config.php</code> to keep it out of the database.
                                 <?php endif; ?>

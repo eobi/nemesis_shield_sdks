@@ -1,0 +1,82 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>
+  /* Faithful WordPress admin (wp-admin) styling for the plugin's actual settings screen */
+  * { box-sizing: border-box; }
+  html,body { margin:0; }
+  body { background:#f0f0f1; color:#3c434a; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen,Ubuntu,Cantarell,"Helvetica Neue",sans-serif; font-size:13px; line-height:1.5; }
+  .shell { display:flex; min-height:720px; }
+  /* admin sidebar */
+  .adminmenu { width:160px; background:#1d2327; color:#c3c4c7; padding-top:8px; flex:0 0 160px; }
+  .adminmenu .logo { color:#fff; font-weight:600; font-size:13px; padding:10px 12px 14px; opacity:.9; }
+  .adminmenu ul { list-style:none; margin:0; padding:0; }
+  .adminmenu li { padding:9px 12px; font-size:13px; display:flex; align-items:center; gap:8px; }
+  .adminmenu li .i { width:16px; height:16px; border-radius:3px; background:#2c3338; display:inline-block; }
+  .adminmenu li.active { background:#2271b1; color:#fff; }
+  .adminmenu li.active .i { background:#72aee6; }
+  .content { flex:1; padding:20px 24px; max-width:900px; }
+  h1 { font-size:23px; font-weight:400; color:#1d2327; margin:0 0 14px; }
+  p { font-size:13px; max-width:640px; }
+  a { color:#2271b1; text-decoration:none; }
+  code { background:#f6f7f7; border:1px solid #dcdcde; border-radius:3px; padding:1px 5px; font-size:12px; color:#3c434a; }
+  strong { color:#1d2327; }
+  .form-table { border-collapse:collapse; margin-top:18px; width:100%; }
+  .form-table th { text-align:left; vertical-align:top; width:220px; padding:22px 10px 22px 0; font-weight:600; color:#1d2327; font-size:14px; }
+  .form-table td { padding:16px 10px; vertical-align:top; }
+  input[type=text],input[type=url] { width:25em; max-width:100%; padding:6px 8px; border:1px solid #8c8f94; border-radius:4px; font-size:14px; color:#2c3338; }
+  input::placeholder { color:#8c8f94; }
+  .description { color:#646970; font-size:13px; margin:6px 0 0; max-width:40em; }
+  label.chk { display:flex; align-items:center; gap:8px; font-size:14px; color:#1d2327; }
+  input[type=checkbox] { width:16px; height:16px; }
+  .btn { margin-top:22px; background:#2271b1; border:1px solid #2271b1; color:#fff; padding:8px 16px; border-radius:4px; font-size:14px; font-weight:500; cursor:pointer; }
+  .pill { display:inline-flex; align-items:center; gap:6px; background:#edfaef; color:#00713b; border:1px solid #b8e6c4; border-radius:999px; padding:3px 11px; font-size:12px; font-weight:600; margin-left:10px; vertical-align:middle; }
+  .dot { width:7px; height:7px; border-radius:50%; background:#00a32a; }
+  .mark { width:22px; height:22px; vertical-align:middle; margin-right:4px; }
+</style></head>
+<body>
+  <div class="shell">
+    <nav class="adminmenu">
+      <div class="logo">WordPress</div>
+      <ul>
+        <li><span class="i"></span>Dashboard</li>
+        <li><span class="i"></span>Posts</li>
+        <li><span class="i"></span>Pages</li>
+        <li><span class="i"></span>Plugins</li>
+        <li class="active"><span class="i"></span>Settings</li>
+      </ul>
+    </nav>
+    <main class="content">
+      <h1>
+        <svg class="mark" viewBox="0 0 256 256"><defs><linearGradient id="g" x1="0" y1="0" x2="256" y2="256" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#5b8cff"/><stop offset="1" stop-color="#3ecbcf"/></linearGradient></defs><path d="M128 40 L212 100 L180 202 L76 202 L44 100 Z" fill="none" stroke="url(#g)" stroke-width="18" stroke-linejoin="round"/></svg>
+        Nemesis Shield
+        <span class="pill"><span class="dot"></span> Observe</span>
+      </h1>
+      <p>Positive-security runtime protection. Traffic builds a per-site baseline in <strong>observe</strong> mode; approve behaviours in the <a>Shield console</a>, then flip the app to <strong>enforce</strong> and off-baseline requests are blocked with <code>403 blocked_by_nemesis_shield</code>. No redeploy. The mode is pulled live.</p>
+      <form>
+        <table class="form-table" role="presentation">
+          <tr>
+            <th scope="row">Install token</th>
+            <td>
+              <input type="text" class="regular-text" placeholder="nsk_&hellip;" value="nsk_live_a19f4c2e7b8d" autocomplete="off">
+              <p class="description">From <a>Protect an app</a>. Prefer setting <code>NEMESIS_SHIELD_TOKEN</code> in <code>wp-config.php</code> to keep it out of the database.</p>
+            </td>
+          </tr>
+          <tr>
+            <th scope="row">Protect wp-admin</th>
+            <td>
+              <label class="chk"><input type="checkbox"> Also enforce inside wp-admin and admin-ajax</label>
+              <p class="description">Off by default so a still-learning baseline can never lock you out of your own dashboard. Login and cron are never blocked.</p>
+            </td>
+          </tr>
+          <tr>
+            <th scope="row">Endpoint (advanced)</th>
+            <td>
+              <input type="url" class="regular-text" placeholder="https://shield.nemesislabs.xyz/api/v1/sketches" autocomplete="off">
+              <p class="description">Leave blank for Nemesis Shield cloud. Set only for a self-hosted / on-prem Shield.</p>
+            </td>
+          </tr>
+        </table>
+        <button type="button" class="btn">Save Changes</button>
+      </form>
+    </main>
+  </div>
+</body></html>

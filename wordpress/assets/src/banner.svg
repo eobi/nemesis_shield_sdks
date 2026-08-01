@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1544" height="500" viewBox="0 0 1544 500" role="img" aria-label="Nemesis Shield">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1544" y2="500" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5b8cff"/>
+      <stop offset="1" stop-color="#3ecbcf"/>
+    </linearGradient>
+    <linearGradient id="bg" x1="0" y1="0" x2="1544" y2="500" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0a0b11"/>
+      <stop offset="1" stop-color="#0d1017"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.18" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#3ecbcf" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#3ecbcf" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1544" height="500" fill="url(#bg)"/>
+  <rect width="1544" height="500" fill="url(#glow)"/>
+  <!-- pentagon mark -->
+  <g transform="translate(150 250)">
+    <path d="M0 -140 L133 -45 L82 112 L-82 112 L-133 -45 Z"
+          fill="none" stroke="url(#g)" stroke-width="18" stroke-linejoin="round"/>
+  </g>
+  <!-- wordmark -->
+  <text x="360" y="232" font-family="Verdana, Geneva, sans-serif" font-size="86" font-weight="700" fill="#f1f1f3" letter-spacing="-1">Nemesis Shield</text>
+  <text x="362" y="300" font-family="Verdana, Geneva, sans-serif" font-size="35" font-weight="400" fill="#9aa0ac">Positive-security runtime protection for WordPress</text>
+  <text x="362" y="356" font-family="Verdana, Geneva, sans-serif" font-size="27" font-weight="400" fill="#3ecbcf">Learn &#183; Approve &#183; Enforce. Blocks off-baseline requests before WordPress runs.</text>
+</svg>

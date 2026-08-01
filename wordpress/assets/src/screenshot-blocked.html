@@ -1,0 +1,47 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>
+  * { box-sizing:border-box; }
+  html,body { margin:0; }
+  body { background:#0d1017; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; padding:48px; }
+  .win { max-width:900px; margin:0 auto; background:#1a1d24; border:1px solid #2a2e38; border-radius:12px; overflow:hidden; box-shadow:0 24px 60px rgba(0,0,0,.5); }
+  .bar { display:flex; align-items:center; gap:10px; padding:12px 14px; background:#12151b; border-bottom:1px solid #2a2e38; }
+  .dots { display:flex; gap:7px; }
+  .dots i { width:12px; height:12px; border-radius:50%; display:inline-block; }
+  .r{background:#ff5f57}.y{background:#febc2e}.g{background:#28c840}
+  .url { flex:1; background:#0d1017; border:1px solid #2a2e38; border-radius:7px; padding:7px 12px; color:#c7c7cc; font-size:13px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+  .url .lock { color:#f9b14a; margin-right:6px; }
+  .status { display:flex; align-items:center; gap:8px; color:#fb6060; font-size:12px; font-weight:700; }
+  .status .code { background:#3a1418; border:1px solid #5c2027; padding:2px 8px; border-radius:6px; }
+  .body { padding:34px; }
+  .head { display:flex; align-items:center; gap:12px; margin-bottom:22px; }
+  .mark { width:34px; height:34px; }
+  .head h2 { color:#f1f1f3; font-size:19px; font-weight:600; margin:0; }
+  .head p { color:#8a8a92; font-size:13px; margin:2px 0 0; }
+  pre { background:#0d1017; border:1px solid #2a2e38; border-radius:10px; padding:22px; margin:0; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:15px; line-height:1.8; overflow:auto; }
+  .k { color:#5aa2ff; } .s { color:#42e08c; } .p { color:#5e5e66; }
+  .note { margin-top:18px; color:#8a8a92; font-size:13px; }
+  .note b { color:#c7c7cc; }
+</style></head>
+<body>
+  <div class="win">
+    <div class="bar">
+      <div class="dots"><i class="r"></i><i class="y"></i><i class="g"></i></div>
+      <div class="url"><span class="lock">&#128274;</span>https://your-store.com/wp-config.php.bak</div>
+      <div class="status"><span class="code">403</span> Blocked</div>
+    </div>
+    <div class="body">
+      <div class="head">
+        <svg class="mark" viewBox="0 0 256 256"><defs><linearGradient id="g" x1="0" y1="0" x2="256" y2="256" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#5b8cff"/><stop offset="1" stop-color="#3ecbcf"/></linearGradient></defs><rect width="256" height="256" rx="58" fill="#08090d"/><path d="M128 40 L212 100 L180 202 L76 202 L44 100 Z" fill="none" stroke="url(#g)" stroke-width="15" stroke-linejoin="round"/></svg>
+        <div>
+          <h2>Off-baseline request blocked</h2>
+          <p>A scanner probe never seen in this site's approved baseline, stopped before WordPress ran.</p>
+        </div>
+      </div>
+      <pre>{
+  <span class="k">"error"</span><span class="p">:</span> <span class="s">"blocked_by_nemesis_shield"</span><span class="p">,</span>
+  <span class="k">"reason"</span><span class="p">:</span> <span class="s">"off-baseline: unapproved behavior"</span>
+}</pre>
+      <p class="note">Legitimate, approved traffic returns <b>200</b> as normal. Enforcement never touches login, cron, or (by default) wp-admin.</p>
+    </div>
+  </div>
+</body></html>

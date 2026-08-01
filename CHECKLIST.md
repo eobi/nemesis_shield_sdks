@@ -53,7 +53,7 @@ Legend: `[x]` done · `[ ]` not yet.
 - [ ] `edge/package.json` + `edge/jsr.json` (name `@nemesis-shield-autogon/edge`) → then repoint the CF proxy import
 - [x] `ruby/nemesis-shield.gemspec` (done; flat layout, ships ml_weights.json)
 - [ ] `dotnet/NemesisShield.csproj` (+ BouncyCastle dep, embed ml_weights.json)
-- [ ] `wordpress/nemesis-shield/readme.txt` (WP format) + `assets/` (icon/banner/screenshots)
+- [x] `wordpress/nemesis-shield/readme.txt` (WP format) + `assets/` (icon/banner/screenshots) — built; `build-zip.sh` + `SUBMIT.md` ready. Blocked only on manual review + SVN.
 - [x] `java/pom.xml` (Maven module, groupId io.github.eobi, GPG + Central Portal release profile) — built+tested
 - [ ] polish READY manifests: bump `python` off 0.0.0; confirm `rust`/`php` ship `ml_weights.json`
 
