@@ -1,5 +1,5 @@
 === Nemesis Shield ===
-Contributors: nemesislabs
+Contributors: davidobi023
 Tags: security, firewall, waf, malware, brute-force
 Requires at least: 5.9
 Tested up to: 6.8
