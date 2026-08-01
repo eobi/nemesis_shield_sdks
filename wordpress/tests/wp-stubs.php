@@ -24,6 +24,13 @@ function wp_next_scheduled($hook) { return false; }
 function wp_schedule_event($ts, $recur, $hook) { return true; }
 function wp_unschedule_event($ts, $hook) { return true; }
 
+// Inventory stubs (tests seed via $GLOBALS); default empty.
+function get_plugins() { return $GLOBALS['ns_plugins'] ?? array(); }
+function wp_get_themes($a = array()) { return $GLOBALS['ns_themes'] ?? array(); }
+function get_plugin_updates() { return $GLOBALS['ns_plugin_updates'] ?? array(); }
+function get_theme_updates() { return $GLOBALS['ns_theme_updates'] ?? array(); }
+function wp_upload_dir() { return array('basedir' => sys_get_temp_dir() . '/ns-uploads', 'baseurl' => ''); }
+
 // Test-side dispatchers (a real WP core fires these; here we fire them by hand).
 function ns_do_action($hook, ...$a) {
     foreach ($GLOBALS['ns_hooks'][$hook] ?? array() as $cb) { call_user_func_array($cb, $a); }
@@ -41,7 +48,8 @@ function is_admin()          { return !empty($GLOBALS['ns_is_admin']); }
 function is_user_logged_in() { return !empty($GLOBALS['ns_logged_in']); }
 
 function get_option($k, $d = false)  { return $GLOBALS['ns_options'][$k] ?? $d; }
-function update_option($k, $v)       { $GLOBALS['ns_options'][$k] = $v; return true; }
+function update_option($k, $v, $a = null) { $GLOBALS['ns_options'][$k] = $v; return true; }
+function delete_option($k)           { unset($GLOBALS['ns_options'][$k]); return true; }
 
 function wp_json_encode($d, $o = 0, $depth = 512) { return json_encode($d, $o, $depth); }
 function status_header($code)        { $GLOBALS['ns_status'] = (int) $code; }

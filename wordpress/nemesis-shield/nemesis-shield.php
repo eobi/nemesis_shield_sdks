@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Nemesis Shield
  * Plugin URI:        https://shield.nemesislabs.xyz
- * Description:       Connects your site to the Nemesis Shield service for positive-security runtime protection. The service learns your site's normal behaviour and, in enforce mode, tells the plugin to block off-baseline requests (auth bypass, path traversal, scanners, unusual methods). Privacy-preserving, fail-open.
+ * Description:       AI behavioral firewall for WordPress: learns your site's normal behaviour and blocks off-baseline requests (including zero-day and business-logic attacks signatures miss), backed by the Nemesis Shield service. Adds brute-force login protection, malware / file-integrity scanning, and vulnerability alerts. Privacy-preserving, fail-open.
  * Version:           1.0.0
  * Requires at least: 5.9
  * Requires PHP:      7.2
@@ -30,6 +30,7 @@ require_once __DIR__ . '/lib/NemesisShieldWP.php';
 require_once __DIR__ . '/lib/NemesisShieldLLM.php';
 require_once __DIR__ . '/lib/class-login-guard.php';
 require_once __DIR__ . '/lib/class-scanner.php';
+require_once __DIR__ . '/lib/class-vulns.php';
 
 final class Nemesis_Shield_Plugin
 {
@@ -66,24 +67,31 @@ final class Nemesis_Shield_Plugin
         // Complement: file-integrity / malware scanning (behavioral can't see a malicious file at rest).
         Nemesis_Shield_Scanner::init();
 
+        // Complement: vulnerability awareness (behavioral blocks exploitation, but can't tell you a
+        // component is vulnerable). Local outdated/abandoned detection + service-fed CVE advisories.
+        Nemesis_Shield_Vulns::init();
+
         if (is_admin()) {
             add_action('admin_menu', array(__CLASS__, 'menu'));
             add_action('admin_init', array(__CLASS__, 'register_settings'));
             add_action('admin_post_nemesis_shield_unlock', array(__CLASS__, 'handle_unlock'));
             add_action('admin_post_nemesis_shield_scan', array(__CLASS__, 'handle_scan'));
+            add_action('admin_post_nemesis_shield_vulns', array(__CLASS__, 'handle_vulns'));
         }
     }
 
-    /** Activation: schedule the daily malware scan. */
+    /** Activation: schedule the daily jobs. */
     public static function activate()
     {
         Nemesis_Shield_Scanner::schedule();
+        Nemesis_Shield_Vulns::schedule();
     }
 
     /** Deactivation: clear scheduled jobs. */
     public static function deactivate()
     {
         Nemesis_Shield_Scanner::unschedule();
+        Nemesis_Shield_Vulns::unschedule();
     }
 
     // ---- config ---------------------------------------------------------------
@@ -505,6 +513,8 @@ final class Nemesis_Shield_Plugin
             <hr />
             <?php self::render_scan(); ?>
             <hr />
+            <?php self::render_vulns(); ?>
+            <hr />
             <?php self::render_lockouts(); ?>
         </div>
         <?php
@@ -533,6 +543,66 @@ final class Nemesis_Shield_Plugin
             echo '<tr><td><code>' . esc_html($ip) . '</code></td>';
             echo '<td>' . esc_html(gmdate('Y-m-d H:i:s', $until)) . '</td>';
             echo '<td><a class="button button-small" href="' . esc_url($url) . '">' . esc_html__('Unlock', 'nemesis-shield') . '</a></td></tr>';
+        }
+        echo '</tbody></table>';
+    }
+
+    /** Refresh vulnerability advisories from the service (capability + nonce checked). */
+    public static function handle_vulns()
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die(esc_html__('You are not allowed to do this.', 'nemesis-shield'));
+        }
+        check_admin_referer('nemesis_shield_vulns');
+        Nemesis_Shield_Vulns::refresh();
+        wp_safe_redirect(admin_url('options-general.php?page=nemesis-shield'));
+        exit;
+    }
+
+    /** Vulnerability panel: locally-outdated components + service CVE advisories. */
+    public static function render_vulns()
+    {
+        echo '<h2>' . esc_html__('Vulnerabilities & updates', 'nemesis-shield') . '</h2>';
+        echo '<p class="description" style="max-width:640px">' . esc_html__('The behavioral shield blocks exploitation of a vulnerable component even before you patch. This tells you what to patch. Outdated components are detected locally; connect a token for CVE advisories from the Nemesis service.', 'nemesis-shield') . '</p>';
+
+        $outdated = Nemesis_Shield_Vulns::outdated();
+        if (empty($outdated)) {
+            echo '<p style="color:#00713b;font-weight:600">' . esc_html__('All plugins and themes are up to date.', 'nemesis-shield') . '</p>';
+        } else {
+            echo '<h3>' . esc_html__('Updates available (patch these)', 'nemesis-shield') . '</h3>';
+            echo '<table class="widefat striped" style="max-width:760px"><thead><tr>';
+            echo '<th>' . esc_html__('Component', 'nemesis-shield') . '</th><th>' . esc_html__('Type', 'nemesis-shield') . '</th><th>' . esc_html__('Installed', 'nemesis-shield') . '</th><th>' . esc_html__('Available', 'nemesis-shield') . '</th></tr></thead><tbody>';
+            foreach ($outdated as $c) {
+                echo '<tr><td>' . esc_html((string) ($c['name'] ?? '')) . '</td>';
+                echo '<td>' . esc_html((string) ($c['type'] ?? '')) . '</td>';
+                echo '<td>' . esc_html((string) ($c['current'] ?? '')) . '</td>';
+                echo '<td><strong>' . esc_html((string) ($c['new'] ?? '')) . '</strong></td></tr>';
+            }
+            echo '</tbody></table>';
+        }
+
+        $advisories = Nemesis_Shield_Vulns::cached();
+        $url = wp_nonce_url(admin_url('admin-post.php?action=nemesis_shield_vulns'), 'nemesis_shield_vulns');
+        echo '<h3>' . esc_html__('CVE advisories (from the Nemesis service)', 'nemesis-shield') . '</h3>';
+        if (empty($advisories)) {
+            echo '<p class="description">' . esc_html__('No advisories cached. With a token configured, refresh to check your inventory against the service.', 'nemesis-shield') . ' ';
+            echo '<a class="button button-small" href="' . esc_url($url) . '">' . esc_html__('Check now', 'nemesis-shield') . '</a></p>';
+            return;
+        }
+        echo '<p><a class="button button-small" href="' . esc_url($url) . '">' . esc_html__('Refresh', 'nemesis-shield') . '</a> <span class="description">' . esc_html(sprintf(/* translators: %s datetime */ __('Updated %s UTC', 'nemesis-shield'), Nemesis_Shield_Vulns::cached_at())) . '</span></p>';
+        echo '<table class="widefat striped" style="max-width:760px"><thead><tr>';
+        echo '<th>' . esc_html__('Component', 'nemesis-shield') . '</th><th>' . esc_html__('Severity', 'nemesis-shield') . '</th><th>' . esc_html__('Advisory', 'nemesis-shield') . '</th><th>' . esc_html__('Fixed in', 'nemesis-shield') . '</th></tr></thead><tbody>';
+        foreach ($advisories as $a) {
+            if (!is_array($a)) {
+                continue;
+            }
+            $link = (string) ($a['url'] ?? '');
+            $title = (string) ($a['title'] ?? '');
+            $title_cell = $link !== '' ? '<a href="' . esc_url($link) . '" target="_blank" rel="noopener">' . esc_html($title) . '</a>' : esc_html($title);
+            echo '<tr><td>' . esc_html((string) ($a['name'] ?? ($a['slug'] ?? ''))) . '</td>';
+            echo '<td>' . esc_html((string) ($a['severity'] ?? '')) . '</td>';
+            echo '<td>' . $title_cell . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from esc_url + esc_html above.
+            echo '<td>' . esc_html((string) ($a['fixed_in'] ?? '')) . '</td></tr>';
         }
         echo '</tbody></table>';
     }

@@ -8,13 +8,21 @@ Stable tag: 1.0.0
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
-Connects your site to the Nemesis Shield service for positive-security protection that blocks off-baseline requests. Privacy-preserving, fail-open.
+AI behavioral firewall that learns your site's normal behaviour and blocks off-baseline attacks, plus brute-force protection, malware scanning, and vulnerability alerts.
 
 == Description ==
 
-Nemesis Shield connects your WordPress site to the **Nemesis Shield service**, a cloud security platform that provides **positive-security runtime protection**. Instead of chasing an endless blocklist of known attacks, the service **learns what your site normally does** and, in enforce mode, has the plugin **block anything off-baseline** (auth bypass, path traversal, vulnerability scanners, unusual methods) across the front end, the REST API, and admin-ajax.
+Nemesis Shield is an **AI behavioral firewall** for WordPress. Instead of chasing an endless blocklist of known attacks, it **learns what your site normally does** and **blocks anything off-baseline** (auth bypass, path traversal, vulnerability scanners, unusual methods, business-logic abuse) across the front end, the REST API, and admin-ajax. Because it models *normal* rather than matching *known-bad*, it stops novel and **zero-day** attacks that signature firewalls miss.
 
-The service is where the value lives: the behavioural learning, the approval console, the enforcement mode, and the global threat intelligence all run in the Nemesis Shield cloud. This plugin is the connector. It computes a privacy-preserving *shape* of each request, sends those shapes to the service, and applies the decision the service returns. You will need a free Nemesis Shield account to use it (sign up at [shield.nemesislabs.xyz](https://shield.nemesislabs.xyz)).
+The behavioral engine is backed by the **Nemesis Shield service** (a free account at [shield.nemesislabs.xyz](https://shield.nemesislabs.xyz)), where the learning, the approval console, the enforcement mode, and the global threat intelligence run. The plugin computes a privacy-preserving *shape* of each request, sends those shapes to the service, and applies the decision it returns.
+
+Around that core, the plugin adds the protections a behavioral model can't provide on its own, so you get a complete security plugin:
+
+* **Brute-force login protection** (local): locks out an IP after too many failed logins across wp-login, XML-RPC and application passwords. Behavioral shaping can't see brute force, because a malicious login looks identical to a real one.
+* **Malware & file-integrity scanning** (local): verifies WordPress core against the official checksums and scans wp-content for backdoor/obfuscation patterns. Behavioral protection blocks a backdoor's *use*; the scanner finds a malicious file *at rest*.
+* **Vulnerability alerts**: flags outdated plugins/themes locally, and (with a token) checks your inventory against the service for CVE advisories. Behavioral blocks *exploitation* even before you patch; this tells you *what* to patch.
+
+**Complementary, not either/or.** You can run Nemesis Shield alongside a traditional scanner. Where signature tools tell you about known-bad files, Nemesis blocks the request that's off your site's normal behaviour, including attacks no signature exists for yet.
 
 **How it works, in three steps: observe, approve, enforce.**
 
@@ -46,6 +54,8 @@ This plugin connects to the Nemesis Shield service, operated by Nemesis Labs, to
 **What is sent, and when.** On each request to your site, the plugin sends a privacy-preserving *shape* of that request to `https://shield.nemesislabs.xyz/api/v1/sketches`, authenticated with the install token you configure. A shape consists of: the HTTP method; a normalized request path (numeric and identifier segments are replaced with placeholders such as `{int}`); the *names* of the query, POST body, and REST body parameters and the *kind* of each value (for example "integer" or "email", never the value itself); whether the request was authenticated; and the resulting HTTP status. For `admin-ajax.php` and `admin-post.php` the routing `action` selector (a registered hook name, not user data) is included as part of the path so different actions are distinguished. In enforce mode the plugin also fetches the compiled allow-list policy from the same endpoint. **The plugin never sends request bodies, parameter values, cookie values, headers, personal data, or secrets.**
 
 If you set a custom endpoint in the plugin settings, requests go to that endpoint instead of the Nemesis Shield cloud.
+
+**Other data flows.** Brute-force login protection and the malware / file-integrity scanner run **entirely on your own server**; no login credentials and no file contents are ever transmitted. When a token is configured, the plugin additionally sends minimal, non-sensitive signals so activity shows in your console: a login-lockout event (the offending IP and the number of attempts) and a scan summary (issue counts, not file contents). The vulnerability check sends your installed **plugin and theme slugs and version numbers** to `https://shield.nemesislabs.xyz/api/v1/vulns` to receive matching CVE advisories. All of these require the token; without it, the local features still work and nothing is sent.
 
 The LLM Guard helper (`nemesis_shield_guard_llm`) runs entirely on your own server using a bundled model and does not contact any external service.
 
@@ -107,7 +117,10 @@ Yes. Set the endpoint under **Settings → Nemesis Shield → Endpoint (advanced
 
 = 1.0.0 =
 * Initial release.
-* Connects your site to the Nemesis Shield service for positive-security protection on the front end and REST API (rest_pre_dispatch), with observe / approve / enforce driven live from the console.
+* AI behavioral firewall: positive-security protection on the front end and REST API (rest_pre_dispatch), with observe / approve / enforce driven live from the console.
+* Brute-force login protection: per-IP lockout across wp-login, XML-RPC and application passwords; auto-expiring; admin can view/clear lockouts.
+* Malware & file-integrity scanner: WordPress.org core checksums + backdoor/obfuscation heuristics over wp-content + PHP-in-uploads detection; daily cron and on-demand; results in admin.
+* Vulnerability alerts: local outdated-component detection plus service-fed CVE advisories for the installed inventory.
 * All network calls use the WordPress HTTP API; the compiled policy is cached with the Transients API.
 * wp-admin, admin-ajax, wp-login.php, and cron observe-only by default; optional Protect wp-admin toggle.
 * Deep request shaping: query, POST-form, and REST body parameter names + value kinds, plus the admin-ajax / admin-post action, so state-changing requests are distinguished. Only the shape is sent; bodies, values, and secrets never leave the site.
