@@ -28,6 +28,7 @@ if (!defined('ABSPATH')) {
 
 require_once __DIR__ . '/lib/NemesisShieldWP.php';
 require_once __DIR__ . '/lib/NemesisShieldLLM.php';
+require_once __DIR__ . '/lib/class-login-guard.php';
 
 final class Nemesis_Shield_Plugin
 {
@@ -57,9 +58,14 @@ final class Nemesis_Shield_Plugin
         // Observe every request at the very end, once the status code exists.
         add_action('shutdown', array(__CLASS__, 'observe'), PHP_INT_MAX);
 
+        // Complement: brute-force login protection (behavioral shaping can't see brute force, since a
+        // malicious login has the same shape as a real one).
+        Nemesis_Shield_Login_Guard::init();
+
         if (is_admin()) {
             add_action('admin_menu', array(__CLASS__, 'menu'));
             add_action('admin_init', array(__CLASS__, 'register_settings'));
+            add_action('admin_post_nemesis_shield_unlock', array(__CLASS__, 'handle_unlock'));
         }
     }
 
@@ -390,6 +396,11 @@ final class Nemesis_Shield_Plugin
         $out['token']         = isset($input['token']) ? sanitize_text_field($input['token']) : '';
         $out['endpoint']      = isset($input['endpoint']) ? esc_url_raw(trim($input['endpoint'])) : '';
         $out['protect_admin'] = (isset($input['protect_admin']) && $input['protect_admin'] === '1') ? '1' : '0';
+        // Brute-force login protection.
+        $out['login_guard']   = (isset($input['login_guard']) && $input['login_guard'] === '1') ? '1' : '0';
+        $out['lg_max']        = isset($input['lg_max']) ? max(1, (int) $input['lg_max']) : 5;
+        $out['lg_window']     = isset($input['lg_window']) ? max(60, (int) $input['lg_window']) : 900;
+        $out['lg_lockout']    = isset($input['lg_lockout']) ? max(60, (int) $input['lg_lockout']) : 1800;
         return $out;
     }
 
@@ -446,11 +457,80 @@ final class Nemesis_Shield_Plugin
                             <p class="description"><?php echo esc_html__('Leave blank for the Nemesis Shield cloud. Set only for a self-hosted service.', 'nemesis-shield'); ?></p>
                         </td>
                     </tr>
+                    <tr><th colspan="2"><h2 style="margin:8px 0 0"><?php echo esc_html__('Login protection', 'nemesis-shield'); ?></h2>
+                        <p class="description" style="font-weight:400"><?php echo esc_html__('Brute-force lockout. Complements the behavioral shield, which cannot see brute force because a malicious login has the same shape as a real one.', 'nemesis-shield'); ?></p></th></tr>
+                    <tr>
+                        <th scope="row"><?php echo esc_html__('Brute-force lockout', 'nemesis-shield'); ?></th>
+                        <td>
+                            <label>
+                                <input type="checkbox" name="<?php echo esc_attr(self::OPT); ?>[login_guard]" value="1"
+                                       <?php checked(self::opt('login_guard', '1'), '1'); ?> />
+                                <?php echo esc_html__('Lock out an IP after too many failed logins', 'nemesis-shield'); ?>
+                            </label>
+                            <p class="description"><?php echo esc_html__('Covers wp-login, XML-RPC and application-password auth. Lockouts auto-expire; login is never permanently blocked.', 'nemesis-shield'); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="ns_lg_max"><?php echo esc_html__('Failed attempts before lockout', 'nemesis-shield'); ?></label></th>
+                        <td><input name="<?php echo esc_attr(self::OPT); ?>[lg_max]" id="ns_lg_max" type="number" min="1" class="small-text" value="<?php echo esc_attr((string) self::opt('lg_max', 5)); ?>" /></td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="ns_lg_window"><?php echo esc_html__('Counting window (seconds)', 'nemesis-shield'); ?></label></th>
+                        <td><input name="<?php echo esc_attr(self::OPT); ?>[lg_window]" id="ns_lg_window" type="number" min="60" class="small-text" value="<?php echo esc_attr((string) self::opt('lg_window', 900)); ?>" /></td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="ns_lg_lockout"><?php echo esc_html__('Lockout duration (seconds)', 'nemesis-shield'); ?></label></th>
+                        <td><input name="<?php echo esc_attr(self::OPT); ?>[lg_lockout]" id="ns_lg_lockout" type="number" min="60" class="small-text" value="<?php echo esc_attr((string) self::opt('lg_lockout', 1800)); ?>" /></td>
+                    </tr>
                 </table>
                 <?php submit_button(); ?>
             </form>
+            <?php self::render_lockouts(); ?>
         </div>
         <?php
+    }
+
+    /** Active lockouts, with a nonce-protected unlock link for each. */
+    public static function render_lockouts()
+    {
+        $locks = Nemesis_Shield_Login_Guard::active_lockouts();
+        echo '<h2>' . esc_html__('Active login lockouts', 'nemesis-shield') . '</h2>';
+        if (empty($locks)) {
+            echo '<p class="description">' . esc_html__('No IPs are currently locked out.', 'nemesis-shield') . '</p>';
+            return;
+        }
+        echo '<table class="widefat striped" style="max-width:640px"><thead><tr>';
+        echo '<th>' . esc_html__('IP address', 'nemesis-shield') . '</th>';
+        echo '<th>' . esc_html__('Locked until (UTC)', 'nemesis-shield') . '</th>';
+        echo '<th></th></tr></thead><tbody>';
+        foreach ($locks as $rec) {
+            $ip = (string) ($rec['ip'] ?? '');
+            $until = (int) ($rec['until'] ?? 0);
+            $url = wp_nonce_url(
+                admin_url('admin-post.php?action=nemesis_shield_unlock&ip=' . rawurlencode($ip)),
+                'nemesis_shield_unlock_' . $ip
+            );
+            echo '<tr><td><code>' . esc_html($ip) . '</code></td>';
+            echo '<td>' . esc_html(gmdate('Y-m-d H:i:s', $until)) . '</td>';
+            echo '<td><a class="button button-small" href="' . esc_url($url) . '">' . esc_html__('Unlock', 'nemesis-shield') . '</a></td></tr>';
+        }
+        echo '</tbody></table>';
+    }
+
+    /** Handle the unlock action: capability + nonce checked, IP sanitized. */
+    public static function handle_unlock()
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die(esc_html__('You are not allowed to do this.', 'nemesis-shield'));
+        }
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- the IP is read only to build the nonce action; the nonce is verified on the very next line.
+        $ip = isset($_GET['ip']) ? sanitize_text_field(wp_unslash($_GET['ip'])) : '';
+        check_admin_referer('nemesis_shield_unlock_' . $ip);
+        if ($ip !== '') {
+            Nemesis_Shield_Login_Guard::admin_unlock($ip);
+        }
+        wp_safe_redirect(admin_url('options-general.php?page=nemesis-shield'));
+        exit;
     }
 }
 

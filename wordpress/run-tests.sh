@@ -29,3 +29,5 @@ for _ in $(seq 1 40); do
 done
 
 php "$here/tests/run.php"
+echo ""
+php "$here/tests/login-test.php"

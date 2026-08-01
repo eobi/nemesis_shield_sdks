@@ -27,6 +27,8 @@ function ns_apply_filters($hook, $value, ...$a) {
     }
     return $value;
 }
+function apply_filters($hook, $value, ...$a) { return ns_apply_filters($hook, $value, ...$a); }
+function do_action($hook, ...$a) { return ns_do_action($hook, ...$a); }
 
 function is_admin()          { return !empty($GLOBALS['ns_is_admin']); }
 function is_user_logged_in() { return !empty($GLOBALS['ns_logged_in']); }
