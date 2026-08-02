@@ -74,9 +74,22 @@ module NemesisShield
   end
 
   # Request signature (method + route + query param kinds + auth). Excludes status by design.
+  # Analytics / click-tracking query params carry no application logic and are the main cause of shape
+  # explosion (every ad/campaign link adds different ones). Stripped from the signature so a UTM'd
+  # request matches the bare route, while real params (and any attack in them) stay modeled. Shared,
+  # identical across every Nemesis Shield SDK so the shape hash matches everywhere.
+  TRACKING_PREFIXES = %w[utm_ mtm_ pk_ hsa_ matomo_ piwik_ ga_].freeze
+  TRACKING_EXACT = %w[gclid gbraid wbraid dclid gclsrc fbclid msclkid twclid ttclid yclid igshid scid wickedid _ga _gl _hsenc _hsmi mc_cid mc_eid vero_id vero_conv oly_anon_id oly_enc_id _openstat rb_clickid s_cid epik sccid].freeze
+
+  def tracking_param?(name)
+    n = name.to_s.downcase
+    TRACKING_PREFIXES.any? { |p| n.start_with?(p) } || TRACKING_EXACT.include?(n)
+  end
+  module_function :tracking_param?
+
   def build_sketch(method:, path:, query: {}, authed: false, status: 0)
     route = normalize_path(path)
-    params = (query || {}).keys.sort.map { |k| v = query[k]; { name: k.to_s, kind: kind_of(v.is_a?(Array) ? v.first : v), nested: v.is_a?(Array) } }
+    params = (query || {}).keys.reject { |k| tracking_param?(k) }.sort.map { |k| v = query[k]; { name: k.to_s, kind: kind_of(v.is_a?(Array) ? v.first : v), nested: v.is_a?(Array) } }
     # canonical shape input: keys sorted (auth, method, params, route); params are [name, kind, nested];
     # status is intentionally excluded so enforcement can decide BEFORE the response exists.
     canon = JSON.generate({ auth: authed ? 1 : 0, method: method.to_s.upcase, params: params.map { |p| [p[:name], p[:kind], p[:nested] ? 1 : 0] }, route: route })

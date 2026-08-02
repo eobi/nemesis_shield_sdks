@@ -27,11 +27,26 @@ def _latency_bucket(ms: float) -> str:
     return "5s+"
 
 
+# Analytics / click-tracking query params carry no application logic and are the main cause of shape
+# explosion (every ad/campaign link adds different ones). Stripped from the signature so a UTM'd
+# request matches the bare route, while real params (and any attack in them) stay modeled. Shared,
+# identical across every Nemesis Shield SDK so the shape hash matches everywhere.
+_TRACKING_PREFIXES = ("utm_", "mtm_", "pk_", "hsa_", "matomo_", "piwik_", "ga_")
+_TRACKING_EXACT = frozenset({"gclid", "gbraid", "wbraid", "dclid", "gclsrc", "fbclid", "msclkid", "twclid", "ttclid", "yclid", "igshid", "scid", "wickedid", "_ga", "_gl", "_hsenc", "_hsmi", "mc_cid", "mc_eid", "vero_id", "vero_conv", "oly_anon_id", "oly_enc_id", "_openstat", "rb_clickid", "s_cid", "epik", "sccid"})
+
+
+def is_tracking_param(name: str) -> bool:
+    n = str(name).lower()
+    return n.startswith(_TRACKING_PREFIXES) or n in _TRACKING_EXACT
+
+
 def _shape_params(source: Optional[dict]) -> list[dict]:
     if not source:
         return []
     out = []
     for name, value in source.items():
+        if is_tracking_param(name):
+            continue
         if isinstance(value, (list, tuple)):
             out.append(
                 {

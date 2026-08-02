@@ -285,6 +285,22 @@ impl Client {
     }
 
     /// Compute the request signature. `query` is a slice of (name, value) pairs; pass `&[]` if none.
+    // Analytics / click-tracking query params carry no application logic and are the main cause of
+    // shape explosion (every ad/campaign link adds different ones). Stripped from the signature so a
+    // UTM'd request matches the bare route, while real params (and any attack in them) stay modeled.
+    // Shared, identical across every Nemesis Shield SDK so the shape hash matches everywhere.
+    fn is_tracking_param(name: &str) -> bool {
+        let n = name.to_ascii_lowercase();
+        const PREFIXES: [&str; 7] = ["utm_", "mtm_", "pk_", "hsa_", "matomo_", "piwik_", "ga_"];
+        const EXACT: [&str; 28] = [
+            "gclid", "gbraid", "wbraid", "dclid", "gclsrc", "fbclid", "msclkid", "twclid", "ttclid",
+            "yclid", "igshid", "scid", "wickedid", "_ga", "_gl", "_hsenc", "_hsmi", "mc_cid",
+            "mc_eid", "vero_id", "vero_conv", "oly_anon_id", "oly_enc_id", "_openstat", "rb_clickid",
+            "s_cid", "epik", "sccid",
+        ];
+        PREFIXES.iter().any(|p| n.starts_with(p)) || EXACT.contains(&n.as_str())
+    }
+
     pub fn build_sketch(
         &self,
         method: &str,
@@ -294,7 +310,8 @@ impl Client {
         status: u16,
     ) -> Sketch {
         let route = Self::normalize_path(path);
-        let mut sorted: Vec<&(String, String)> = query.iter().collect();
+        let mut sorted: Vec<&(String, String)> =
+            query.iter().filter(|(k, _)| !Self::is_tracking_param(k)).collect();
         sorted.sort_by(|a, b| a.0.cmp(&b.0));
         let params: Vec<Param> = sorted
             .iter()

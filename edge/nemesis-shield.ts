@@ -95,8 +95,24 @@ interface Param {
   nested: boolean;
 }
 
+// Analytics / click-tracking query params carry NO application logic and are the main cause of shape
+// explosion (every ad/campaign/referral link adds different ones). We strip them from the signature so
+// a UTM'd request matches the bare route, while real params — and any attack hidden in them — stay
+// modeled. This list is shared across every SDK so the shape hash stays identical everywhere.
+const TRACKING_PREFIXES = ["utm_", "mtm_", "pk_", "hsa_", "matomo_", "piwik_", "ga_"];
+const TRACKING_EXACT = new Set([
+  "gclid", "gbraid", "wbraid", "dclid", "gclsrc", "fbclid", "msclkid", "twclid", "ttclid", "yclid",
+  "igshid", "scid", "wickedid", "_ga", "_gl", "_hsenc", "_hsmi", "mc_cid", "mc_eid", "vero_id",
+  "vero_conv", "oly_anon_id", "oly_enc_id", "_openstat", "rb_clickid", "s_cid", "epik", "sccid",
+]);
+export function isTrackingParam(name: string): boolean {
+  const n = name.toLowerCase();
+  return TRACKING_PREFIXES.some((p) => n.startsWith(p)) || TRACKING_EXACT.has(n);
+}
+
 function paramsOf(query: Query): Param[] {
   return Object.keys(query || {})
+    .filter((name) => !isTrackingParam(name))
     .sort()
     .map((name) => {
       const val = query[name];

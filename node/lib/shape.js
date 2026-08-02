@@ -68,10 +68,22 @@ export function fnv1a(str) {
   return h.toString(16).padStart(8, "0");
 }
 
+// Analytics / click-tracking query params carry no application logic and are the main cause of shape
+// explosion (every ad/campaign link adds different ones). Stripped from the signature so a UTM'd
+// request matches the bare route, while real params (and any attack in them) stay modeled. Shared,
+// identical across every Nemesis Shield SDK so the shape hash matches everywhere.
+const TRACKING_PREFIXES = ["utm_", "mtm_", "pk_", "hsa_", "matomo_", "piwik_", "ga_"];
+const TRACKING_EXACT = new Set(["gclid", "gbraid", "wbraid", "dclid", "gclsrc", "fbclid", "msclkid", "twclid", "ttclid", "yclid", "igshid", "scid", "wickedid", "_ga", "_gl", "_hsenc", "_hsmi", "mc_cid", "mc_eid", "vero_id", "vero_conv", "oly_anon_id", "oly_enc_id", "_openstat", "rb_clickid", "s_cid", "epik", "sccid"]);
+export function isTrackingParam(name) {
+  const n = String(name).toLowerCase();
+  return TRACKING_PREFIXES.some((p) => n.startsWith(p)) || TRACKING_EXACT.has(n);
+}
+
 /** Build a request sketch. `query` is an object of query params (values -> kinds only). */
 export function buildSketch({ method, path, query = {}, authenticated = false, status = 0 }) {
   const route = normalizePath(path);
   const params = Object.keys(query || {})
+    .filter((name) => !isTrackingParam(name))
     .sort()
     .map((name) => {
       const val = query[name];

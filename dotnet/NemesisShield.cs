@@ -58,6 +58,23 @@ public sealed class SentinelClient
 
     // Parse a raw query string into the canonical params array [[name,kind,nested],...], sorted +
     // deduped by name (repeated key -> nested). Values are classified, never kept.
+    // Analytics / click-tracking query params carry no application logic and are the main cause of
+    // shape explosion (every ad/campaign link adds different ones). Stripped from the signature so a
+    // UTM'd request matches the bare route, while real params (and any attack in them) stay modeled.
+    // Shared, identical across every Nemesis Shield SDK so the shape hash matches everywhere.
+    private static readonly string[] TrackingPrefixes = { "utm_", "mtm_", "pk_", "hsa_", "matomo_", "piwik_", "ga_" };
+    private static readonly System.Collections.Generic.HashSet<string> TrackingExact = new(new[] {
+        "gclid", "gbraid", "wbraid", "dclid", "gclsrc", "fbclid", "msclkid", "twclid", "ttclid", "yclid",
+        "igshid", "scid", "wickedid", "_ga", "_gl", "_hsenc", "_hsmi", "mc_cid", "mc_eid", "vero_id",
+        "vero_conv", "oly_anon_id", "oly_enc_id", "_openstat", "rb_clickid", "s_cid", "epik", "sccid" });
+
+    private static bool IsTrackingParam(string name)
+    {
+        var n = name.ToLowerInvariant();
+        foreach (var p in TrackingPrefixes) if (n.StartsWith(p, System.StringComparison.Ordinal)) return true;
+        return TrackingExact.Contains(n);
+    }
+
     private static string ParamsCanon(string? query)
     {
         if (string.IsNullOrEmpty(query)) return "[]";
@@ -72,6 +89,7 @@ public sealed class SentinelClient
             var v = eq >= 0 ? pair.Substring(eq + 1) : "";
             k = System.Uri.UnescapeDataString(k);
             v = System.Uri.UnescapeDataString(v);
+            if (IsTrackingParam(k)) continue;
             if (first.ContainsKey(k)) multi.Add(k);
             else { first[k] = v; order.Add(k); }
         }

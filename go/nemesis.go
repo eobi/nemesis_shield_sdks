@@ -208,12 +208,32 @@ func fnv1a(s string) string {
 	return string(out)
 }
 
+// Analytics / click-tracking query params carry no application logic and are the main cause of shape
+// explosion (every ad/campaign link adds different ones). Stripped from the signature so a UTM'd
+// request matches the bare route, while real params (and any attack in them) stay modeled. Shared,
+// identical across every Nemesis Shield SDK so the shape hash matches everywhere.
+var trackingPrefixes = []string{"utm_", "mtm_", "pk_", "hsa_", "matomo_", "piwik_", "ga_"}
+var trackingExact = map[string]bool{"gclid": true, "gbraid": true, "wbraid": true, "dclid": true, "gclsrc": true, "fbclid": true, "msclkid": true, "twclid": true, "ttclid": true, "yclid": true, "igshid": true, "scid": true, "wickedid": true, "_ga": true, "_gl": true, "_hsenc": true, "_hsmi": true, "mc_cid": true, "mc_eid": true, "vero_id": true, "vero_conv": true, "oly_anon_id": true, "oly_enc_id": true, "_openstat": true, "rb_clickid": true, "s_cid": true, "epik": true, "sccid": true}
+
+func isTrackingParam(name string) bool {
+	n := strings.ToLower(name)
+	for _, p := range trackingPrefixes {
+		if strings.HasPrefix(n, p) {
+			return true
+		}
+	}
+	return trackingExact[n]
+}
+
 // BuildSketch computes the request signature. query may be nil.
 func (c *Client) BuildSketch(method, path string, query map[string][]string, authed bool, status int) Sketch {
 	route := normalizePath(path)
 	params := make([]Param, 0, len(query))
 	names := make([]string, 0, len(query))
 	for k := range query {
+		if isTrackingParam(k) {
+			continue
+		}
 		names = append(names, k)
 	}
 	sort.Strings(names)

@@ -1,6 +1,6 @@
 [package]
 name = "nemesis-shield"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 license = "MIT"
 description = "Nemesis Shield — Sentinel SDK for Rust: learns your app's normal behavior and blocks off-baseline requests (positive-security, fail-open)."

@@ -58,6 +58,22 @@ public class NemesisShield {
 
     // Parse a raw query string ("a=1&b=x") into the canonical params array [[name,kind,nested],...],
     // sorted + deduped by name (repeated key -> nested). Values are classified, never kept.
+    // Analytics / click-tracking query params carry no application logic and are the main cause of
+    // shape explosion (every ad/campaign link adds different ones). Stripped from the signature so a
+    // UTM'd request matches the bare route, while real params (and any attack in them) stay modeled.
+    // Shared, identical across every Nemesis Shield SDK so the shape hash matches everywhere.
+    private static final String[] TRACKING_PREFIXES = {"utm_", "mtm_", "pk_", "hsa_", "matomo_", "piwik_", "ga_"};
+    private static final java.util.Set<String> TRACKING_EXACT = new java.util.HashSet<>(java.util.Arrays.asList(
+        "gclid", "gbraid", "wbraid", "dclid", "gclsrc", "fbclid", "msclkid", "twclid", "ttclid", "yclid",
+        "igshid", "scid", "wickedid", "_ga", "_gl", "_hsenc", "_hsmi", "mc_cid", "mc_eid", "vero_id",
+        "vero_conv", "oly_anon_id", "oly_enc_id", "_openstat", "rb_clickid", "s_cid", "epik", "sccid"));
+
+    private static boolean isTrackingParam(String name) {
+        String n = name.toLowerCase();
+        for (String p : TRACKING_PREFIXES) if (n.startsWith(p)) return true;
+        return TRACKING_EXACT.contains(n);
+    }
+
     private static String paramsCanon(String query) {
         if (query == null || query.isEmpty()) return "[]";
         java.util.TreeMap<String, String> first = new java.util.TreeMap<>();
@@ -71,6 +87,7 @@ public class NemesisShield {
                 k = java.net.URLDecoder.decode(k, java.nio.charset.StandardCharsets.UTF_8);
                 v = java.net.URLDecoder.decode(v, java.nio.charset.StandardCharsets.UTF_8);
             } catch (Exception ignored) { }
+            if (isTrackingParam(k)) continue;
             if (first.containsKey(k)) multi.add(k); else first.put(k, v);
         }
         StringBuilder sb = new StringBuilder("[");
