@@ -93,7 +93,7 @@ air-gapped environments.
 ## Report to Shield (baseline readiness)
 
 Pass your app's Shield token and Nemesis Learn posts its coverage back to the app, so the portal shows a
-live **baseline readiness** meter and a **ready-to-enforce** gate on the app's page — routes exercised vs
+live **baseline readiness** meter and a **ready-to-enforce** gate on the app's page - routes exercised vs
 learned, behaviors to approve, and the routes the SDK saw no behavior for (so you can spot a route the SDK
 isn't wired on).
 
