@@ -1,6 +1,7 @@
 {
   "name": "@nemesis-shield-autogon/edge",
   "version": "0.1.2",
+  "license": "MIT",
   "exports": "./nemesis-shield.ts",
   "publish": {
     "include": ["nemesis-shield.ts", "README.md", "jsr.json"]
