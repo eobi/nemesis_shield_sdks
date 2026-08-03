@@ -1,5 +1,5 @@
 {
-  "name": "@nemesis-shield-autogon/edge",
+  "name": "@nemesis-shield/edge",
   "version": "0.1.2",
   "license": "MIT",
   "exports": "./nemesis-shield.ts",
