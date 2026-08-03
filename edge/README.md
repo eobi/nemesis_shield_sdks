@@ -14,7 +14,7 @@ handler runs. Positive-security, fail-open, privacy-preserving.
 
 ```bash
 npm install @nemesis-shield-autogon/edge        # Cloudflare Workers, Vercel Edge, Next.js, bundlers
-deno add jsr:@nemesis-shield-autogon/edge        # Deno / Deno Deploy / Supabase Edge (or import jsr: directly)
+deno add jsr:@nemesis-shield/edge        # Deno / Deno Deploy / Supabase Edge (or import jsr: directly)
 ```
 
 `withShield(handler, { token })` wraps any Web-standard `(Request) => Response` handler — so the same
@@ -22,7 +22,7 @@ one line works on every edge runtime. Pick your platform:
 
 ### Supabase Edge Functions (Deno)
 ```ts
-import { withShield } from "jsr:@nemesis-shield-autogon/edge";
+import { withShield } from "jsr:@nemesis-shield/edge";
 
 Deno.serve(withShield(
   async (req) => new Response(JSON.stringify({ ok: true }), { headers: { "content-type": "application/json" } }),
@@ -33,7 +33,7 @@ Set the token: `supabase secrets set NEMESIS_TOKEN=nsk_your_app_token`.
 
 ### Deno / Deno Deploy
 ```ts
-import { withShield } from "jsr:@nemesis-shield-autogon/edge";
+import { withShield } from "jsr:@nemesis-shield/edge";
 
 Deno.serve(withShield((req) => new Response("ok"), { token: Deno.env.get("NEMESIS_TOKEN") }));
 ```
