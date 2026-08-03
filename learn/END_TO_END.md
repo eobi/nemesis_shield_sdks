@@ -12,7 +12,7 @@ add the SDK (observe)  ->  nemesis-learn (exercise every route)  ->  Baseline re
 
 - An app you can run in **dev or staging** (never learn against production data you can't recreate -
   Nemesis Learn sends POST/PUT/DELETE).
-- Node 18+ on your machine (to run `npx @nemesis-shield/learn`). Nothing else is required.
+- Node 18+ on your machine (to run `npx @nemesis-shield-autogon/learn`). Nothing else is required.
 
 ## 1. Create the app in Nemesis Shield and copy its token
 
@@ -54,7 +54,7 @@ through the routes it finds.
 ## 4. Run Nemesis Learn against the running app
 
 ```bash
-npx @nemesis-shield/learn \
+npx @nemesis-shield-autogon/learn \
   --target http://localhost:3000 \
   --repo . \
   --app-token nsk_your_token

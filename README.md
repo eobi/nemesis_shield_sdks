@@ -18,7 +18,7 @@ Nemesis is unreachable, your app is completely unaffected.
 > language- and framework-agnostic (drives your app over HTTP), runs offline, can read your repo to
 > find routes, and reports coverage back so the console shows exactly when you're ready to enforce.
 > ```bash
-> npx @nemesis-shield/learn --target http://localhost:3000 --app-token nsk_… --repo .
+> npx @nemesis-shield-autogon/learn --target http://localhost:3000 --app-token nsk_… --repo .
 > ```
 
 | Language | Package | Integration |

@@ -19,14 +19,14 @@ Needs Node 18+. No install required:
 
 ```bash
 # against a running dev/staging app
-npx @nemesis-shield/learn --target http://localhost:3000
+npx @nemesis-shield-autogon/learn --target http://localhost:3000
 
 # also discover routes from source (any language), realistic inputs via your LLM
-npx @nemesis-shield/learn --target http://localhost:8000 --repo . \
+npx @nemesis-shield-autogon/learn --target http://localhost:8000 --repo . \
   --llm-provider openai --llm-key $OPENAI_API_KEY
 
 # learn protected routes too - log in first
-npx @nemesis-shield/learn --target http://localhost:5000 \
+npx @nemesis-shield-autogon/learn --target http://localhost:5000 \
   --login-url /api/login --login-body '{"email":"dev@acme.com","password":"devpass"}'
 ```
 
@@ -98,7 +98,7 @@ learned, behaviors to approve, and the routes the SDK saw no behavior for (so yo
 isn't wired on).
 
 ```bash
-npx @nemesis-shield/learn --target http://localhost:3000 --app-token nsk_live_… --repo .
+npx @nemesis-shield-autogon/learn --target http://localhost:3000 --app-token nsk_live_… --repo .
 ```
 
 - `--app-token <nsk_…>` - your app token (the same one the SDK uses). Also read from `NEMESIS_SHIELD_TOKEN`.
@@ -116,7 +116,7 @@ create/update/delete resources through the routes it finds (deletes run last).
 
 ## Options
 
-Run `npx @nemesis-shield/learn --help` for the full list (`--max`, `--concurrency`, `--delay`,
+Run `npx @nemesis-shield-autogon/learn --help` for the full list (`--max`, `--concurrency`, `--delay`,
 `--timeout`, `--max-pages`, `--no-openapi`, `--no-crawl`, repeatable `--header`, …).
 
 ## The flow
