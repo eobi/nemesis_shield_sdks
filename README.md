@@ -32,7 +32,7 @@ Nemesis is unreachable, your app is completely unaffected.
 | **Java** | `io.github.eobi:sentinel` | Servlet filter / Spring Boot (JDK 11+) → [`java/`](java/) |
 | **.NET / C#** | `dotnet add package NemesisShield` | ASP.NET Core middleware (net8.0 + netstandard2.0) → [`dotnet/`](dotnet/) |
 | **Rust** | `cargo add nemesis-shield` | axum (tower) / actix-web middleware → [`rust/`](rust/) |
-| **Edge / Supabase** (Deno TS) | `@nemesis-shield-autogon/edge` | `withShield()` for Supabase Edge / Deno / CF Workers / Vercel Edge / Next.js → [`edge/`](edge/) |
+| **Edge / Supabase** (Deno TS) | `@nemesis-shield-autogon/edge` (npm) · `@nemesis-shield/edge` (JSR) | `withShield()` for Supabase Edge / Deno / CF Workers / Vercel Edge / Next.js → [`edge/`](edge/) |
 | **Supabase direct DB API** | Cloudflare Worker | reverse-proxy that guards `supabase.from()` (PostgREST) — off-baseline table/verb/auth blocked before your DB → [`cloudflare-supabase-proxy/`](cloudflare-supabase-proxy/) |
 
 ### Front-end (browser)
@@ -124,7 +124,7 @@ let shield = nemesis_shield::Client::new(std::env::var("NEMESIS_TOKEN").unwrap_o
 // .layer(middleware::from_fn_with_state(shield.clone(), shield_mw))
 ```
 
-**Edge** (Deno / Cloudflare Workers / Vercel Edge / Supabase / Next.js middleware) — `npm i @nemesis-shield-autogon/edge` or `deno add jsr:@nemesis-shield-autogon/edge`
+**Edge** (Deno / Cloudflare Workers / Vercel Edge / Supabase / Next.js middleware) — `npm i @nemesis-shield-autogon/edge` or `deno add jsr:@nemesis-shield/edge`
 ```ts
 import { withShield } from "@nemesis-shield-autogon/edge";
 // wraps any Web-standard (Request) => Response; same line on every edge runtime:
