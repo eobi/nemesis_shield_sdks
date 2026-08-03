@@ -36,6 +36,41 @@ Or clone this folder and run `node src/index.mjs --target …`. Or Docker:
 docker build -t nemesis-learn . && docker run --rm --network host nemesis-learn --target http://localhost:3000
 ```
 
+## Bring your own LLM (optional - any provider, including private / self-hosted)
+
+The LLM is **optional**. It only makes the generated inputs more realistic (a sensible body for
+`POST /createOrder`, etc.); without one, Nemesis Learn uses OpenAPI schemas + field-name heuristics and
+still exercises every route. When you do use one, **you choose the model** - hosted, self-hosted, or fully
+offline. The key and prompts go **straight from your machine to the endpoint you name**; nothing about
+your LLM ever touches Nemesis Shield.
+
+```bash
+# OpenAI
+--llm-provider openai     --llm-key $OPENAI_API_KEY
+
+# Anthropic
+--llm-provider anthropic  --llm-key $ANTHROPIC_API_KEY  --llm-model claude-3-5-haiku-latest
+
+# ANY OpenAI-compatible endpoint -> point --llm-base at it. This covers most private / self-hosted LLMs:
+#   vLLM, LM Studio, LocalAI, text-generation-webui, Azure OpenAI, Together, Groq, OpenRouter, or your
+#   own internal gateway. Use the key that endpoint expects (or a dummy one if it needs none).
+--llm-provider openai --llm-base https://llm.internal.mycorp.com/v1 --llm-key $MY_LLM_KEY --llm-model my-model
+
+# Fully offline / air-gapped - a local model, no key, nothing leaves the box:
+--llm-provider ollama  --llm-base http://localhost:11434  --llm-model llama3.1
+```
+
+| Flag | Meaning |
+|---|---|
+| `--llm-provider` | `openai` \| `anthropic` \| `ollama`. Use `openai` for any OpenAI-compatible API. |
+| `--llm-base` | Override the API base URL - this is how you point at a **private / self-hosted** model. |
+| `--llm-key` | The endpoint's key (or env `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `LLM_API_KEY`). |
+| `--llm-model` | Override the model name. |
+
+**Privacy:** Nemesis Learn talks only to (a) your app and (b) the LLM endpoint you specify. Choose a
+self-hosted model or Ollama and the whole run stays inside your network - suitable for regulated or
+air-gapped environments.
+
 ## What it does
 
 1. **Discovers routes** from three independent sources (any one is enough; together they cover a lot):
@@ -46,9 +81,11 @@ docker build -t nemesis-learn . && docker run --rm --network host nemesis-learn 
 2. **Authenticates** once (`--login-url` + `--login-body`, or `--header`) and carries the session
    (cookies + bearer token) through the whole run, so protected routes are learned too.
 3. **Exercises every route** with realistic inputs - generated from the OpenAPI schema and field-name
-   heuristics, and refined by your **LLM** when provided (OpenAI, Anthropic, or a local **Ollama** for a
-   fully-offline run). It handles **file uploads**, query/path params, and reuses ids returned by earlier
-   calls so **CRUD flows chain**.
+   heuristics, and refined by **the LLM of your choice** when provided (OpenAI, Anthropic, any
+   OpenAI-compatible / **private self-hosted** endpoint, or a local **Ollama** for a fully-offline run -
+   see [Bring your own LLM](#bring-your-own-llm-optional---any-provider-including-private--self-hosted)).
+   It handles **file uploads**, query/path params, and reuses ids returned by earlier calls so **CRUD
+   flows chain**.
 4. **Reports coverage** - routes discovered vs exercised, status mix, uploads, and any route that
    errored (5xx / unreachable) so you can fix it before enforcing. Written to
    `nemesis-learn-report.json`.
