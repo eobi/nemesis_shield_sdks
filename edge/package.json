@@ -1,6 +1,6 @@
 {
   "name": "@nemesis-shield-autogon/edge",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Nemesis Shield — Edge SDK for Deno / Cloudflare Workers / Vercel Edge / Supabase Edge Functions. Positive-security: learns your app's normal behavior and blocks off-baseline requests (auth bypass, path traversal, scanners) in enforce mode. Web-standard (Request/Response), zero deps, fail-open.",
   "type": "module",
   "main": "./dist/nemesis-shield.js",
