@@ -1,0 +1,97 @@
+{
+  "target": "http://localhost:4321",
+  "startedAt": "2026-08-03T01:19:31.133Z",
+  "finishedAt": "2026-08-03T01:19:31.184Z",
+  "durationMs": 51,
+  "discovered": {
+    "total": 6,
+    "bySource": {
+      "openapi": 4,
+      "crawl": 1,
+      "crawl-form": 1
+    }
+  },
+  "exercised": {
+    "total": 6,
+    "byMethod": {
+      "GET": 4,
+      "POST": 2
+    },
+    "byStatus": {
+      "2xx": 6,
+      "3xx": 0,
+      "4xx": 0,
+      "5xx": 0,
+      "err": 0
+    },
+    "uploads": 1
+  },
+  "coveragePct": 100,
+  "reachedServer": 6,
+  "notExercised": [],
+  "errors": [],
+  "uploads": [
+    {
+      "method": "POST",
+      "path": "/avatar"
+    }
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/users",
+      "url": "http://localhost:4321/users",
+      "status": 200,
+      "ms": 2,
+      "source": "openapi",
+      "files": []
+    },
+    {
+      "method": "POST",
+      "path": "/users",
+      "url": "http://localhost:4321/users",
+      "status": 201,
+      "ms": 1,
+      "source": "openapi",
+      "files": []
+    },
+    {
+      "method": "POST",
+      "path": "/avatar",
+      "url": "http://localhost:4321/avatar",
+      "status": 200,
+      "ms": 3,
+      "source": "openapi",
+      "files": [
+        "file"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/users/{id}",
+      "url": "http://localhost:4321/users/ca27e130-0fad-4506-8c8a-a391bd24c583",
+      "status": 200,
+      "ms": 6,
+      "source": "openapi",
+      "files": []
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "url": "http://localhost:4321/",
+      "status": 200,
+      "ms": 7,
+      "source": "crawl",
+      "files": []
+    },
+    {
+      "method": "GET",
+      "path": "/search",
+      "url": "http://localhost:4321/search?q=test",
+      "status": 200,
+      "ms": 7,
+      "source": "crawl-form",
+      "files": []
+    }
+  ]
+}
