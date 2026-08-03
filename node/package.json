@@ -1,6 +1,6 @@
 {
   "name": "@nemesis-shield-autogon/sentinel",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Nemesis Shield — Sentinel SDK for Node. Learn your app's normal behavior, then block off-baseline requests (auth bypass, path traversal, scanners) in enforce mode. Express/Fastify/Koa adapters.",
   "type": "module",
   "main": "./index.js",
