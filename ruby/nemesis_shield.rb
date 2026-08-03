@@ -27,6 +27,8 @@ module NemesisShield
   B64 = /\A[A-Za-z0-9+\/]+={0,2}\z/
   ALPHA = /\A[A-Za-z]+\z/
   ALNUM = /\A[A-Za-z0-9]+\z/
+  # A run of 7+ letters => reads like a word / route name, not an opaque id/token.
+  WORD = /[A-Za-z]{7,}/
 
   module_function
 
@@ -40,7 +42,7 @@ module NemesisShield
       when "uuid" then "{uuid}"
       when "hex" then "{hex}"
       when "base64" then "{token}"
-      when "alnum" then seg.length >= 12 ? "{id}" : seg
+      when "alnum" then (seg.length >= 12 && seg !~ WORD) ? "{id}" : seg
       else seg end
     end.join("/")
     out.empty? ? "/" : out
@@ -61,7 +63,7 @@ module NemesisShield
     return "int" if s =~ INT
     return "float" if s =~ FLOATRE
     return "hex" if s.length >= 16 && s =~ HEX
-    return "base64" if s.length >= 16 && s =~ B64
+    return "base64" if s.length >= 16 && s =~ B64 && s !~ WORD
     return "alpha" if s =~ ALPHA
     return "alnum" if s =~ ALNUM
     "string"

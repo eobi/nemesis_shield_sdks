@@ -100,7 +100,7 @@ class NemesisShieldWP
                     $segs[$i] = '{token}';
                     break;
                 case 'alnum':
-                    if (strlen($s) >= 12) {
+                    if (strlen($s) >= 12 && !preg_match('/[A-Za-z]{7,}/', $s)) {
                         $segs[$i] = '{id}';
                     }
                     break;
@@ -153,7 +153,7 @@ class NemesisShieldWP
         if (strlen($s) >= 16 && preg_match('/^[0-9a-f]+$/i', $s)) {
             return 'hex';
         }
-        if (strlen($s) >= 16 && preg_match('#^[A-Za-z0-9+/]+={0,2}$#', $s)) {
+        if (strlen($s) >= 16 && preg_match('#^[A-Za-z0-9+/]+={0,2}$#', $s) && !preg_match('/[A-Za-z]{7,}/', $s)) {
             return 'base64';
         }
         if (preg_match('/^[A-Za-z]+$/', $s)) {

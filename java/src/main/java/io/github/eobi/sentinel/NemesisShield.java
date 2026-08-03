@@ -37,6 +37,8 @@ public class NemesisShield {
     private static final Pattern B64 = Pattern.compile("^[A-Za-z0-9+/]+={0,2}$");
     private static final Pattern ALPHA = Pattern.compile("^[A-Za-z]+$");
     private static final Pattern ALNUM = Pattern.compile("^[A-Za-z0-9]+$");
+    // A run of 7+ letters => reads like a word / route name, not an opaque id/token.
+    private static final Pattern WORD = Pattern.compile("[A-Za-z]{7,}");
 
     static String kindOf(String s) {
         if (s == null || s.isEmpty()) return "empty";
@@ -50,7 +52,7 @@ public class NemesisShield {
         if (INT.matcher(s).matches()) return "int";
         if (FLOAT.matcher(s).matches()) return "float";
         if (s.length() >= 16 && HEX.matcher(s).matches()) return "hex";
-        if (s.length() >= 16 && B64.matcher(s).matches()) return "base64";
+        if (s.length() >= 16 && B64.matcher(s).matches() && !WORD.matcher(s).find()) return "base64";
         if (ALPHA.matcher(s).matches()) return "alpha";
         if (ALNUM.matcher(s).matches()) return "alnum";
         return "string";
@@ -175,7 +177,7 @@ public class NemesisShield {
                 case "uuid": segs[i] = "{uuid}"; break;
                 case "hex": segs[i] = "{hex}"; break;
                 case "base64": segs[i] = "{token}"; break;
-                case "alnum": if (segs[i].length() >= 12) segs[i] = "{id}"; break;
+                case "alnum": if (segs[i].length() >= 12 && !WORD.matcher(segs[i]).find()) segs[i] = "{id}"; break;
             }
         }
         String out = String.join("/", segs);

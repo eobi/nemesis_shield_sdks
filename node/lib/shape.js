@@ -17,6 +17,8 @@ const HEX = /^[0-9a-f]+$/i;
 const B64 = /^[A-Za-z0-9+/]+={0,2}$/;
 const ALPHA = /^[A-Za-z]+$/;
 const ALNUM = /^[A-Za-z0-9]+$/;
+// A run of 7+ letters => reads like a word / route name, not an opaque id/token.
+const WORD = /[A-Za-z]{7,}/;
 
 function kindOf(v) {
   if (v == null || v === "") return "empty";
@@ -33,7 +35,7 @@ function kindOf(v) {
   if (INT.test(s)) return "int";
   if (FLOATRE.test(s)) return "float";
   if (s.length >= 16 && HEX.test(s)) return "hex";
-  if (s.length >= 16 && B64.test(s)) return "base64";
+  if (s.length >= 16 && B64.test(s) && !WORD.test(s)) return "base64";
   if (ALPHA.test(s)) return "alpha";
   if (ALNUM.test(s)) return "alnum";
   return "string";
@@ -51,7 +53,7 @@ export function normalizePath(path) {
       if (k === "uuid") return "{uuid}";
       if (k === "hex") return "{hex}";
       if (k === "base64") return "{token}";
-      if (k === "alnum") return seg.length >= 12 ? "{id}" : seg;
+      if (k === "alnum") return seg.length >= 12 && !WORD.test(seg) ? "{id}" : seg;
       return seg;
     })
     .join("/");

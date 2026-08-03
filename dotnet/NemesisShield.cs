@@ -34,6 +34,8 @@ public sealed class SentinelClient
     private static readonly Regex B64 = new(@"^[A-Za-z0-9+/]+={0,2}$", RegexOptions.Compiled);
     private static readonly Regex Alpha = new("^[A-Za-z]+$", RegexOptions.Compiled);
     private static readonly Regex Alnum = new("^[A-Za-z0-9]+$", RegexOptions.Compiled);
+    // A run of 7+ letters => reads like a word / route name, not an opaque id/token.
+    private static readonly Regex Word = new("[A-Za-z]{7,}", RegexOptions.Compiled);
 
     internal static string KindOf(string s)
     {
@@ -48,7 +50,7 @@ public sealed class SentinelClient
         if (Int.IsMatch(s)) return "int";
         if (Float.IsMatch(s)) return "float";
         if (s.Length >= 16 && Hex.IsMatch(s)) return "hex";
-        if (s.Length >= 16 && B64.IsMatch(s)) return "base64";
+        if (s.Length >= 16 && B64.IsMatch(s) && !Word.IsMatch(s)) return "base64";
         if (Alpha.IsMatch(s)) return "alpha";
         if (Alnum.IsMatch(s)) return "alnum";
         return "string";
@@ -160,7 +162,7 @@ public sealed class SentinelClient
                 case "uuid": segs[i] = "{uuid}"; break;
                 case "hex": segs[i] = "{hex}"; break;
                 case "base64": segs[i] = "{token}"; break;
-                case "alnum": if (segs[i].Length >= 12) segs[i] = "{id}"; break;
+                case "alnum": if (segs[i].Length >= 12 && !Word.IsMatch(segs[i])) segs[i] = "{id}"; break;
             }
         }
         var outp = string.Join("/", segs);

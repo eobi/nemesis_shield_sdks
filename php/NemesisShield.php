@@ -67,7 +67,7 @@ class NemesisShield
                 case 'uuid': $segs[$i] = '{uuid}'; break;
                 case 'hex': $segs[$i] = '{hex}'; break;
                 case 'base64': $segs[$i] = '{token}'; break;
-                case 'alnum': if (strlen($s) >= 12) $segs[$i] = '{id}'; break;
+                case 'alnum': if (strlen($s) >= 12 && !preg_match('/[A-Za-z]{7,}/', $s)) $segs[$i] = '{id}'; break;
             }
         }
         $out = implode('/', $segs);
@@ -91,7 +91,7 @@ class NemesisShield
         if (preg_match('/^-?\d+$/', $s)) return 'int';
         if (preg_match('/^-?\d*\.\d+$/', $s)) return 'float';
         if (strlen($s) >= 16 && preg_match('/^[0-9a-f]+$/i', $s)) return 'hex';
-        if (strlen($s) >= 16 && preg_match('#^[A-Za-z0-9+/]+={0,2}$#', $s)) return 'base64';
+        if (strlen($s) >= 16 && preg_match('#^[A-Za-z0-9+/]+={0,2}$#', $s) && !preg_match('/[A-Za-z]{7,}/', $s)) return 'base64';
         if (preg_match('/^[A-Za-z]+$/', $s)) return 'alpha';
         if (preg_match('/^[A-Za-z0-9]+$/', $s)) return 'alnum';
         return 'string';

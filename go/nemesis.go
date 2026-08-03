@@ -68,6 +68,8 @@ var (
 	reB64   = regexp.MustCompile(`^[A-Za-z0-9+/]+={0,2}$`)
 	reAlpha = regexp.MustCompile(`^[A-Za-z]+$`)
 	reAlnum = regexp.MustCompile(`^[A-Za-z0-9]+$`)
+	// A run of 7+ letters => reads like a word / route name, not an opaque id/token.
+	reWord = regexp.MustCompile(`[A-Za-z]{7,}`)
 )
 
 // Param is a query-parameter shape (name + kind, never the value).
@@ -145,7 +147,7 @@ func normalizePath(path string) string {
 		case "base64":
 			segs[i] = "{token}"
 		case "alnum":
-			if len(s) >= 12 {
+			if len(s) >= 12 && !reWord.MatchString(s) {
 				segs[i] = "{id}"
 			}
 		}
@@ -182,7 +184,7 @@ func kindOf(v string) string {
 		return "float"
 	case len(v) >= 16 && reHex.MatchString(v):
 		return "hex"
-	case len(v) >= 16 && reB64.MatchString(v):
+	case len(v) >= 16 && reB64.MatchString(v) && !reWord.MatchString(v):
 		return "base64"
 	case reAlpha.MatchString(v):
 		return "alpha"

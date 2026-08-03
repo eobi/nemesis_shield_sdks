@@ -16,6 +16,8 @@ _RE = {
     "base64": re.compile(r"^[A-Za-z0-9+/]+={0,2}$"),
     "alpha": re.compile(r"^[A-Za-z]+$"),
     "alnum": re.compile(r"^[A-Za-z0-9]+$"),
+    # A run of 7+ letters => reads like a word / route name, not an opaque id/token.
+    "word": re.compile(r"[A-Za-z]{7,}"),
 }
 
 
@@ -51,7 +53,7 @@ def classify(value) -> str:
         return "float"
     if len(s) >= 16 and _RE["hex"].search(s):
         return "hex"
-    if len(s) >= 16 and _RE["base64"].search(s):
+    if len(s) >= 16 and _RE["base64"].search(s) and not _RE["word"].search(s):
         return "base64"
     if _RE["alpha"].search(s):
         return "alpha"
@@ -93,7 +95,7 @@ def _norm_seg(seg: str) -> str:
     if kind == "base64":
         return "{token}"
     if kind == "alnum":
-        return "{id}" if len(seg) >= 12 else seg
+        return "{id}" if len(seg) >= 12 and not _RE["word"].search(seg) else seg
     return seg
 
 

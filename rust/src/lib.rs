@@ -172,6 +172,22 @@ impl Client {
         let parts: Vec<&str> = s.split('.').collect();
         parts.len() == 3 && parts.iter().all(|p| !p.is_empty() && p.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-'))
     }
+    // A run of 7+ letters => reads like a word / route name, not an opaque id/token.
+    fn has_word_run(s: &str) -> bool {
+        let mut run = 0u32;
+        for c in s.chars() {
+            if c.is_ascii_alphabetic() {
+                run += 1;
+                if run >= 7 {
+                    return true;
+                }
+            } else {
+                run = 0;
+            }
+        }
+        false
+    }
+
     fn is_b64(s: &str) -> bool {
         let core = s.trim_end_matches('=');
         let pad = s.len() - core.len();
@@ -207,7 +223,7 @@ impl Client {
                     "uuid" => "{uuid}".to_string(),
                     "hex" => "{hex}".to_string(),
                     "base64" => "{token}".to_string(),
-                    "alnum" if s.len() >= 12 => "{id}".to_string(),
+                    "alnum" if s.len() >= 12 && !Self::has_word_run(s) => "{id}".to_string(),
                     _ => s.to_string(),
                 }
             })
@@ -244,7 +260,7 @@ impl Client {
             "float"
         } else if v.len() >= 16 && Self::is_hex_chars(v) {
             "hex"
-        } else if v.len() >= 16 && Self::is_b64(v) {
+        } else if v.len() >= 16 && Self::is_b64(v) && !Self::has_word_run(v) {
             "base64"
         } else if Self::is_alpha(v) {
             "alpha"
