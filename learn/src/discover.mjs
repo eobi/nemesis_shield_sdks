@@ -274,6 +274,30 @@ function parseControllerConvention(name, src, file) {
   return eps;
 }
 
+// Class/controller-level route prefix. Method decorators give the suffix (`@Get(':id')`) but the real
+// path includes the class prefix (`@Controller('users')` -> /users/:id). Missing this = a wrong path =
+// a route the SDK never learns = a false block on enforce. Same-file detection (one controller/file).
+function classPrefix(src, ext) {
+  if (["ts", "tsx", "js", "jsx"].includes(ext)) {
+    const m = src.match(/@Controller\s*\(\s*[`'"]([^`'"]*)[`'"]/); // NestJS @Controller('users')
+    if (m) return m[1];
+    return null;
+  }
+  if (["java", "kt", "scala", "groovy"].includes(ext)) {
+    // Spring class-level @RequestMapping — the one immediately preceding the class/interface declaration.
+    const m = src.match(/@RequestMapping\s*\(\s*(?:value\s*=\s*|path\s*=\s*)?\{?\s*[`'"]([^`'"]+)[`'"][\s\S]{0,500}?\b(?:public\s+|final\s+|abstract\s+)*(?:class|interface)\s/);
+    if (m) return m[1];
+    return null;
+  }
+  return null;
+}
+// Join a normalized prefix with a normalized path -> single clean path.
+function joinPrefix(prefix, path) {
+  const a = String(prefix).replace(/\/+$/, "");
+  const b = path === "/" ? "" : path;
+  return (a + b) || "/";
+}
+
 const SKIP_DIRS = new Set(["node_modules", ".git", "dist", "build", ".next", "vendor", "__pycache__", "target", ".venv", "venv", "out", "coverage", "bower_components", ".svn"]);
 // Files we scan for route DSLs / config / controllers.
 const CODE_EXT = /\.(js|mjs|cjs|ts|tsx|jsx|py|rb|php|java|kt|scala|go|cs|xml)$/;
@@ -331,16 +355,26 @@ export function discoverRepo(dir, { maxFiles = 8000 } = {}) {
       for (const ep of parseControllerConvention(e.name, src, file)) endpoints.push(ep);
       // (d) Framework route DSL patterns — only those matching this file's language.
       const ext = (e.name.match(/\.([a-z0-9]+)$/i) || [])[1]?.toLowerCase();
+      const prefixRaw = ext ? classPrefix(src, ext) : null;         // NestJS @Controller / Spring class @RequestMapping
+      const prefix = prefixRaw ? normPath(prefixRaw) : null;
       for (const pat of ROUTE_PATTERNS) {
         if (ext && !pat.ext.includes(ext)) continue;
         pat.re.lastIndex = 0;
         let m;
         while ((m = pat.re.exec(src))) {
           const method = pat.m ? m[pat.m] : "GET";
-          const path = normPath(pat.p ? m[pat.p] : "");
+          let path = normPath(pat.p ? m[pat.p] : "");
           if (!path) continue;
+          // Compose the class prefix (unless this capture IS the class-level mapping itself).
+          if (prefix && prefix !== "/" && path !== prefix) path = joinPrefix(prefix, path);
           endpoints.push({ method: normMethod(method), path, source: `repo:${file}`, params: [], body: null });
         }
+      }
+      // Bare method decorators under a controller (@Post(), @GetMapping()) = the controller's index route.
+      if (prefix && prefix !== "/" && ["ts", "tsx", "js", "jsx", "java", "kt"].includes(ext)) {
+        const bare = /@(Get|Post|Put|Patch|Delete|All)(?:Mapping)?\s*\(\s*\)/g;
+        let bm;
+        while ((bm = bare.exec(src))) endpoints.push({ method: normMethod(bm[1] === "All" ? "GET" : bm[1]), path: prefix, source: `repo:${file}`, params: [], body: null });
       }
     }
   };
