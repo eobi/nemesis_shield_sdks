@@ -3,7 +3,7 @@
 // finishes learning fast, ready to enforce. Language/framework-agnostic (HTTP-level), runs offline,
 // optionally discovers routes from a repo. Zero dependencies.
 
-import { writeFileSync, mkdtempSync, existsSync } from "node:fs";
+import { writeFileSync, readFileSync, mkdtempSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
@@ -14,6 +14,8 @@ import { login, runExercise } from "./exercise.mjs";
 import { buildReport, printSummary } from "./report.mjs";
 
 const out = (s) => process.stdout.write(s + "\n");
+const VERSION = (() => { try { return JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version; } catch { return "0"; } })();
+const DEFAULT_SHIELD = "https://shield.nemesislabs.xyz";
 
 function parseArgs(argv) {
   const a = { headers: {} };
@@ -54,6 +56,10 @@ Auth (so protected routes are learned too):
   --login-method <m>      Default POST
   --header "K: V"         Extra sticky header (repeatable), e.g. an API key
 
+Report to Shield (so the portal shows baseline readiness + the enforce gate):
+  --app-token <nsk_…>     Your app's Nemesis Shield token — posts coverage back to the app
+  --report-to <url>       Shield base URL (default https://shield.nemesislabs.xyz)
+
 Tuning:
   --max <n>               Max requests (default 500)
   --concurrency <n>       Parallel requests (default 4)
@@ -68,6 +74,7 @@ Examples:
   nemesis-learn --target http://localhost:8000 --repo . --llm-provider openai --llm-key sk-...
   nemesis-learn --target http://localhost:5000 --login-url /api/login \\
     --login-body '{"email":"dev@acme.com","password":"devpass"}'
+  nemesis-learn --target http://localhost:3000 --app-token nsk_live_… --repo .
 `;
 
 async function main() {
@@ -130,6 +137,52 @@ async function main() {
   try { writeFileSync(outFile, JSON.stringify(report, null, 2)); } catch { /* non-fatal */ }
   printSummary(report, out);
   out(`  Full report → ${outFile}\n`);
+
+  // 5) report coverage back to Shield (optional) — lets the portal show baseline readiness and the
+  // "ready to enforce" gate on your app. Fail-open: a reporting hiccup never fails the run.
+  const appToken = args["app-token"] || process.env.NEMESIS_SHIELD_TOKEN;
+  if (appToken) {
+    const shieldBase = String(args["report-to"] || process.env.NEMESIS_SHIELD_URL || DEFAULT_SHIELD).replace(/\/$/, "");
+    await reportCoverage(shieldBase, String(appToken), report, out);
+  }
+}
+
+async function reportCoverage(base, token, rep, log) {
+  // Shapes only — method + route template + status. No payloads, no concrete URLs.
+  const payload = {
+    discovered: rep.discovered.total,
+    exercised: rep.exercised.total,
+    reached: rep.reachedServer,
+    coveragePct: rep.coveragePct,
+    uploads: rep.exercised.uploads,
+    errors: rep.errors.length,
+    bySource: rep.discovered.bySource,
+    routes: rep.requests.slice(0, 1000).map((r) => ({ method: r.method, path: r.path, status: r.status || 0 })),
+    tool: "nemesis-learn",
+    toolVersion: VERSION,
+  };
+  const url = `${base}/api/v1/learn/coverage`;
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 15000);
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify(payload),
+      signal: ctrl.signal,
+    }).finally(() => clearTimeout(t));
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok || j?.error) {
+      const why = j?.error === "invalid_token" ? "app token not recognized" : (j?.error || `HTTP ${res.status}`);
+      log(`  Shield: coverage not recorded (${why}). Your local report above is still valid.`);
+      return;
+    }
+    const b = j.behaviors || {};
+    log(`  Shield: baseline recorded for "${j.app}" — ${b.total || 0} behaviors learned · ${b.inReview || 0} in review · ${b.approved || 0} approved.`);
+    log(`  Open Shield → ${j.app || "your app"} → Baseline readiness to approve and flip to ENFORCE.`);
+  } catch (e) {
+    log(`  Shield: could not reach ${base} (${e?.name === "AbortError" ? "timed out" : e?.message || e}). Your local report above is still valid.`);
+  }
 }
 
 async function resolveRepo(repo) {

@@ -53,6 +53,24 @@ docker build -t nemesis-learn . && docker run --rm --network host nemesis-learn 
    errored (5xx / unreachable) so you can fix it before enforcing. Written to
    `nemesis-learn-report.json`.
 
+## Report to Shield (baseline readiness)
+
+Pass your app's Shield token and Nemesis Learn posts its coverage back to the app, so the portal shows a
+live **baseline readiness** meter and a **ready-to-enforce** gate on the app's page — routes exercised vs
+learned, behaviors to approve, and the routes the SDK saw no behavior for (so you can spot a route the SDK
+isn't wired on).
+
+```bash
+npx @nemesis-shield/learn --target http://localhost:3000 --app-token nsk_live_… --repo .
+```
+
+- `--app-token <nsk_…>` - your app token (the same one the SDK uses). Also read from `NEMESIS_SHIELD_TOKEN`.
+- `--report-to <url>` - Shield base URL; defaults to `https://shield.nemesislabs.xyz`. Also `NEMESIS_SHIELD_URL`.
+
+Only **shapes** are sent - method, route template, status - never payloads. Reporting is fail-open: if
+Shield is unreachable the run still completes and writes the local report. Open **Shield -> your app ->
+Baseline readiness**, approve the learned behaviors, then flip to **enforce**.
+
 ## Safety
 
 This builds a **normal-behavior baseline** - it sends *representative, benign* traffic, never attacks or

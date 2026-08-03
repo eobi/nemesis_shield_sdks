@@ -12,6 +12,15 @@ path (`/orders/123` → `/orders/{int}`), status code, and whether the caller wa
 never send your request bodies, responses, secrets, or source code. Every SDK is **fail-open**: if
 Nemesis is unreachable, your app is completely unaffected.
 
+> **New app? Finish learning in minutes with [Nemesis Learn](learn/).** Drop in an SDK (observe mode),
+> then run one command and the agent exercises every route of your app in dev/staging — endpoints,
+> forms, uploads, CRUD flows — so the baseline completes without waiting on real traffic. It's
+> language- and framework-agnostic (drives your app over HTTP), runs offline, can read your repo to
+> find routes, and reports coverage back so the console shows exactly when you're ready to enforce.
+> ```bash
+> npx @nemesis-shield/learn --target http://localhost:3000 --app-token nsk_… --repo .
+> ```
+
 | Language | Package | Integration |
 |---|---|---|
 | **Node.js** | `@nemesis-shield-autogon/sentinel` | One-line Express/Connect middleware → [`node/`](node/) |
