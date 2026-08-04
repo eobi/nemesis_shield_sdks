@@ -1,6 +1,7 @@
 // Sentinel client for Node — local policy cache (fast inline decisions), async batched fail-open
 // shipper, and a background policy poller so the console can flip enforce/observe with no redeploy.
 import { buildSketch } from "./shape.js";
+import { refreshModel } from "./llm.js";
 
 const DEFAULT_ENDPOINT = "https://shield.nemesislabs.xyz/api/v1/sketches";
 
@@ -29,11 +30,24 @@ export class SentinelClient {
     this._policy = { shapes: {}, knownBad: [] };
     this._haveBaseline = false;
     this._buffer = [];
+    this._lastModelRefresh = 0;
     if (!transport && flushInterval > 0) {
-      this.refresh(); // prime on startup
-      this._timer = setInterval(() => { this.flush().catch(() => {}); this.refresh().catch(() => {}); }, flushInterval);
+      this.refresh(); // prime policy on startup
+      this._maybeRefreshModel(); // prime injection-model hot-swap (no-op unless NEMESIS_MODEL_URL is set)
+      this._timer = setInterval(() => { this.flush().catch(() => {}); this.refresh().catch(() => {}); this._maybeRefreshModel(); }, flushInterval);
       if (this._timer.unref) this._timer.unref();
     }
+  }
+
+  // Auto-hot-swap the signed injection model when NEMESIS_MODEL_URL is set, at most every 30 min (the
+  // model changes on the order of days, not seconds — don't hammer the endpoint on every flush tick).
+  // Opt-in + fail-safe: no URL = no-op; any fetch/verify failure keeps the embedded model (see llm.js).
+  _maybeRefreshModel() {
+    if (!process.env.NEMESIS_MODEL_URL) return;
+    const now = Date.now();
+    if (now - this._lastModelRefresh < 1800000) return;
+    this._lastModelRefresh = now;
+    refreshModel().catch(() => {});
   }
 
   // ── positive-security decision ──────────────────────────────────────────
