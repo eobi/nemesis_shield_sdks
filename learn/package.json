@@ -1,7 +1,7 @@
 {
   "name": "@nemesis-shield-autogon/learn",
   "version": "0.1.1",
-  "description": "Nemesis Learn — an agent that exercises every route of your app in dev/staging so Nemesis Shield's behavioral model finishes learning fast, ready to enforce. Language- and framework-agnostic (works over HTTP), runs offline, optionally discovers routes from a repo.",
+  "description": "Nemesis Learn - an agent that exercises every route of your app in dev/staging so Nemesis Shield's behavioral model finishes learning fast, ready to enforce. Language- and framework-agnostic (works over HTTP), runs offline, optionally discovers routes from a repo.",
   "type": "module",
   "bin": {
     "nemesis-learn": "src/index.mjs"

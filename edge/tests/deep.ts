@@ -15,7 +15,7 @@ function split(url: string): [string, Q] {
 }
 const shape = (m: string, url: string, a = false) => { const [p, q] = split(url); return s.buildSketch(m, p, q, a, 0).shape; };
 
-// A Shield whose policy we set directly (no network) — exactly what the handler holds at runtime.
+// A Shield whose policy we set directly (no network) - exactly what the handler holds at runtime.
 function client(mode: string, allow: string[], knownBad: string[] = []) {
   const c = new Shield({}) as any;
   c.mode = mode;
@@ -30,7 +30,7 @@ function blocked(c: any, m: string, url: string, a = false): boolean {
   return c.decide(c.buildSketch(m, p, q, a, 0).shape) != null;
 }
 
-Deno.test("cross-language parity — identical reference hashes to Rust/Node backend family", () => {
+Deno.test("cross-language parity - identical reference hashes to Rust/Node backend family", () => {
   assertEquals(shape("GET", "/orders/123"), "3e8cf0b3");                    // matches rust/lib.rs + node
   assertEquals(shape("GET", "/orders/123?expand=items"), "440c7e37");       // query IS in the shape now
 });
@@ -40,7 +40,7 @@ Deno.test("query params change the shape (deep, not just route)", () => {
   assert(shape("GET", "/search?q=shoes") !== shape("GET", "/search?q=%27"));
 });
 
-Deno.test("enforce — attacks from ANY route blocked, approved passes", () => {
+Deno.test("enforce - attacks from ANY route blocked, approved passes", () => {
   const allow = [
     shape("GET", "/"),
     shape("GET", "/products/12345"),

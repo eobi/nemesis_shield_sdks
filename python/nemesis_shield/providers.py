@@ -1,9 +1,9 @@
-"""Auto-instrumentation for LLM providers — wrap your client once and every call is guarded.
+"""Auto-instrumentation for LLM providers - wrap your client once and every call is guarded.
 
 No hard dependency on openai / anthropic / langchain: everything is duck-typed, so importing this
 module never fails and works across SDK minor versions. In `enforce` mode a high/critical detection
 raises `SentinelBlocked` (request-side, before the model is called; or response-side, before the
-output reaches your users). In `observe` mode nothing is blocked — you just get telemetry via
+output reaches your users). In `observe` mode nothing is blocked - you just get telemetry via
 `on_result`.
 
     from nemesis_shield.providers import guard_openai
@@ -86,7 +86,7 @@ def _guard(phase, mode, on_result, **exchange):
     return g["result"]
 
 
-# ── OpenAI (also covers Azure OpenAI — same client shape) ─────────────────────
+# ── OpenAI (also covers Azure OpenAI - same client shape) ─────────────────────
 def guard_openai(client, *, mode="observe", allowed_tools=None, on_result=None):
     """Wrap an OpenAI/AzureOpenAI client in place so chat.completions.create is guarded. Returns it."""
     completions = client.chat.completions

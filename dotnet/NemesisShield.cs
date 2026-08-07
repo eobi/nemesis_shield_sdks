@@ -1,4 +1,4 @@
-// Nemesis Shield — Sentinel SDK for .NET / C# (native: local shape + policy cache + inline blocking).
+// Nemesis Shield - Sentinel SDK for .NET / C# (native: local shape + policy cache + inline blocking).
 // Learns your app's normal behavior; in enforce mode blocks off-baseline requests (auth bypass, path
 // traversal, scanners, unusual methods) before your endpoints run. Positive-security, fail-open.
 //
@@ -20,7 +20,7 @@ public sealed class SentinelClient
     private static readonly string Endpoint =
         Environment.GetEnvironmentVariable("NEMESIS_ENDPOINT") is { Length: > 0 } e
             ? e : "https://shield.nemesislabs.xyz/api/v1/sketches";
-    // Canonical value taxonomy — matches the shared engine (tokenize.ts) byte-for-byte.
+    // Canonical value taxonomy - matches the shared engine (tokenize.ts) byte-for-byte.
     private static readonly Regex Int = new("^-?\\d+$", RegexOptions.Compiled);
     private static readonly Regex Float = new("^-?\\d*\\.\\d+$", RegexOptions.Compiled);
     private static readonly Regex Uuid = new("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", RegexOptions.IgnoreCase | RegexOptions.Compiled);

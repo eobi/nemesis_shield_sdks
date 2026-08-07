@@ -1,4 +1,4 @@
-# Nemesis Shield SDKs — Publishing Plan
+# Nemesis Shield SDKs - Publishing Plan
 
 Goal: every SDK live on its native registry so a developer just runs `npm i` / `pip install` / `go get` /
 `gem install` / `composer require` / `dotnet add package` / `cargo add` / a Maven coordinate / a WordPress
@@ -24,7 +24,7 @@ All share ONE behavioral contract (identical `ml_weights.json` + FNV-1a shape ha
 | `java` | **Maven Central** | `io.github.eobi:sentinel` | Maven/Gradle coordinate | ✅ **PUBLISHED** v0.1.0 · Central-pull-verified · live-tested Raw HttpServer + Spring Boot |
 | `dotnet` | **NuGet** | `NemesisShield` | `dotnet add package NemesisShield` | ✅ **PUBLISHED** v0.1.1 · Trusted Publishing (keyless OIDC) · nuget-pull-verified · multi-target net8.0+netstandard2.0 · deep ASP.NET Core tested |
 | `rust` | **crates.io** | `nemesis-shield` | `cargo add nemesis-shield` | ✅ **PUBLISHED** v0.1.0 · pull-verified (embedded model, ML parity) |
-| `wordpress` | **WordPress.org** | slug `nemesis-shield` | Plugins → search "Nemesis Shield" | 🟡 ready to submit — `readme.txt` + assets + `build-zip.sh` + `SUBMIT.md` done; awaiting manual review + SVN |
+| `wordpress` | **WordPress.org** | slug `nemesis-shield` | Plugins → search "Nemesis Shield" | 🟡 ready to submit - `readme.txt` + assets + `build-zip.sh` + `SUBMIT.md` done; awaiting manual review + SVN |
 | `cloudflare-supabase-proxy` | not a package | deploy template | `wrangler deploy` (see note) | template only (ships via GitHub) |
 
 Note on the CF proxy: it `import`s `../../edge/nemesis-shield.ts` relatively, so it is a **deploy template**,
@@ -42,14 +42,14 @@ Reserve every name up front so nobody squats them, even before the code is 100% 
 |---|---|---|
 | npm | Org **`nemesis-shield-autogon`** (npmjs.com, created ✓) → owns `@nemesis-shield-autogon/*` | `NPM_TOKEN` (Automation token) |
 | JSR (jsr.io) | Scope **`@nemesis-shield-autogon`** (GitHub-linked, for the edge SDK) | OIDC (GitHub Actions, no token) |
-| PyPI | Project **`nemesis-shield`** | **Trusted Publisher (OIDC)** — no token needed |
+| PyPI | Project **`nemesis-shield`** | **Trusted Publisher (OIDC)** - no token needed |
 | crates.io | Login (GitHub), reserve `nemesis-shield` on first publish | `CARGO_REGISTRY_TOKEN` |
 | Packagist | Submit repo URL once; auto-updates on tag via webhook | none (GitHub App) |
-| Go | nothing — `proxy.golang.org` indexes any public tag | none |
+| Go | nothing - `proxy.golang.org` indexes any public tag | none |
 | RubyGems | Account, reserve `nemesis-shield` | `RUBYGEMS_API_KEY` |
 | Maven Central | **Central Portal** (central.sonatype.com) namespace `io.github.eobi` (verify via a public GitHub repo, no DNS) + a **GPG key** published to keyservers | `CENTRAL_TOKEN` + `GPG_PRIVATE_KEY` + `GPG_PASSPHRASE` |
 | NuGet | nuget.org account, reserve `NemesisShield` (ID prefix optional) | `NUGET_API_KEY` |
-| WordPress.org | Submit plugin at wordpress.org/plugins/developers for **manual review** (can take days–weeks); then SVN commit access | SVN user/pass (`SVN_USER`, `SVN_PASS`) |
+| WordPress.org | Submit plugin at wordpress.org/plugins/developers for **manual review** (can take days-weeks); then SVN commit access | SVN user/pass (`SVN_USER`, `SVN_PASS`) |
 
 Store every token as a **GitHub Actions repo secret** (Settings → Secrets → Actions) so the release workflow
 in Section 4 can publish unattended.
@@ -61,7 +61,7 @@ in Section 4 can publish unattended.
 - **Single version across all SDKs.** A published version = a specific wire/parity contract. Cut a release by
   bumping every manifest to the same `X.Y.Z` and tagging `vX.Y.Z`. Recommend starting the first coordinated
   release at **`0.3.0`** (node is already ahead at 0.2.0) so every package lands on the same number.
-- **Parity gate — must pass before ANY publish.** Every language pins the same reference digests
+- **Parity gate - must pass before ANY publish.** Every language pins the same reference digests
   (`fnv1a("abc")=="1a47e90b"`, shape `"809cc854"`, LLM shape `"b7b2bb5b"`, etc.) and ships a byte-identical
   `ml_weights.json` (sha256 `e206c66c…ec0b0c`). The release workflow runs all language test suites +
   `sha256sum */**/ml_weights.json | uniq` and **aborts if any digest or hash diverges**. Never publish a
@@ -79,7 +79,7 @@ parallel; a failure in one does not block the others). Sketch:
 name: release
 on: { push: { tags: ['v*'] } }
 jobs:
-  parity:            # GATE — runs first, others `needs: parity`
+  parity:            # GATE - runs first, others `needs: parity`
     runs-on: ubuntu-latest
     steps: [ checkout, run all language test suites, verify identical ml_weights.json sha256 + shape vectors ]
 
@@ -90,8 +90,8 @@ jobs:
   rubygems:          needs: parity; `gem build *.gemspec && gem push`
   nuget:             needs: parity; `dotnet pack -c Release && dotnet nuget push`
   maven:             needs: parity; `mvn -B deploy` (signed) to the Central Portal
-  go:                needs: parity; no publish — the `vX.Y.Z` tag is the release (proxy picks it up)
-  packagist:         no job — Packagist auto-ingests the new tag via its GitHub webhook
+  go:                needs: parity; no publish - the `vX.Y.Z` tag is the release (proxy picks it up)
+  packagist:         no job - Packagist auto-ingests the new tag via its GitHub webhook
 ```
 
 Per-registry publish specifics:
@@ -116,17 +116,17 @@ Per-registry publish specifics:
 
 Ordered easiest → hardest:
 
-1. **`edge/package.json`** (npm) + **`edge/jsr.json`** (JSR) — name `@nemesis-shield-autogon/edge`, `type: module`,
+1. **`edge/package.json`** (npm) + **`edge/jsr.json`** (JSR) - name `@nemesis-shield-autogon/edge`, `type: module`,
    `exports` → `nemesis-shield.ts` (ship TS + a compiled `.js`+`.d.ts`). Then repoint the CF proxy import.
-2. **`ruby/nemesis-shield.gemspec`** — name `nemesis-shield`, summary, license MIT, `files` = the `.rb` +
+2. **`ruby/nemesis-shield.gemspec`** - name `nemesis-shield`, summary, license MIT, `files` = the `.rb` +
    `ml_weights.json`, homepage, source_code_uri. `ruby/lib/` layout is optional but cleaner.
-3. **`dotnet/NemesisShield.csproj`** — `PackageId=NemesisShield`, `TargetFramework=net8.0` (+ net6.0),
+3. **`dotnet/NemesisShield.csproj`** - `PackageId=NemesisShield`, `TargetFramework=net8.0` (+ net6.0),
    `PackageLicenseExpression=MIT`, repo URL, embed `ml_weights.json` as content/EmbeddedResource, add the
    BouncyCastle dependency. `dotnet pack` → `.nupkg`.
-4. **`wordpress/nemesis-shield/readme.txt`** — WordPress.org format (Contributors, Tags, Requires at least,
+4. **`wordpress/nemesis-shield/readme.txt`** - WordPress.org format (Contributors, Tags, Requires at least,
    Tested up to, Stable tag, GPLv2+ license, changelog). Add `assets/` (icon-128, banner-772x250, screenshots).
    Submit for review; publish via SVN `trunk` + `tags/X.Y.Z`.
-5. **`java/pom.xml`** (Maven) — `groupId=xyz.nemesislabs`, `artifactId=sentinel`, MIT license block, `scm`,
+5. **`java/pom.xml`** (Maven) - `groupId=xyz.nemesislabs`, `artifactId=sentinel`, MIT license block, `scm`,
    `developers`, sources+javadoc jars, GPG signing, Central Portal deploy plugin. (Most involved; do last.)
 
 Also polish the READY ones:
@@ -156,18 +156,18 @@ Also polish the READY ones:
 
 ## 7. Suggested first-release order (fastest developer payoff first)
 
-1. **npm** (node + browser) — biggest audience, already packaged. Reserve `@nemesis-shield` org, publish.
-2. **PyPI** (python) — set up Trusted Publishing, bump version, publish `nemesis-shield`.
-3. **crates.io** (rust) — polish Cargo.toml, `cargo publish`.
-4. **Packagist** (php) — submit repo URL once; tag.
-5. **Go** — push the `go/vX.Y.Z` tag; verify `go get`.
-6. **RubyGems** — write the gemspec, publish.
-7. **NuGet** — write the csproj, `dotnet pack`/push.
-8. **JSR + npm** (edge) — package it, repoint the CF proxy.
-9. **Maven Central** (java) — the long pole (namespace verification + GPG); start the account setup early,
+1. **npm** (node + browser) - biggest audience, already packaged. Reserve `@nemesis-shield` org, publish.
+2. **PyPI** (python) - set up Trusted Publishing, bump version, publish `nemesis-shield`.
+3. **crates.io** (rust) - polish Cargo.toml, `cargo publish`.
+4. **Packagist** (php) - submit repo URL once; tag.
+5. **Go** - push the `go/vX.Y.Z` tag; verify `go get`.
+6. **RubyGems** - write the gemspec, publish.
+7. **NuGet** - write the csproj, `dotnet pack`/push.
+8. **JSR + npm** (edge) - package it, repoint the CF proxy.
+9. **Maven Central** (java) - the long pole (namespace verification + GPG); start the account setup early,
    publish when ready.
-10. **WordPress.org** — submit for review early (approval is slow); ship the zip via GitHub releases +
+10. **WordPress.org** - submit for review early (approval is slow); ship the zip via GitHub releases +
     the website in the meantime so it is installable before the directory listing lands.
 
-Once 1–5 are live, the majority of developers (`npm`, `pip`, `cargo`, `composer`, `go get`) can already
-`install` and pick it up — which is the goal. The rest follow as their manifests land.
+Once 1-5 are live, the majority of developers (`npm`, `pip`, `cargo`, `composer`, `go get`) can already
+`install` and pick it up - which is the goal. The rest follow as their manifests land.

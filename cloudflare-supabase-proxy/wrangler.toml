@@ -7,5 +7,5 @@ compatibility_date = "2026-01-01"
 SUPABASE_URL = "https://YOUR_PROJECT.supabase.co"
 # NEMESIS_ENDPOINT is optional; defaults to https://shield.nemesislabs.xyz/api/v1/sketches
 
-# The app install token is a SECRET — set it with:
+# The app install token is a SECRET - set it with:
 #   npx wrangler secret put NEMESIS_TOKEN

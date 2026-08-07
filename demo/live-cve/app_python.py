@@ -1,4 +1,4 @@
-"""Live demo app — a real WSGI server guarded by the Python SDK (SentinelWSGI). Returns 200 for
+"""Live demo app - a real WSGI server guarded by the Python SDK (SentinelWSGI). Returns 200 for
 everything; the shield decides what to block. Token + endpoint from env."""
 import os
 import sys

@@ -2,10 +2,10 @@
 # LIVE cross-language CVE demo (deep). Starts a mock Shield + four REAL app servers
 # (Python/PHP/Go/Node), each guarded by its Nemesis Shield SDK. Learns an 8-route baseline from real
 # traffic, flips to enforce, then over real HTTP proves:
-#   • SPECIFICITY  — a false-positive battery of legit variation still passes (200)
-#   • COVERAGE     — a large CVE-pattern attack corpus is blocked (403) on every app
-#   • GLOBAL INTEL — a knownBad shape is blocked with reason "global threat intelligence"
-#   • SAFE-UNLOCK  — the login/admin break-glass paths pass through even though off-baseline
+#   • SPECIFICITY  - a false-positive battery of legit variation still passes (200)
+#   • COVERAGE     - a large CVE-pattern attack corpus is blocked (403) on every app
+#   • GLOBAL INTEL - a knownBad shape is blocked with reason "global threat intelligence"
+#   • SAFE-UNLOCK  - the login/admin break-glass paths pass through even though off-baseline
 # One learned baseline defends all four languages (cross-language shape parity).
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -55,18 +55,18 @@ sleep 3
 
 shapes=$(grep -o '"shape":"[0-9a-f]*"' "$NEMESIS_MOCK_RECORD" | sed 's/.*:"//;s/"//' | sort -u)
 allow="{"; sep=""; for s in $shapes; do allow="$allow$sep\"$s\":\"allow\""; sep=","; done; allow="$allow}"
-# a knownBad shape (global threat intel) for POST /xmlrpc.php — never in this app's baseline
+# a knownBad shape (global threat intel) for POST /xmlrpc.php - never in this app's baseline
 KB=$(node --input-type=module -e "import {buildSketch} from '$root/node/lib/shape.js'; process.stdout.write(buildSketch({method:'POST',path:'/xmlrpc.php'}).shape)")
 echo "  approved $(echo "$shapes" | grep -c .) baseline shapes; 1 knownBad shape ($KB) added to global intel"
 
 echo "{\"mode\":\"enforce\",\"policy\":{\"shapes\":$allow,\"knownBad\":[\"$KB\"]}}" > "$NEMESIS_MOCK_POLICY"
-echo "▸ flipped to ENFORCE — waiting for all apps to pull the policy…"
+echo "▸ flipped to ENFORCE - waiting for all apps to pull the policy…"
 sleep 3
 
 # ---- test matrix: "kind|method|path|auth|label"  (SECTION|title for headers) ---------------------
 # kind: legit/unlock => expect 200 · attack/knownbad => expect 403
 ROWS=(
-  "SECTION|SPECIFICITY — legit variation must PASS (200)"
+  "SECTION|SPECIFICITY - legit variation must PASS (200)"
   "legit|GET|/|0|GET / (home)"
   "legit|GET|/products/42|0|GET /products/42  (diff id)"
   "legit|GET|/products/987654/reviews|0|GET /products/{int}/reviews"
@@ -77,7 +77,7 @@ ROWS=(
   "legit|POST|/api/orders|1|POST /api/orders  (authed)"
   "legit|GET|/account|1|GET /account  (authed)"
 
-  "SECTION|EXPOSURE / FORCED BROWSING — block (403)"
+  "SECTION|EXPOSURE / FORCED BROWSING - block (403)"
   "attack|GET|/.env|0|/.env  secret-file exposure"
   "attack|GET|/.git/config|0|/.git/config  source leak"
   "attack|GET|/wp-config.php.bak|0|/wp-config.php.bak"
@@ -87,13 +87,13 @@ ROWS=(
   "attack|GET|/server-status|0|/server-status (Apache)"
   "attack|GET|/backup.zip|0|/backup.zip"
 
-  "SECTION|PATH TRAVERSAL / LFI — block (403)"
+  "SECTION|PATH TRAVERSAL / LFI - block (403)"
   "attack|GET|/cgi-bin/.%2e/.%2e/etc/passwd|0|traversal (CVE-2021-41773)"
   "attack|GET|/%2e%2e%2f%2e%2e%2fetc%2fpasswd|0|encoded ../../etc/passwd"
   "attack|GET|/..%252f..%252fetc%252fpasswd|0|double-encoded (CVE-2021-42013)"
   "attack|GET|/catalog?category=../../../../etc/passwd&page=2|0|LFI via param value"
 
-  "SECTION|KNOWN-CVE APP ENDPOINTS — block (403)"
+  "SECTION|KNOWN-CVE APP ENDPOINTS - block (403)"
   "attack|GET|/vendor/phpunit/phpunit/src/Util/PHP/eval-stdin.php|0|PHPUnit RCE (CVE-2017-9841)"
   "attack|GET|/_ignition/execute-solution|0|Laravel Ignition (CVE-2021-3129)"
   "attack|GET|/solr/admin/cores|0|Apache Solr admin"
@@ -103,7 +103,7 @@ ROWS=(
   "attack|GET|/api/jsonws/invoke|0|Liferay (CVE-2020-7961)"
   "attack|GET|/telescope/requests|0|Laravel Telescope leak"
 
-  "SECTION|INJECTION PAYLOADS (path/param) — block (403)"
+  "SECTION|INJECTION PAYLOADS (path/param) - block (403)"
   "attack|GET|/?author=1|0|WordPress user-enum ?author=1"
   "attack|GET|/search?q=%27+OR+1%3D1--|0|SQLi in param (kind change)"
   "attack|GET|/search?q=x&cmd=id|0|param injection (extra param)"
@@ -114,17 +114,17 @@ ROWS=(
   "attack|GET|/%24%7Bjndi%3Aldap%3A//x%7D|0|Log4Shell in path"
   "attack|GET|/?redirect=http%3A%2F%2F169.254.169.254%2F|0|SSRF param (metadata)"
 
-  "SECTION|METHOD / AUTH ANOMALIES — block (403)"
+  "SECTION|METHOD / AUTH ANOMALIES - block (403)"
   "attack|DELETE|/|0|HTTP method tampering (DELETE /)"
   "attack|PUT|/products/1|0|HTTP method tampering (PUT)"
   "attack|GET|/api/orders|0|broken auth (unauth → authed route)"
   "attack|GET|/account|0|broken auth (unauth → /account)"
   "attack|GET|/users/1|0|IDOR (int where uuid learned)"
 
-  "SECTION|GLOBAL THREAT INTEL (knownBad) — block (403)"
+  "SECTION|GLOBAL THREAT INTEL (knownBad) - block (403)"
   "knownbad|POST|/xmlrpc.php|0|POST /xmlrpc.php  (knownBad shape)"
 
-  "SECTION|SAFE-UNLOCK break-glass — pass through (200)"
+  "SECTION|SAFE-UNLOCK break-glass - pass through (200)"
   "unlock|POST|/login|0|/login  (never blocked)"
   "unlock|GET|/wp-login.php|0|/wp-login.php  (never blocked)"
   "unlock|GET|/wp-admin/options.php|0|/wp-admin  (never blocked)"
@@ -161,7 +161,7 @@ echo "────────────────────────�
 tot=$((pass+fail))
 if [ "$fail" -eq 0 ]; then
   echo -e "\033[32m\033[1mALL $tot LIVE CHECKS PASSED\033[0m"
-  echo "specificity (legit passes) · coverage (attacks blocked) · global intel · safe-unlock — on 4 real apps"
+  echo "specificity (legit passes) · coverage (attacks blocked) · global intel · safe-unlock - on 4 real apps"
 else
   echo -e "\033[31m\033[1m$fail/$tot FAILED\033[0m, $pass passed"
 fi

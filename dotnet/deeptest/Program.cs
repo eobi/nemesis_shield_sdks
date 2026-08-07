@@ -1,4 +1,4 @@
-// Deep coverage test for the .NET SDK core — proves it SEES an attacker's request from ANY route and
+// Deep coverage test for the .NET SDK core - proves it SEES an attacker's request from ANY route and
 // blocks it in enforce mode (unknown paths, injected/extra params, param-kind / method / auth
 // anomalies, knownBad), plus the safe-unlock and fail-open. Mirrors the middleware's block logic.
 // Run:  dotnet run --project deeptest
@@ -53,13 +53,13 @@ string[] allow =
     Shape(reff, "POST", "/api/orders", true),
 };
 
-Console.WriteLine("[1mNemesis Shield — .NET deep coverage test[0m");
+Console.WriteLine("[1mNemesis Shield - .NET deep coverage test[0m");
 
 Console.WriteLine("\n1 · query params change the shape");
 Ok(Shape(reff, "GET", "/search?q=x", false) != Shape(reff, "GET", "/search?q=x&inject=1", false), "adding a param changes the shape");
 Ok(Shape(reff, "GET", "/search?q=shoes", false) != Shape(reff, "GET", "/search?q=' OR 1=1", false), "param kind change changes the shape");
 
-Console.WriteLine("\n2 · enforce — attacks from ANY route blocked, approved passes");
+Console.WriteLine("\n2 · enforce - attacks from ANY route blocked, approved passes");
 var c = Client("enforce", allow, Array.Empty<string>());
 Ok(!Blocked(c, "GET", "/", false), "approved GET / passes");
 Ok(!Blocked(c, "GET", "/products/999", false), "approved GET /products/{int} passes");
@@ -77,7 +77,7 @@ Console.WriteLine("\n3 · knownBad (global threat intel)");
 var bad = Shape(reff, "POST", "/xmlrpc.php", false);
 Ok(Blocked(Client("enforce", allow, new[] { bad }), "POST", "/xmlrpc.php", false), "knownBad shape blocked");
 
-Console.WriteLine("\n4 · safe-unlock — auth path never blocked");
+Console.WriteLine("\n4 · safe-unlock - auth path never blocked");
 Ok(!Blocked(c, "POST", "/login?next=x", false), "/login never blocked");
 Ok(!Blocked(c, "GET", "/wp-login.php", false), "/wp-login.php never blocked");
 Ok(!Blocked(c, "GET", "/wp-admin/options.php", false), "/wp-admin never blocked");

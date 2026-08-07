@@ -1,7 +1,7 @@
 # Real-WordPress end-to-end harness for the Nemesis Shield plugin.
-#   wp   — actual WordPress (Apache + mod_php), the plugin bind-mounted in
-#   db   — MariaDB
-#   mock — the mock Shield endpoint, sharing ./tests/.e2e with the host so the
+#   wp   - actual WordPress (Apache + mod_php), the plugin bind-mounted in
+#   db   - MariaDB
+#   mock - the mock Shield endpoint, sharing ./tests/.e2e with the host so the
 #          test can flip the policy (observe → enforce) and read recorded sketches
 # Driven by tests/e2e.sh (which also runs wp-cli via the `wordpress:cli` image).
 services:
@@ -38,7 +38,7 @@ services:
       - wp_core:/var/www/html
       - ./nemesis-shield:/var/www/html/wp-content/plugins/nemesis-shield
 
-  # wp-cli sharing the WordPress volume — used by tests/e2e.sh via `compose run`.
+  # wp-cli sharing the WordPress volume - used by tests/e2e.sh via `compose run`.
   wpcli:
     image: wordpress:cli
     user: "33"

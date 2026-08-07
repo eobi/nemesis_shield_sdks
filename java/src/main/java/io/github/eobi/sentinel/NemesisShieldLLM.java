@@ -1,6 +1,6 @@
 package io.github.eobi.sentinel;
 
-// LLM Guard for Java (JDK 11+, no dependencies) — OWASP-LLM-Top-10 detection with the HashLR ML
+// LLM Guard for Java (JDK 11+, no dependencies) - OWASP-LLM-Top-10 detection with the HashLR ML
 // classifier shared across every Nemesis Shield SDK. Feature buckets are fnv1a(feature) % dim,
 // identical to every other language; char n-grams over a canonicalized (de-leetspeaked, ASCII-alnum)
 // form catch obfuscation the regex layer misses. Weights load from /ml_weights.json on the classpath.
@@ -59,8 +59,8 @@ public final class NemesisShieldLLM {
     public static int modelVersion() { return MODEL_VERSION; }
 
     private static boolean verifyModelSignature(byte[] raw, String sigB64) {
-        if (MODEL_PUBLIC_KEY_HEX.isEmpty()) return true;   // no key pinned — version gate + HTTPS apply
-        if (sigB64 == null || sigB64.isEmpty()) return false; // key pinned but bundle unsigned — reject
+        if (MODEL_PUBLIC_KEY_HEX.isEmpty()) return true;   // no key pinned - version gate + HTTPS apply
+        if (sigB64 == null || sigB64.isEmpty()) return false; // key pinned but bundle unsigned - reject
         try {
             byte[] rawKey = hexToBytes(MODEL_PUBLIC_KEY_HEX);
             // wrap the 32 raw bytes as an X.509 SubjectPublicKeyInfo (RFC 8410 Ed25519 prefix)

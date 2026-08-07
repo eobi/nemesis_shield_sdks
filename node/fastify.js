@@ -26,7 +26,7 @@ export async function sentinelFastify(fastify, opts) {
   });
 }
 // Break encapsulation so the hooks apply to the whole app, not just this plugin's context
-// (this is what fastify-plugin does under the hood — done here to stay dependency-free).
+// (this is what fastify-plugin does under the hood - done here to stay dependency-free).
 sentinelFastify[Symbol.for("skip-override")] = true;
 
 export default sentinelFastify;

@@ -1,4 +1,4 @@
-# Sentinel LLM Gateway — protect any app with zero code changes
+# Sentinel LLM Gateway - protect any app with zero code changes
 
 Drop the gateway in front of any OpenAI-compatible endpoint. It inspects the request prompt, the
 response, and any RAG upload, and blocks OWASP-LLM attacks inline (adds an `X-Nemesis-Verdict` header).

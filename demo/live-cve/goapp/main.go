@@ -1,4 +1,4 @@
-// Live demo app — a real net/http server guarded by the Go SDK middleware.
+// Live demo app - a real net/http server guarded by the Go SDK middleware.
 package main
 
 import (

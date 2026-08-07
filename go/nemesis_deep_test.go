@@ -1,6 +1,6 @@
 package nemesis
 
-// Deep coverage test — drives the real net/http Middleware end to end and proves the Go SDK SEES an
+// Deep coverage test - drives the real net/http Middleware end to end and proves the Go SDK SEES an
 // attacker's request from ANY route and blocks it in enforce mode: unknown paths, injected/extra
 // query params, param-type / method / auth anomalies, knownBad. Also proves the safe-unlock (never
 // block the login/auth path) and fail-open (no baseline). Run: go test ./...
@@ -16,7 +16,7 @@ func okHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(200) })
 }
 
-// A client whose policy we set directly (no network) — exactly what the middleware holds at runtime.
+// A client whose policy we set directly (no network) - exactly what the middleware holds at runtime.
 func clientWith(mode string, allow []string, knownBad []string) *Client {
 	c := &Client{
 		endpoint: defaultEndpoint,

@@ -1,4 +1,4 @@
-// Package nemesis is the Nemesis Shield — Sentinel SDK for Go (native: local shape + policy cache +
+// Package nemesis is the Nemesis Shield - Sentinel SDK for Go (native: local shape + policy cache +
 // inline blocking). Learns your app's normal behavior; in enforce mode blocks off-baseline requests
 // (auth bypass, path traversal, scanners, unusual methods) before your handlers run. Fail-open.
 //
@@ -6,7 +6,7 @@
 //	handler := client.Middleware(mux)     // net/http (works with chi too)
 //	http.ListenAndServe(":8080", handler)
 //
-// Ships only method + route shape + auth — never bodies or secrets.
+// Ships only method + route shape + auth - never bodies or secrets.
 package nemesis
 
 import (
@@ -52,7 +52,7 @@ func NeverBlock(path string) bool {
 	return false
 }
 
-// Canonical value taxonomy — must match the shared engine (tokenize.ts) so a Go app and a
+// Canonical value taxonomy - must match the shared engine (tokenize.ts) so a Go app and a
 // Node/Python app produce identical shape hashes.
 var (
 	reInt   = regexp.MustCompile(`^-?\d+$`)

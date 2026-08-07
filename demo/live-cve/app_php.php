@@ -1,5 +1,5 @@
 <?php
-// Live demo app — php -S router guarded by the raw PHP SDK. guard() blocks off-baseline before the
+// Live demo app - php -S router guarded by the raw PHP SDK. guard() blocks off-baseline before the
 // app runs; observe() records at shutdown. Run: php -S 127.0.0.1:8802 app_php.php
 require __DIR__ . '/../../php/NemesisShield.php';
 $token = getenv('NEMESIS_TOKEN');

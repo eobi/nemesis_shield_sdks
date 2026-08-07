@@ -38,7 +38,7 @@ export function guardLLM(prompt: string, enforce?: boolean): LLMVerdict;
 /** Raw HashLR probability (0..1) that `text` is a prompt-injection / jailbreak attempt. */
 export function mlInjectionScore(text: string): number;
 /**
- * Hot-swap the HashLR model from a signed cloud bundle if a newer version is published — retrain and push
+ * Hot-swap the HashLR model from a signed cloud bundle if a newer version is published - retrain and push
  * centrally without redeploying the SDK. Returns the new version if updated, else null. Fail-safe: any
  * error (network, bad signature, older/mismatched version) keeps the current embedded model. URL defaults
  * to env NEMESIS_MODEL_URL. When NEMESIS_MODEL_URL is set, SentinelClient also auto-refreshes periodically.

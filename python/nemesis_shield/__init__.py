@@ -1,4 +1,4 @@
-"""Nemesis Shield — Sentinel SDK for Python. One line to protect a web app, API, or LLM app."""
+"""Nemesis Shield - Sentinel SDK for Python. One line to protect a web app, API, or LLM app."""
 from .sketch import build_sketch, SKETCH_VERSION
 from .client import SentinelClient
 from .llm import analyze_llm, guard_llm, llm_should_block, owasp_for, OWASP_LLM_2025

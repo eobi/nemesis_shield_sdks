@@ -1,5 +1,5 @@
 // Local, privacy-preserving request-sketch computation. The shape is a REQUEST signature
-// (method + normalized route + query param kinds + auth) — it deliberately excludes response status,
+// (method + normalized route + query param kinds + auth) - it deliberately excludes response status,
 // because enforcement decides whether to block BEFORE the response exists. The value taxonomy and
 // shape-input construction match the shared engine byte-for-byte, so a Node app and a Python/Go/PHP
 // app produce IDENTICAL shape hashes (cross-language baseline sharing).

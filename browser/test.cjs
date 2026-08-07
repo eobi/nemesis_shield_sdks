@@ -1,4 +1,4 @@
-// Unit tests for the browser SDK — shape logic, positive-security decisions, and the real hooks that
+// Unit tests for the browser SDK - shape logic, positive-security decisions, and the real hooks that
 // block skimmer exfil across every channel (fetch, image beacon, WebSocket) + payment-form detection.
 // Run: node browser/test.cjs
 const assert = require("assert");
@@ -72,7 +72,7 @@ const enforceWith = (shield, allowKind, allowOrigin) => {
   assert.ok(blocked && !calls.includes("https://evil-exfil.ru/collect?cc=4111"));
   ok("live fetch wrapper: exfil blocked, legit passes");
 
-  // 5. Image-beacon exfil (new Image().src) is blocked — the classic skimmer gate.
+  // 5. Image-beacon exfil (new Image().src) is blocked - the classic skimmer gate.
   {
     let realSet = null;
     function HTMLImageElement() {}

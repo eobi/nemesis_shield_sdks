@@ -1,4 +1,4 @@
-"""Value tokenization + path normalization — mirrors the JS shared package exactly."""
+"""Value tokenization + path normalization - mirrors the JS shared package exactly."""
 
 import re
 

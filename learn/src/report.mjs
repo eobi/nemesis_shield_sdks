@@ -1,4 +1,4 @@
-// Coverage report — what the run touched, so you know the baseline is complete enough to enforce.
+// Coverage report - what the run touched, so you know the baseline is complete enough to enforce.
 
 export function buildReport({ target, discovered, results, startedAt, finishedAt }) {
   const byMethod = {}, byClass = { "2xx": 0, "3xx": 0, "4xx": 0, "5xx": 0, err: 0 };
@@ -38,7 +38,7 @@ export function printSummary(rep, out) {
   const line = (s = "") => out(s);
   line("");
   line("──────────────────────────────────────────────────────────");
-  line("  Nemesis Learn — baseline run complete");
+  line("  Nemesis Learn - baseline run complete");
   line("──────────────────────────────────────────────────────────");
   line(`  Target        ${rep.target}`);
   line(`  Discovered    ${rep.discovered.total} routes  (${Object.entries(rep.discovered.bySource).map(([k, v]) => `${k}:${v}`).join("  ")})`);
@@ -47,10 +47,10 @@ export function printSummary(rep, out) {
   line(`  Responses     ${s["2xx"]} × 2xx · ${s["3xx"]} × 3xx · ${s["4xx"]} × 4xx · ${s["5xx"]} × 5xx · ${s.err} failed`);
   line(`  Methods       ${Object.entries(rep.exercised.byMethod).map(([k, v]) => `${k}:${v}`).join("  ")}`);
   line(`  Uploads       ${rep.exercised.uploads} file upload${rep.exercised.uploads === 1 ? "" : "s"} exercised`);
-  line(`  Server reached ${rep.reachedServer}/${rep.exercised.total} (${rep.coveragePct}%) — this is the traffic Shield learned`);
+  line(`  Server reached ${rep.reachedServer}/${rep.exercised.total} (${rep.coveragePct}%) - this is the traffic Shield learned`);
   if (rep.errors.length) {
     line("");
-    line(`  ⚠ ${rep.errors.length} route(s) errored (5xx / unreachable) — worth a look before enforce:`);
+    line(`  ⚠ ${rep.errors.length} route(s) errored (5xx / unreachable) - worth a look before enforce:`);
     for (const e of rep.errors.slice(0, 10)) line(`     ${String(e.status || e.error).padEnd(7)} ${e.method} ${e.path}`);
   }
   line("");

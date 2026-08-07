@@ -23,10 +23,10 @@ func ModelVersion() int { return ml.Version }
 
 func verifyModelSignature(raw []byte, sigB64 string) bool {
 	if modelPublicKeyHex == "" {
-		return true // no key pinned — version gate + HTTPS still apply
+		return true // no key pinned - version gate + HTTPS still apply
 	}
 	if sigB64 == "" {
-		return false // key pinned but bundle unsigned — reject
+		return false // key pinned but bundle unsigned - reject
 	}
 	pk, err := hex.DecodeString(modelPublicKeyHex)
 	if err != nil || len(pk) != ed25519.PublicKeySize {

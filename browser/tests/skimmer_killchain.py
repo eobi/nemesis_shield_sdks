@@ -3,7 +3,7 @@
 Skimmer / Magecart kill-chain proof for the Nemesis Shield BROWSER SDK.
 
 Runs the ACTUAL SDK in a real (headless Chromium) browser against a console this
-script controls, and asserts — channel by channel — that every card-skimmer
+script controls, and asserts - channel by channel - that every card-skimmer
 exfiltration / code-load gate is:
   * DETECTED + reported to the console in observe mode, and
   * BLOCKED in enforce mode.

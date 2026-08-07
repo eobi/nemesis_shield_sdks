@@ -1,4 +1,4 @@
-# Nemesis Learn — zero-dependency Node CLI. Run against a local app with --network host.
+# Nemesis Learn - zero-dependency Node CLI. Run against a local app with --network host.
 #   docker build -t nemesis-learn .
 #   docker run --rm --network host nemesis-learn --target http://localhost:3000
 FROM node:20-alpine

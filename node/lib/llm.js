@@ -1,4 +1,4 @@
-// LLM Guard for Node — OWASP-LLM-Top-10 detection with the HashLR ML classifier shared across every
+// LLM Guard for Node - OWASP-LLM-Top-10 detection with the HashLR ML classifier shared across every
 // Nemesis Shield SDK. Feature buckets are fnv1a(feature) % dim (the same hash used for HTTP sketches),
 // so scores match every other language byte-for-byte. Char n-grams over a canonicalized
 // (de-leetspeaked, ASCII-alnum) form catch obfuscation ("1gn0re") the regex layer misses.
@@ -8,7 +8,7 @@ import { verify as edVerify, createPublicKey } from "node:crypto";
 import { fnv1a } from "./shape.js";
 
 const model = JSON.parse(readFileSync(new URL("./ml_weights.json", import.meta.url), "utf8"));
-const DIM = model.dim; // feature space is fixed across versions — only weights/bias/thresholds swap
+const DIM = model.dim; // feature space is fixed across versions - only weights/bias/thresholds swap
 // Swappable model state (mutable so refreshModel() can hot-swap a newer published version in place).
 let BIAS = model.bias;
 let WEIGHTS = model.weights;
@@ -19,11 +19,11 @@ export let MODEL_VERSION = Number(model.version ?? 1);
 // Ed25519 public key (hex) that signs published models. Cloud pulls MUST carry a valid signature over
 // the exact bytes; unsigned or tampered bundles are rejected and the embedded model is kept.
 const MODEL_PUBLIC_KEY_HEX = "79d81a3b41966b379a9ba719155b8713f70bb341c3e8fab09fd5563a59893d28";
-// SubjectPublicKeyInfo DER prefix for a raw Ed25519 public key (RFC 8410) — wrap the 32 raw bytes.
+// SubjectPublicKeyInfo DER prefix for a raw Ed25519 public key (RFC 8410) - wrap the 32 raw bytes.
 const _SPKI_PREFIX = Buffer.from("302a300506032b6570032100", "hex");
 function _verifyModelSignature(raw, sigB64) {
-  if (!MODEL_PUBLIC_KEY_HEX) return true; // no key pinned — version gate + HTTPS still apply
-  if (!sigB64) return false; // key pinned but bundle unsigned — reject
+  if (!MODEL_PUBLIC_KEY_HEX) return true; // no key pinned - version gate + HTTPS still apply
+  if (!sigB64) return false; // key pinned but bundle unsigned - reject
   try {
     const der = Buffer.concat([_SPKI_PREFIX, Buffer.from(MODEL_PUBLIC_KEY_HEX, "hex")]);
     const key = createPublicKey({ key: der, format: "der", type: "spki" });

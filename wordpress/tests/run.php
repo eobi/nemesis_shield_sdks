@@ -1,7 +1,7 @@
 <?php
-// Deterministic proof that the WordPress plugin (a) UNDERSTANDS — reports the
+// Deterministic proof that the WordPress plugin (a) UNDERSTANDS - reports the
 // correct privacy-preserving shape for each request, matching the SDK byte-for-
-// byte, and (b) GATES — blocks off-baseline requests in enforce mode while
+// byte, and (b) GATES - blocks off-baseline requests in enforce mode while
 // approved ones pass, and (c) FAILS OPEN when Shield is unreachable.
 //
 // Requires a running mock (see run-tests.sh) and these env vars:
@@ -44,7 +44,7 @@ function recordedShapes($file) {
     return array_map(function ($r) { return $r['shape'] ?? null; }, records($file));
 }
 
-// Compute the canonical sketch exactly as the SDK/plugin will — this is the
+// Compute the canonical sketch exactly as the SDK/plugin will - this is the
 // oracle we assert the plugin's reported shape against.
 function sketch($method, $path, $query, $authed) {
     return NemesisShield::buildSketch($method, $path, $query, $authed, 0);
@@ -77,7 +77,7 @@ function req($opts) {
     return array('blocked' => false, 'status' => 0, 'raw' => $out);
 }
 
-echo "\033[1mNemesis Shield — WordPress plugin behaviour test\033[0m\n";
+echo "\033[1mNemesis Shield - WordPress plugin behaviour test\033[0m\n";
 echo "endpoint: $ENDPOINT\n";
 
 // The site's "normal" behaviour (three legit routes) + one authed route.
@@ -87,7 +87,7 @@ $G_product = array('method' => 'GET', 'uri' => '/shop/product/123',    'query' =
 $GOOD = array($G_home, $G_paged, $G_product);
 
 // ---------------------------------------------------------------------------
-section('1 · Understands — observe mode learns the correct, normalized shapes');
+section('1 · Understands - observe mode learns the correct, normalized shapes');
 setPolicy($POLICYFILE, 'observe');
 clearRecord($RECORDFILE);
 clearCache($TOKEN);
@@ -109,7 +109,7 @@ ok(in_array('/shop/product/{int}', $prodRoutes, true) && !in_array('/shop/produc
 ok(count($recs) >= 3, 'every request was observed (' . count($recs) . ' sketches recorded)');
 
 // ---------------------------------------------------------------------------
-section('2 · Gates — enforce mode blocks off-baseline, approved passes');
+section('2 · Gates - enforce mode blocks off-baseline, approved passes');
 $approved = array();
 foreach (array($G_home, $G_product) as $g) {
     $approved[ sketch($g['method'], $g['uri'], $g['query'], $g['authed'])['shape'] ] = 'allow';
@@ -133,7 +133,7 @@ $r = req(array('method' => 'DELETE', 'uri' => '/')); // unusual method on an app
 ok(!empty($r['blocked']), 'unusual method DELETE / blocked (method is part of the shape)');
 
 // ---------------------------------------------------------------------------
-section('3 · Gates — global threat intelligence (knownBad)');
+section('3 · Gates - global threat intelligence (knownBad)');
 $badPath = '/xmlrpc.php';
 $badShape = sketch('POST', $badPath, array(), false)['shape'];
 setPolicy($POLICYFILE, 'enforce', $approved, array($badShape));
@@ -160,7 +160,7 @@ $r = req(array('method' => 'GET', 'uri' => '/wp-admin/options-general.php',
 ok(empty($r['blocked']), 'wp-admin request NOT blocked while protect_admin is off (default)');
 
 // ---------------------------------------------------------------------------
-section('5b · Safe-unlock — the login/auth path is never blocked');
+section('5b · Safe-unlock - the login/auth path is never blocked');
 setPolicy($POLICYFILE, 'enforce', $approved); // baseline present, /login not in it
 clearCache($TOKEN);
 $r = req(array('method' => 'POST', 'uri' => '/login?next=x'));
@@ -169,14 +169,14 @@ $r = req(array('method' => 'GET', 'uri' => '/wp-login.php'));
 ok(empty($r['blocked']), '/wp-login.php never blocked');
 
 // ---------------------------------------------------------------------------
-section('6 · Fails open — Shield unreachable never breaks the site');
+section('6 · Fails open - Shield unreachable never breaks the site');
 clearCache($TOKEN);
 $r = req(array('method' => 'GET', 'uri' => '/wp-config.php.bak',
                'endpoint' => 'http://127.0.0.1:1/api/v1/sketches')); // dead endpoint
 ok(empty($r['blocked']), 'off-baseline request passes (fail-open) when Shield is unreachable');
 
 // ---------------------------------------------------------------------------
-section('7 · Depth — POST body structure is part of the shape');
+section('7 · Depth - POST body structure is part of the shape');
 setPolicy($POLICYFILE, 'observe'); clearRecord($RECORDFILE); clearCache($TOKEN);
 req(array('method' => 'POST', 'uri' => '/contact', 'post' => 'name=Ada&email=ada@example.com'));
 req(array('method' => 'POST', 'uri' => '/contact', 'post' => 'api_key=zzzz'));
@@ -188,7 +188,7 @@ ok(in_array($skBodyA, $depthShapes, true), 'POST body {name,email} is shaped + r
 ok($skBodyA !== $skBodyB, 'different POST bodies produce different shapes (body structure matters)');
 
 // ---------------------------------------------------------------------------
-section('7b · Depth — admin-ajax action distinguishes shapes');
+section('7b · Depth - admin-ajax action distinguishes shapes');
 setPolicy($POLICYFILE, 'observe'); clearRecord($RECORDFILE); clearCache($TOKEN);
 $ajax = array('method' => 'POST', 'uri' => '/wp-admin/admin-ajax.php', 'script' => '/wp-admin/admin-ajax.php', 'admin' => true);
 req(array_merge($ajax, array('post' => 'action=heartbeat')));
@@ -201,7 +201,7 @@ ok(in_array($skHeartbeat, $ajaxShapes, true) && in_array($skDeleteUser, $ajaxSha
 ok($skHeartbeat !== $skDeleteUser, 'action=heartbeat and action=delete_user are DISTINCT shapes');
 
 // ---------------------------------------------------------------------------
-section('7c · Depth — admin-ajax enforce (Protect wp-admin) blocks off-baseline actions');
+section('7c · Depth - admin-ajax enforce (Protect wp-admin) blocks off-baseline actions');
 setPolicy($POLICYFILE, 'enforce', array($skHeartbeat => 'allow')); clearCache($TOKEN);
 $r = req(array_merge($ajax, array('protectAdmin' => true, 'post' => 'action=heartbeat')));
 ok(empty($r['blocked']), 'approved admin-ajax action=heartbeat passes');
@@ -209,14 +209,14 @@ $r = req(array_merge($ajax, array('protectAdmin' => true, 'post' => 'action=dele
 ok(!empty($r['blocked']) && $r['status'] === 403, 'off-baseline admin-ajax action=delete_user blocked (403)');
 
 // ---------------------------------------------------------------------------
-section('7d · Safety — a wp-admin PAGE load is never blocked, even with Protect wp-admin on');
+section('7d · Safety - a wp-admin PAGE load is never blocked, even with Protect wp-admin on');
 setPolicy($POLICYFILE, 'enforce', array($skHeartbeat => 'allow')); clearCache($TOKEN);
 $r = req(array('method' => 'GET', 'uri' => '/wp-admin/options-general.php?page=nemesis-shield',
                'script' => '/wp-admin/options-general.php', 'admin' => true, 'authed' => true, 'protectAdmin' => true));
 ok(empty($r['blocked']), 'settings/dashboard page not blocked, so you can always recover');
 
 // ---------------------------------------------------------------------------
-section('7e · Depth — REST body parameters are part of the shape');
+section('7e · Depth - REST body parameters are part of the shape');
 $skRestOk = sketch('POST', '/wp-json/wp/v2/posts', array('title' => 'Hello'), false)['shape'];
 setPolicy($POLICYFILE, 'enforce', array($skRestOk => 'allow')); clearCache($TOKEN);
 $r = req(array('rest' => true, 'method' => 'POST', 'route' => '/wp/v2/posts', 'body' => 'title=Hello'));

@@ -10,7 +10,7 @@
   <packaging>jar</packaging>
 
   <name>Nemesis Shield Sentinel SDK</name>
-  <description>Nemesis Shield — Sentinel SDK for Java. Positive-security runtime protection: learns your
+  <description>Nemesis Shield - Sentinel SDK for Java. Positive-security runtime protection: learns your
     app's normal behavior and blocks off-baseline requests (auth bypass, path traversal, scanners,
     unusual methods) in enforce mode, plus an OWASP-LLM prompt-injection guard backed by an embedded
     ML model (byte-identical across all Nemesis Shield SDKs). Servlet filter included. Fail-open,

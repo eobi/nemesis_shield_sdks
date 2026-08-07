@@ -1,4 +1,4 @@
-// Live demo app — a real Node http server guarded by the Express/Connect adapter. The adapter is
+// Live demo app - a real Node http server guarded by the Express/Connect adapter. The adapter is
 // framework-agnostic enough to run on raw http (req.url/headers, res.statusCode/end/on("finish")).
 import http from "http";
 import { sentinel } from "../../node/express.js";

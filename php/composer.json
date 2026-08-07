@@ -1,6 +1,6 @@
 {
   "name": "nemesislabs/sentinel",
-  "description": "Nemesis Shield — Sentinel SDK for PHP & Laravel. Positive-security runtime protection: learns your app's normal behavior and blocks off-baseline requests (auth bypass, path traversal, scanners, unusual methods). Fail-open, privacy-preserving. Works on Laravel 6+ / PHP 7.2+.",
+  "description": "Nemesis Shield - Sentinel SDK for PHP & Laravel. Positive-security runtime protection: learns your app's normal behavior and blocks off-baseline requests (auth bypass, path traversal, scanners, unusual methods). Fail-open, privacy-preserving. Works on Laravel 6+ / PHP 7.2+.",
   "type": "library",
   "license": "MIT",
   "homepage": "https://nemesislabs.xyz",

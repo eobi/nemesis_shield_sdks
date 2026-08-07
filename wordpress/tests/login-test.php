@@ -15,7 +15,7 @@ function ok($cond, $msg) {
 }
 function section($t) { echo "\n\033[1m$t\033[0m\n"; }
 
-echo "\033[1mNemesis Shield — brute-force login guard\033[0m\n";
+echo "\033[1mNemesis Shield - brute-force login guard\033[0m\n";
 
 // Defaults: 5 attempts, then lock. Enable explicitly (default is on anyway).
 update_option('nemesis_shield_options', array('login_guard' => '1', 'lg_max' => 5, 'lg_window' => 900, 'lg_lockout' => 1800));

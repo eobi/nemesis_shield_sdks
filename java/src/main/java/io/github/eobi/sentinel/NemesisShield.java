@@ -1,6 +1,6 @@
 package io.github.eobi.sentinel;
 
-// Nemesis Shield — Sentinel SDK for Java (native, JDK 11+, no dependencies). Learns your app's normal
+// Nemesis Shield - Sentinel SDK for Java (native, JDK 11+, no dependencies). Learns your app's normal
 // behavior; in enforce mode blocks off-baseline requests (auth bypass, path traversal, scanners,
 // unusual methods) before your handlers run. Positive-security, fail-open, privacy-preserving.
 //
@@ -23,7 +23,7 @@ import java.util.regex.Pattern;
 
 public class NemesisShield {
     private static final String ENDPOINT = "https://shield.nemesislabs.xyz/api/v1/sketches";
-    // Canonical value taxonomy — matches the shared engine (tokenize.ts) byte-for-byte.
+    // Canonical value taxonomy - matches the shared engine (tokenize.ts) byte-for-byte.
     private static final Pattern INT = Pattern.compile("^-?\\d+$");
     private static final Pattern FLOAT = Pattern.compile("^-?\\d*\\.\\d+$");
     private static final Pattern UUID = Pattern.compile("(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$");

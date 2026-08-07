@@ -2,7 +2,7 @@
 # Deterministic behaviour test for the Nemesis Shield WordPress plugin. Starts a
 # local mock Shield, runs the plugin's gate/observe logic through it, asserts it
 # learns the right shapes and blocks off-baseline requests, then tears down.
-# No Docker, no WordPress install needed — just PHP. The Docker e2e (tests/e2e.sh)
+# No Docker, no WordPress install needed - just PHP. The Docker e2e (tests/e2e.sh)
 # covers the real WordPress path.
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"

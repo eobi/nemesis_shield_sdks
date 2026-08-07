@@ -1,6 +1,6 @@
-// Deep coverage test for the Browser SDK — proves it catches exfil / code-load across EVERY channel a
+// Deep coverage test for the Browser SDK - proves it catches exfil / code-load across EVERY channel a
 // client-side skimmer uses: fetch, sendBeacon, WebSocket, Worker, Image-beacon (property + setAttribute),
-// <link rel=preload>, <img srcset>, <a ping> — blocking off-baseline third-party origins in enforce
+// <link rel=preload>, <img srcset>, <a ping> - blocking off-baseline third-party origins in enforce
 // mode while first-party + approved origins pass. Run: node browser/tests/deep.cjs
 const NemesisShield = require("../nemesis-shield.js");
 
@@ -45,7 +45,7 @@ function enforce(shield, approvedOrigins) {
   shield._applyPolicy({ mode: "enforce", policy: { shapes, knownBad: [] } });
 }
 
-console.log("\x1b[1mNemesis Shield — Browser deep coverage test\x1b[0m");
+console.log("\x1b[1mNemesis Shield - Browser deep coverage test\x1b[0m");
 
 // ── 1. decision core ──────────────────────────────────────────────────────────
 sec("1 · decision core (first-party allowed, off-baseline third-party blocked)");

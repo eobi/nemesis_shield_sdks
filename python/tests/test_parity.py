@@ -16,7 +16,7 @@ def test_shape_hash_key_order_independent_and_matches_js():
 
 
 def test_build_sketch_request_shape():
-    # The shape is a REQUEST signature (method + route + params + auth), independent of status —
+    # The shape is a REQUEST signature (method + route + params + auth), independent of status -
     # enforcement decides before the response exists. status is kept as a separate attribute.
     s = build_sketch(
         method="post",

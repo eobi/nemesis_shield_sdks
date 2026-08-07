@@ -1,12 +1,12 @@
 /**
- * Nemesis Shield — Edge / Supabase SDK (Deno + Web-standard TypeScript).
+ * Nemesis Shield - Edge / Supabase SDK (Deno + Web-standard TypeScript).
  *
  * For serverless TypeScript runtimes: **Supabase Edge Functions**, Deno Deploy, Cloudflare Workers,
  * Vercel Edge. Learns the function's normal request behavior; in enforce mode BLOCKS off-baseline
  * requests (auth bypass, path traversal, scanners, unusual methods) before your handler runs.
  *
  * Supabase Edge Functions are **public by default** and usually run with the service_role key, which
- * steps outside RLS — so the function is the trust boundary with nothing on it. This wraps that
+ * steps outside RLS - so the function is the trust boundary with nothing on it. This wraps that
  * boundary with a positive-security allow-list.
  *
  *   import { withShield } from "./nemesis-shield.ts";
@@ -15,16 +15,16 @@
  *   }));
  *
  * Serverless-safe: refreshes the compiled policy lazily (short TTL) on the request path, so a cold
- * isolate still enforces the current console mode with no redeploy. Fail-open, privacy-preserving —
+ * isolate still enforces the current console mode with no redeploy. Fail-open, privacy-preserving -
  * ships only method + route shape + auth, never bodies or secrets.
  */
 
 const DEFAULT_ENDPOINT = "https://shield.nemesislabs.xyz/api/v1/sketches";
 
-// Full value taxonomy + sorted canon — byte-for-byte identical to the shared engine (node lib/shape.js)
+// Full value taxonomy + sorted canon - byte-for-byte identical to the shared engine (node lib/shape.js)
 // so an edge function and a Node/Python/Go/PHP/Ruby/Java/.NET/Rust app produce the SAME shape hash
 // (cross-language baseline + threat-intel sharing). Previously this file used a reduced tokenizer, an
-// unsorted canon, and never fed query params — those shapes did NOT match the backend family.
+// unsorted canon, and never fed query params - those shapes did NOT match the backend family.
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const URLRE = /^https?:\/\/\S+$/i;
@@ -99,7 +99,7 @@ interface Param {
 
 // Analytics / click-tracking query params carry NO application logic and are the main cause of shape
 // explosion (every ad/campaign/referral link adds different ones). We strip them from the signature so
-// a UTM'd request matches the bare route, while real params — and any attack hidden in them — stay
+// a UTM'd request matches the bare route, while real params - and any attack hidden in them - stay
 // modeled. This list is shared across every SDK so the shape hash stays identical everywhere.
 const TRACKING_PREFIXES = ["utm_", "mtm_", "pk_", "hsa_", "matomo_", "piwik_", "ga_"];
 const TRACKING_EXACT = new Set([

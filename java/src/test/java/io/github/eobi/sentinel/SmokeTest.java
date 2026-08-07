@@ -3,7 +3,7 @@ package io.github.eobi.sentinel;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Smoke tests — ML parity (embedded model loads from the classpath), LLM guard, and the
+/** Smoke tests - ML parity (embedded model loads from the classpath), LLM guard, and the
  *  positive-security shape engine. Ported from the original TestLLM/TestDeep checks. */
 class SmokeTest {
 

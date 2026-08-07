@@ -1,5 +1,5 @@
 <?php
-// LLM Guard for PHP — OWASP-LLM-Top-10 detection with the HashLR ML classifier shared across every
+// LLM Guard for PHP - OWASP-LLM-Top-10 detection with the HashLR ML classifier shared across every
 // Nemesis Shield SDK. Feature buckets are fnv1a(feature) % dim, identical to every other language.
 // Char n-grams over a canonicalized (de-leetspeaked, ASCII-alnum) form catch obfuscation the regex
 // layer misses.
@@ -35,8 +35,8 @@ final class NemesisShieldLLM
 
     private static function verifyModelSignature(string $raw, ?string $sigB64): bool
     {
-        if (self::MODEL_PUBLIC_KEY_HEX === '') return true; // no key pinned — version gate + HTTPS apply
-        if (!$sigB64) return false;                         // key pinned but bundle unsigned — reject
+        if (self::MODEL_PUBLIC_KEY_HEX === '') return true; // no key pinned - version gate + HTTPS apply
+        if (!$sigB64) return false;                         // key pinned but bundle unsigned - reject
         if (!function_exists('sodium_crypto_sign_verify_detached')) return false;
         $pk = @hex2bin(self::MODEL_PUBLIC_KEY_HEX);
         $sig = base64_decode($sigB64, true);

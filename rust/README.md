@@ -1,8 +1,8 @@
-# Nemesis Shield — Rust
+# Nemesis Shield - Rust
 
 Native Rust SDK for [Nemesis Shield](https://shield.nemesislabs.xyz). Learns your app's normal
 behavior; in **enforce mode BLOCKS off-baseline requests** (auth bypass, path traversal, scanners,
-unusual methods) before your handlers run. Positive-security, fail-open, privacy-preserving — the
+unusual methods) before your handlers run. Positive-security, fail-open, privacy-preserving - the
 console flips observe↔enforce with no redeploy (a background thread polls the compiled policy).
 
 ```toml
@@ -89,12 +89,12 @@ if shield.enforcing() {
 
 ## How enforcement works
 
-1. **Observe** (default) — the SDK records the *shape* of every request (method + normalized route +
+1. **Observe** (default) - the SDK records the *shape* of every request (method + normalized route +
    auth; never bodies) and builds a per-app baseline in the console.
-2. **Approve** — review learned behaviors in the console; approve the legitimate ones (auto-approved
+2. **Approve** - review learned behaviors in the console; approve the legitimate ones (auto-approved
    during the learning window).
-3. **Enforce** — flip the app to enforce. Any request whose shape isn't in the approved baseline is
-   blocked with `403 blocked_by_nemesis_shield` and reported as a finding. No redeploy — the SDK
+3. **Enforce** - flip the app to enforce. Any request whose shape isn't in the approved baseline is
+   blocked with `403 blocked_by_nemesis_shield` and reported as a finding. No redeploy - the SDK
    picks up the mode change on its next poll.
 
 Verified end-to-end (learn → enforce → attack) on **axum and actix-web** (8/8 each): legit traffic
@@ -103,7 +103,7 @@ blocked (403) before the handler runs; the login path stays reachable (break-gla
 
 ## LLM Guard (OWASP LLM Top 10)
 
-The same HashLR ML classifier every Nemesis Shield SDK ships — catches obfuscated prompt injection
+The same HashLR ML classifier every Nemesis Shield SDK ships - catches obfuscated prompt injection
 signature rules miss, scored identically in every language.
 
 ```rust
@@ -111,7 +111,7 @@ use nemesis_shield::guard_llm;
 
 let v = guard_llm(&user_prompt, true); // enforce
 if v.blocked {
-    // refuse — v.kind, v.score, v.owasp ("LLM01")
+    // refuse - v.kind, v.score, v.owasp ("LLM01")
 }
 
 let score = nemesis_shield::ml_injection_score(&user_prompt); // 0..1
@@ -121,7 +121,7 @@ Regex first, then ML. Blocks at ≥ 0.85 (high), flags at ≥ 0.45.
 
 ## Full coverage & safe-unlock
 
-**Mount it first / outermost** so *every* route is inspected (not just API routes — attackers hit any path):
+**Mount it first / outermost** so *every* route is inspected (not just API routes - attackers hit any path):
 
 ```
 .layer(middleware::from_fn_with_state(shield.clone(), shield))   // outermost layer
@@ -135,7 +135,7 @@ Regex first, then ML. Blocks at ≥ 0.85 (high), flags at ≥ 0.45.
 export NEMESIS_SHIELD_BOOTSTRAP="/login,/admin,/healthz"
 ```
 
-**Verify coverage** — in observe mode, hit a normal route, a param, and a scanner path, then confirm all three appear in the console (Activity / Behaviors):
+**Verify coverage** - in observe mode, hit a normal route, a param, and a scanner path, then confirm all three appear in the console (Activity / Behaviors):
 
 ```bash
 curl -s "http://localhost:8080/" >/dev/null

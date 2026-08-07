@@ -1,4 +1,4 @@
-// LLM Guard for .NET / C# — OWASP-LLM-Top-10 detection with the HashLR ML classifier shared across
+// LLM Guard for .NET / C# - OWASP-LLM-Top-10 detection with the HashLR ML classifier shared across
 // every Nemesis Shield SDK. Feature buckets are fnv1a(feature) % dim, identical to every other
 // language; char n-grams over a canonicalized (de-leetspeaked, ASCII-alnum) form catch obfuscation
 // the regex layer misses. Weights load from ml_weights.json (cwd or beside the assembly).
@@ -54,8 +54,8 @@ public static class LlmGuard
 
     private static bool VerifyModelSignature(byte[] raw, string? sigB64)
     {
-        if (ModelPublicKeyHex.Length == 0) return true;          // no key pinned — version gate + HTTPS apply
-        if (string.IsNullOrEmpty(sigB64)) return false;          // key pinned but bundle unsigned — reject
+        if (ModelPublicKeyHex.Length == 0) return true;          // no key pinned - version gate + HTTPS apply
+        if (string.IsNullOrEmpty(sigB64)) return false;          // key pinned but bundle unsigned - reject
         try
         {
             byte[] key = FromHex(ModelPublicKeyHex);
@@ -101,7 +101,7 @@ public static class LlmGuard
 
     private static string LoadWeights()
     {
-        // 1) embedded resource — the trained model shipped inside the NuGet package (bank/air-gapped safe)
+        // 1) embedded resource - the trained model shipped inside the NuGet package (bank/air-gapped safe)
         try
         {
             var asm = typeof(LlmGuard).Assembly;
@@ -113,7 +113,7 @@ public static class LlmGuard
                 }
         }
         catch { /* fall through to disk */ }
-        // 2) disk — dev / source-drop / hot-swap beside the assembly
+        // 2) disk - dev / source-drop / hot-swap beside the assembly
         foreach (var p in new[] { "ml_weights.json", Path.Combine(AppContext.BaseDirectory, "ml_weights.json") })
             if (File.Exists(p)) return File.ReadAllText(p);
         return "{\"dim\":8192,\"bias\":0,\"weights\":{}}";

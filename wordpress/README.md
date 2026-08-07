@@ -1,4 +1,4 @@
-# Nemesis Shield — WordPress
+# Nemesis Shield - WordPress
 
 A WordPress plugin that connects your site to the [Nemesis Shield](https://shield.nemesislabs.xyz)
 service for positive-security runtime protection. The service **learns your site's normal behaviour**
@@ -20,7 +20,7 @@ server.
 2. Copy the [`nemesis-shield/`](nemesis-shield/) folder into `wp-content/plugins/`, or zip it and upload via **Plugins → Add New → Upload**.
 3. Activate **Nemesis Shield**, then set the token one of two ways:
 
-   **Recommended — `wp-config.php`** (keeps the token out of the database):
+   **Recommended - `wp-config.php`** (keeps the token out of the database):
    ```php
    define('NEMESIS_SHIELD_TOKEN', 'nsk_your_site_token');
    ```
@@ -30,12 +30,12 @@ That's it. Traffic starts building a per-site baseline immediately.
 
 ## How it works
 
-1. **Observe** (default) — every request's privacy-preserving *shape* (method + normalized path like
-   `/shop/product/123` → `/shop/product/{int}`, param kinds, and an authenticated flag — **never**
+1. **Observe** (default) - every request's privacy-preserving *shape* (method + normalized path like
+   `/shop/product/123` → `/shop/product/{int}`, param kinds, and an authenticated flag - **never**
    bodies, values, cookies, or secrets) is recorded to build your baseline.
-2. **Approve** — review learned behaviours in the console and approve the legitimate ones.
-3. **Enforce** — flip the app to enforce in the console. Requests whose shape isn't approved are
-   blocked with `403 blocked_by_nemesis_shield`. No redeploy — the mode is pulled live (short-TTL
+2. **Approve** - review learned behaviours in the console and approve the legitimate ones.
+3. **Enforce** - flip the app to enforce in the console. Requests whose shape isn't approved are
+   blocked with `403 blocked_by_nemesis_shield`. No redeploy - the mode is pulled live (short-TTL
    policy cache).
 
 **Where it gates:** the front end and REST API (`rest_pre_dispatch`) are enforced. Regular **wp-admin
@@ -58,7 +58,7 @@ collapsing into a single "POST /path". Values, bodies, cookies, and secrets are 
 
 ### LLM Guard (optional)
 
-If your site calls an LLM (AI chatbot, content assistant), guard the prompt before you send it — the
+If your site calls an LLM (AI chatbot, content assistant), guard the prompt before you send it - the
 same OWASP-LLM-Top-10 classifier every Shield SDK ships:
 
 ```php
@@ -72,7 +72,7 @@ if ( $v['blocked'] ) {
 
 Three ways to test locally, all included.
 
-### 1. Deterministic behaviour test — no Docker, just PHP
+### 1. Deterministic behaviour test - no Docker, just PHP
 
 Starts a local mock Shield, drives the plugin's real gate/observe logic through it, and asserts it
 **understands** (reports the correct normalized shapes, matching the SDK byte-for-byte),
@@ -83,16 +83,16 @@ pass, on both the front end and REST), and **fails open**.
 ./run-tests.sh
 ```
 ```
-1 · Understands — observe mode learns the correct, normalized shapes ✓✓✓✓✓
-2 · Gates — enforce mode blocks off-baseline, approved passes         ✓✓✓✓✓
-3 · Gates — global threat intelligence (knownBad)                     ✓
+1 · Understands - observe mode learns the correct, normalized shapes ✓✓✓✓✓
+2 · Gates - enforce mode blocks off-baseline, approved passes         ✓✓✓✓✓
+3 · Gates - global threat intelligence (knownBad)                     ✓
 4 · Gates the REST API (rest_pre_dispatch)                            ✓✓
 5 · Never locks the admin out (admin observe-only by default)         ✓
-6 · Fails open — Shield unreachable never breaks the site            ✓
+6 · Fails open - Shield unreachable never breaks the site            ✓
 ALL 26 CHECKS PASSED
 ```
 
-### 2. Real-WordPress end-to-end — Docker
+### 2. Real-WordPress end-to-end - Docker
 
 Spins up **actual WordPress + MariaDB** and a mock Shield, installs and activates the plugin, then
 over real HTTP: learns in observe mode → approves the learned shapes → flips to enforce → confirms
@@ -104,7 +104,7 @@ blocked_by_nemesis_shield`, plus fail-open when the mock is stopped.
 docker compose down -v    # teardown
 ```
 
-### 3. Interactive real WordPress — no Docker
+### 3. Interactive real WordPress - no Docker
 
 Boots a real WordPress with the plugin active (SQLite via wp-now / WordPress Playground) so you can
 click through the settings screen, test with your real install token, and run the **Plugin Check**
@@ -132,4 +132,4 @@ MIT © Nemesis Labs
 
 ## Safe-unlock (break-glass)
 
-The front end and REST API are enforced. Regular **wp-admin page loads, wp-login.php and cron are never blocked** so a still-learning baseline can never lock you out; the `admin-ajax` / `admin-post` APIs become enforceable when you tick *Protect wp-admin* (dashboard pages stay observe-only either way, so the settings page is always reachable). The login/auth path is always break-glass — defaults `/login /signin /sign-in /auth /oauth /session /wp-login.php`, overridable with the `NEMESIS_SHIELD_BOOTSTRAP` env (comma-separated). Query, POST-form and REST body parameter structure is fed into the shape, the admin-ajax action is folded into the route, and path-traversal segments normalize to `{traversal}`.
+The front end and REST API are enforced. Regular **wp-admin page loads, wp-login.php and cron are never blocked** so a still-learning baseline can never lock you out; the `admin-ajax` / `admin-post` APIs become enforceable when you tick *Protect wp-admin* (dashboard pages stay observe-only either way, so the settings page is always reachable). The login/auth path is always break-glass - defaults `/login /signin /sign-in /auth /oauth /session /wp-login.php`, overridable with the `NEMESIS_SHIELD_BOOTSTRAP` env (comma-separated). Query, POST-form and REST body parameter structure is fed into the shape, the admin-ajax action is folded into the route, and path-traversal segments normalize to `{traversal}`.

@@ -1,4 +1,4 @@
-// LLM provider abstraction — OpenAI, Anthropic, or a local Ollama model (fully offline). Zero deps, just
+// LLM provider abstraction - OpenAI, Anthropic, or a local Ollama model (fully offline). Zero deps, just
 // fetch to each REST API. The agent uses the LLM to (a) infer routes from repo/HTML it can't parse
 // structurally, and (b) generate REALISTIC field values so learned behavior mirrors real traffic. It is
 // OPTIONAL: without a key the agent falls back to schema/heuristic value generation and still works.

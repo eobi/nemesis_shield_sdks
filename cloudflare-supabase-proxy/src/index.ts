@@ -1,10 +1,10 @@
 /**
- * Nemesis Shield — Cloudflare Worker proxy for Supabase's direct DB API (PostgREST).
+ * Nemesis Shield - Cloudflare Worker proxy for Supabase's direct DB API (PostgREST).
  *
  * The one Supabase path an in-process SDK can't guard: when a browser calls `supabase.from('table')`,
  * the request goes straight to Supabase's own servers. Route it through this Worker instead and it
- * gets the same positive-security allow-list as everything else — "this app only ever does these
- * verbs on these tables" — before it reaches your database.
+ * gets the same positive-security allow-list as everything else - "this app only ever does these
+ * verbs on these tables" - before it reaches your database.
  *
  *   app  ->  https://<name>.<you>.workers.dev/rest/v1/...  ->  https://<project>.supabase.co/rest/v1/...
  *
@@ -44,7 +44,7 @@ export default {
 
     const url = new URL(req.url);
     const path = url.pathname;
-    // Feed the query STRUCTURE — for PostgREST this is the operation itself (select/filter/order),
+    // Feed the query STRUCTURE - for PostgREST this is the operation itself (select/filter/order),
     // so table + verb + query shape + auth all factor into the positive-security decision.
     const query = queryToObject(url.searchParams);
     const isDbApi = path.startsWith("/rest/"); // only guard the PostgREST DB API

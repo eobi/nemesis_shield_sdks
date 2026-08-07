@@ -1,11 +1,11 @@
-# Nemesis Shield — .NET / C#
+# Nemesis Shield - .NET / C#
 
 Native .NET SDK for [Nemesis Shield](https://shield.nemesislabs.xyz). Learns your app's normal
 behavior; in **enforce mode BLOCKS off-baseline requests** (auth bypass, BOLA, path traversal,
 scanners, unusual methods) before your endpoints run. Positive-security, fail-open, privacy-preserving.
 
 Targets **net8.0** (modern ASP.NET Core) and **netstandard2.0** (.NET Framework 4.6.1+, .NET 6/7/8,
-.NET Core) — the mix an enterprise/bank estate needs. The trained ML model ships inside the assembly.
+.NET Core) - the mix an enterprise/bank estate needs. The trained ML model ships inside the assembly.
 
 ## Install
 
@@ -13,11 +13,11 @@ Targets **net8.0** (modern ASP.NET Core) and **netstandard2.0** (.NET Framework 
 dotnet add package NemesisShield
 ```
 
-**ASP.NET Core** — register the middleware **first in the pipeline** so it inspects *every* request
+**ASP.NET Core** - register the middleware **first in the pipeline** so it inspects *every* request
 (including paths that match no endpoint), then set `NEMESIS_TOKEN`:
 ```csharp
 var app = builder.Build();
-app.UseMiddleware<NemesisShield.SentinelMiddleware>();   // BEFORE UseRouting / endpoints — sees all traffic
+app.UseMiddleware<NemesisShield.SentinelMiddleware>();   // BEFORE UseRouting / endpoints - sees all traffic
 // ... app.UseRouting(); app.MapControllers(); etc.
 ```
 
@@ -31,16 +31,16 @@ BOLA, path traversal and scanner probes blocked (403) and reported.
 
 ## LLM Guard (OWASP LLM Top 10)
 
-The same HashLR ML classifier every Nemesis Shield SDK ships — catches obfuscated prompt injection
+The same HashLR ML classifier every Nemesis Shield SDK ships - catches obfuscated prompt injection
 signature rules miss, scored identically in every language. `LlmGuard` and the trained
-`ml_weights.json` are included in the package (embedded — no extra setup).
+`ml_weights.json` are included in the package (embedded - no extra setup).
 
 ```csharp
 using NemesisShield;
 
 var v = LlmGuard.GuardLLM(userPrompt, enforce: true);
 if (v.Blocked) {
-    // refuse — v.Kind, v.Score, v.Owasp ("LLM01")
+    // refuse - v.Kind, v.Score, v.Owasp ("LLM01")
 }
 
 double score = LlmGuard.MlInjectionScore(userPrompt); // 0..1
@@ -72,7 +72,7 @@ versions; only weights, bias and thresholds swap.
 
 ## Full coverage & safe-unlock
 
-**Mount it first / outermost** so *every* route is inspected (not just API routes — attackers hit any path):
+**Mount it first / outermost** so *every* route is inspected (not just API routes - attackers hit any path):
 
 ```
 app.UseMiddleware<NemesisShield.SentinelMiddleware>();   // BEFORE UseStaticFiles / UseRouting
@@ -86,7 +86,7 @@ app.UseMiddleware<NemesisShield.SentinelMiddleware>();   // BEFORE UseStaticFile
 export NEMESIS_SHIELD_BOOTSTRAP="/login,/admin,/healthz"
 ```
 
-**Verify coverage** — in observe mode, hit a normal route, a param, and a scanner path, then confirm all three appear in the console (Activity / Behaviors):
+**Verify coverage** - in observe mode, hit a normal route, a param, and a scanner path, then confirm all three appear in the console (Activity / Behaviors):
 
 ```bash
 curl -s "http://localhost:8080/" >/dev/null

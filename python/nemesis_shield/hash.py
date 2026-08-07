@@ -1,4 +1,4 @@
-"""FNV-1a hashing + stable stringify — byte-for-byte compatible with the JS shared package,
+"""FNV-1a hashing + stable stringify - byte-for-byte compatible with the JS shared package,
 so a Python app and a Node app with the same behavioral shape produce the SAME shape hash and
 share behavioral intelligence. Do not change without updating the JS side and the parity test."""
 

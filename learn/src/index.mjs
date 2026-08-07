@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Nemesis Learn — exercise every route of your app (dev/staging) so Nemesis Shield's behavioral model
+// Nemesis Learn - exercise every route of your app (dev/staging) so Nemesis Shield's behavioral model
 // finishes learning fast, ready to enforce. Language/framework-agnostic (HTTP-level), runs offline,
 // optionally discovers routes from a repo. Zero dependencies.
 
@@ -34,7 +34,7 @@ function parseArgs(argv) {
 }
 
 const HELP = `
-Nemesis Learn — build your app's behavioral baseline, fast.
+Nemesis Learn - build your app's behavioral baseline, fast.
 
 Usage:
   nemesis-learn --target <url> [options]
@@ -44,7 +44,7 @@ Core:
   --repo <path|git-url>   Also discover routes from source code (any language)
   --out <file>            Write the JSON coverage report (default: nemesis-learn-report.json)
 
-LLM (optional — makes generated inputs realistic; without it, schema/heuristics are used):
+LLM (optional - makes generated inputs realistic; without it, schema/heuristics are used):
   --llm-provider <p>      openai | anthropic | ollama
   --llm-key <key>         API key (or env OPENAI_API_KEY / ANTHROPIC_API_KEY / LLM_API_KEY)
   --llm-model <model>     Override the default model
@@ -57,7 +57,7 @@ Auth (so protected routes are learned too):
   --header "K: V"         Extra sticky header (repeatable), e.g. an API key
 
 Report to Shield (so the portal shows baseline readiness + the enforce gate):
-  --app-token <nsk_…>     Your app's Nemesis Shield token — posts coverage back to the app
+  --app-token <nsk_…>     Your app's Nemesis Shield token - posts coverage back to the app
   --report-to <url>       Shield base URL (default https://shield.nemesislabs.xyz)
 
 Tuning:
@@ -138,7 +138,7 @@ async function main() {
   printSummary(report, out);
   out(`  Full report → ${outFile}\n`);
 
-  // 5) report coverage back to Shield (optional) — lets the portal show baseline readiness and the
+  // 5) report coverage back to Shield (optional) - lets the portal show baseline readiness and the
   // "ready to enforce" gate on your app. Fail-open: a reporting hiccup never fails the run.
   const appToken = args["app-token"] || process.env.NEMESIS_SHIELD_TOKEN;
   if (appToken) {
@@ -148,7 +148,7 @@ async function main() {
 }
 
 async function reportCoverage(base, token, rep, log) {
-  // Shapes only — method + route template + status. No payloads, no concrete URLs.
+  // Shapes only - method + route template + status. No payloads, no concrete URLs.
   const payload = {
     discovered: rep.discovered.total,
     exercised: rep.exercised.total,
@@ -178,7 +178,7 @@ async function reportCoverage(base, token, rep, log) {
       return;
     }
     const b = j.behaviors || {};
-    log(`  Shield: baseline recorded for "${j.app}" — ${b.total || 0} behaviors learned · ${b.inReview || 0} in review · ${b.approved || 0} approved.`);
+    log(`  Shield: baseline recorded for "${j.app}" - ${b.total || 0} behaviors learned · ${b.inReview || 0} in review · ${b.approved || 0} approved.`);
     log(`  Open Shield → ${j.app || "your app"} → Baseline readiness to approve and flip to ENFORCE.`);
   } catch (e) {
     log(`  Shield: could not reach ${base} (${e?.name === "AbortError" ? "timed out" : e?.message || e}). Your local report above is still valid.`);
@@ -193,7 +193,7 @@ async function resolveRepo(repo) {
       out(`    cloning ${repo} …`);
       execFileSync("git", ["clone", "--depth", "1", repo, dir], { stdio: "ignore" });
       return dir;
-    } catch { out("    (could not clone repo — skipping repo discovery)"); return null; }
+    } catch { out("    (could not clone repo - skipping repo discovery)"); return null; }
   }
   out(`    (repo path not found: ${repo})`);
   return null;

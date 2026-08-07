@@ -1,4 +1,4 @@
-# Nemesis Shield — Java (JDK 11+, no runtime dependencies)
+# Nemesis Shield - Java (JDK 11+, no runtime dependencies)
 
 Native Java SDK for [Nemesis Shield](https://shield.nemesislabs.xyz). Learns your app's normal
 behavior; in **enforce mode BLOCKS off-baseline requests** (auth bypass, path traversal, scanners,
@@ -23,7 +23,7 @@ Then `import io.github.eobi.sentinel.NemesisShield;` (also `NemesisShieldFilter`
 The trained ML model (`ml_weights.json`) ships inside the jar. Self-hosting? Set `NEMESIS_ENDPOINT`
 (env) or `-Dnemesis.endpoint=` to point at your own Shield.
 
-**Servlet / Spring Boot 3+** — register `NemesisShieldFilter` and set `NEMESIS_TOKEN`:
+**Servlet / Spring Boot 3+** - register `NemesisShieldFilter` and set `NEMESIS_TOKEN`:
 ```java
 @Bean
 FilterRegistrationBean<NemesisShieldFilter> nemesis() {
@@ -49,14 +49,14 @@ raw HttpServer: legit passes (200); attacks blocked (403). The Servlet filter us
 
 ## LLM Guard (OWASP LLM Top 10)
 
-The same HashLR ML classifier every Nemesis Shield SDK ships — catches obfuscated prompt injection
+The same HashLR ML classifier every Nemesis Shield SDK ships - catches obfuscated prompt injection
 signature rules miss, scored identically in every language. `NemesisShieldLLM` and the trained
 `ml_weights.json` are included in the dependency (no extra setup).
 
 ```java
 var v = NemesisShieldLLM.guardLLM(userPrompt, true); // enforce
 if (v.blocked) {
-    // refuse — v.kind, v.severity, v.owasp ("LLM01")
+    // refuse - v.kind, v.severity, v.owasp ("LLM01")
 }
 
 double score = NemesisShieldLLM.mlInjectionScore(userPrompt); // 0..1
@@ -66,7 +66,7 @@ Regex first, then ML. Blocks at ≥ 0.85 (high), flags at ≥ 0.45.
 
 ## Full coverage & safe-unlock
 
-**Mount it first / outermost** so *every* route is inspected (not just API routes — attackers hit any path):
+**Mount it first / outermost** so *every* route is inspected (not just API routes - attackers hit any path):
 
 ```
 reg.addUrlPatterns("/*");   // register the filter across every URL
@@ -80,7 +80,7 @@ reg.addUrlPatterns("/*");   // register the filter across every URL
 export NEMESIS_SHIELD_BOOTSTRAP="/login,/admin,/healthz"
 ```
 
-**Verify coverage** — in observe mode, hit a normal route, a param, and a scanner path, then confirm all three appear in the console (Activity / Behaviors):
+**Verify coverage** - in observe mode, hit a normal route, a param, and a scanner path, then confirm all three appear in the console (Activity / Behaviors):
 
 ```bash
 curl -s "http://localhost:8080/" >/dev/null

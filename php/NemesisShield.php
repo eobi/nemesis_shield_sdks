@@ -1,5 +1,5 @@
 <?php
-// Nemesis Shield — Sentinel SDK for PHP (native: local shape + cached policy + inline blocking).
+// Nemesis Shield - Sentinel SDK for PHP (native: local shape + cached policy + inline blocking).
 // Learns your app's normal behavior; in enforce mode blocks off-baseline requests (auth bypass, path
 // traversal, scanners, unusual methods) before your app runs. PHP is stateless per-request, so the
 // compiled policy is cached to a temp file with a short TTL and refreshed on demand. Fail-open.
@@ -74,7 +74,7 @@ class NemesisShield
         return $out === '' ? '/' : $out;
     }
 
-    // Canonical value taxonomy — must match the shared engine (tokenize.ts) byte-for-byte.
+    // Canonical value taxonomy - must match the shared engine (tokenize.ts) byte-for-byte.
     private static function kindOf($v): string
     {
         if ($v === null || $v === '') return 'empty';
@@ -133,7 +133,7 @@ class NemesisShield
         }
         // canonical shape input: keys sorted (auth, method, params, route); params [name, kind, nested];
         // status excluded so enforcement decides BEFORE the response exists.
-        // plain closure (not fn=>) so the SDK runs on PHP 7.2+ — matching Laravel 6's own floor.
+        // plain closure (not fn=>) so the SDK runs on PHP 7.2+ - matching Laravel 6's own floor.
         $canonParams = array_map(function ($p) { return [$p['name'], $p['kind'], !empty($p['nested']) ? 1 : 0]; }, $params);
         $canon = json_encode(['auth' => $authed ? 1 : 0, 'method' => strtoupper($method), 'params' => $canonParams, 'route' => $route], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         return ['route' => $route, 'method' => strtoupper($method), 'authenticated' => $authed, 'status' => $status, 'params' => $params, 'shape' => self::fnv1a($canon)];

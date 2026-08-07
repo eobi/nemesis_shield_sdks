@@ -1,4 +1,4 @@
-# LLM Guard — integration examples
+# LLM Guard - integration examples
 
 Every Nemesis Shield SDK ships the same **OWASP-LLM-Top-10** guard: signature rules **plus** a
 **HashLR ML classifier** that catches obfuscated / paraphrased prompt injection the rules miss
@@ -11,8 +11,8 @@ Contract (all languages): `guardLLM(prompt, enforce)` → `{ blocked, severity, 
 
 | File | Language | Shows |
 |------|----------|-------|
-| `python_openai.py` | Python | `guard_openai` — wrap the OpenAI client, auto-guard every call |
-| `python_guard.py`  | Python | `guard_llm` — manual, with system/response/tools/RAG context |
+| `python_openai.py` | Python | `guard_openai` - wrap the OpenAI client, auto-guard every call |
+| `python_guard.py`  | Python | `guard_llm` - manual, with system/response/tools/RAG context |
 | `node_guard.mjs`   | Node   | `guardLLM` + `reportLLM` (stream behavior to the portal) |
 | `go_guard.go`      | Go     | `nemesis.GuardLLM` |
 | `ruby_guard.rb`    | Ruby   | `NemesisShield::LLM.guard_llm` |
@@ -20,4 +20,4 @@ Contract (all languages): `guardLLM(prompt, enforce)` → `{ blocked, severity, 
 | `rust_guard.rs`    | Rust   | `nemesis_shield::guard_llm` |
 | `java_Guard.java`  | Java   | `NemesisShieldLLM.guardLLM` |
 | `dotnet_guard.cs`  | .NET   | `NemesisShield.LlmGuard.GuardLLM` |
-| `gateway.md`       | any    | drop-in reverse proxy — zero code changes |
+| `gateway.md`       | any    | drop-in reverse proxy - zero code changes |

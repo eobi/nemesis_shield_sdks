@@ -1,4 +1,4 @@
-// LLM Guard for Go — OWASP-LLM-Top-10 (2025) detection with the same HashLR ML classifier every
+// LLM Guard for Go - OWASP-LLM-Top-10 (2025) detection with the same HashLR ML classifier every
 // Nemesis Shield SDK ships. Feature buckets are fnv1a(feature) % dim (the SAME hash used for HTTP
 // sketches), so scores are identical across every language. Complements the regex layer: char
 // n-grams over a canonicalized (de-leetspeaked, ASCII-alnum) form catch obfuscation the regex misses.

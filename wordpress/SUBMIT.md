@@ -4,9 +4,9 @@ WordPress.org is a **two-step, manual-review** channel: submit a zip → a human
 
 Everything needed is already built:
 
-- `nemesis-shield/` — the plugin (main file + vendored `lib/` + `readme.txt`)
-- `assets/` — WordPress.org listing images (icon, banner, screenshots)
-- `build-zip.sh` — produces `nemesis-shield.zip` (plugin only; no tests/dev files)
+- `nemesis-shield/` - the plugin (main file + vendored `lib/` + `readme.txt`)
+- `assets/` - WordPress.org listing images (icon, banner, screenshots)
+- `build-zip.sh` - produces `nemesis-shield.zip` (plugin only; no tests/dev files)
 
 ## One-time prerequisite
 
@@ -14,14 +14,14 @@ A **WordPress.org account** whose username becomes the `Contributors:` value in 
 `readme.txt` currently lists `nemesislabs`. If the real account username differs, update the
 `Contributors:` line before submitting (it must be an existing wordpress.org login, not a display name).
 
-## Step 1 — Build the zip
+## Step 1 - Build the zip
 
 ```bash
 ./build-zip.sh          # writes nemesis-shield.zip (WP-native lib; re-syncs only ml_weights.json)
 ./run-tests.sh          # 17 checks, byte-for-byte shape parity, no Docker
 ```
 
-## Step 1b — Run Plugin Check (required attestation on the submit form)
+## Step 1b - Run Plugin Check (required attestation on the submit form)
 
 The submit form asks you to confirm the plugin passes **Plugin Check**. Do this in a real WordPress
 install before you check that box:
@@ -36,17 +36,17 @@ This build was written to pass it: WordPress HTTP API (no cURL), Transients (no 
 all superglobals unslashed + sanitized, escaped output, `wp_json_encode`, no error suppression, i18n'd
 strings, and a required "External services" disclosure in `readme.txt`.
 
-## Step 2 — Submit for review
+## Step 2 - Submit for review
 
 1. Sign in at https://wordpress.org/plugins/developers/add/
 2. Upload `nemesis-shield.zip`.
 3. The automated checker runs immediately; then a human reviewer follows up **by email** (reply from the same account). Typical wait: a few days to a few weeks.
-4. Address any reviewer feedback by replying to that email thread (no re-upload form — you send a corrected zip in reply if asked).
+4. Address any reviewer feedback by replying to that email thread (no re-upload form - you send a corrected zip in reply if asked).
 
 The requested slug is **`nemesis-shield`** → the listing will live at
 `https://wordpress.org/plugins/nemesis-shield/`.
 
-## Step 3 — Publish via SVN (after approval only)
+## Step 3 - Publish via SVN (after approval only)
 
 On approval you receive SVN commit access to `https://plugins.svn.wordpress.org/nemesis-shield/`.
 The SVN layout is **not** the same as the zip: code goes in `trunk/` + `tags/X.Y.Z/`, and the

@@ -1,4 +1,4 @@
-# Nemesis Shield — Go
+# Nemesis Shield - Go
 
 Native Go SDK for [Nemesis Shield](https://shield.nemesislabs.xyz). Learns your app's normal
 behavior; in **enforce mode BLOCKS off-baseline requests** (auth bypass, path traversal, scanners,
@@ -52,7 +52,7 @@ e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
 })
 ```
 
-Shortcut: Echo can adapt the net/http middleware directly — `e.Use(echo.WrapMiddleware(c.Middleware))`.
+Shortcut: Echo can adapt the net/http middleware directly - `e.Use(echo.WrapMiddleware(c.Middleware))`.
 
 ## Gorilla/mux
 
@@ -62,7 +62,7 @@ scanner hitting an unknown path (`/.env`, `/admin`) would bypass the shield. Wra
 ```go
 r := mux.NewRouter()
 // ...routes...
-handler := c.Middleware(r)          // NOT r.Use — see note above
+handler := c.Middleware(r)          // NOT r.Use - see note above
 http.ListenAndServe(":8080", handler)
 ```
 
@@ -96,7 +96,7 @@ blocked (403) *before the handler runs*.
 
 ## LLM Guard (OWASP LLM Top 10)
 
-Protect an LLM app/agent with the same **HashLR ML classifier** every Nemesis Shield SDK ships — it
+Protect an LLM app/agent with the same **HashLR ML classifier** every Nemesis Shield SDK ships - it
 catches obfuscated/paraphrased prompt injection that signature rules miss (e.g. `1gn0re pr3vi0us…`),
 and scores **identically in every language**.
 
@@ -105,7 +105,7 @@ import nemesis "github.com/eobi/nemesis_shield_sdks/go"
 
 v := nemesis.GuardLLM(userPrompt, true) // true = enforce
 if v.Blocked {
-    // refuse — v.Kind ("prompt_injection" | "ml_prompt_injection"), v.Score, v.Owasp ("LLM01")
+    // refuse - v.Kind ("prompt_injection" | "ml_prompt_injection"), v.Score, v.Owasp ("LLM01")
 }
 
 score := nemesis.MLInjectionScore(userPrompt) // 0..1, if you want the raw signal
@@ -116,7 +116,7 @@ The model (`ml_weights.json`) is embedded and can be updated centrally.
 
 ## Full coverage & safe-unlock
 
-**Mount it first / outermost** so *every* route is inspected (not just API routes — attackers hit any path):
+**Mount it first / outermost** so *every* route is inspected (not just API routes - attackers hit any path):
 
 ```
 handler := client.Middleware(rootMux)   // wrap the ROOT mux so all routes are covered
@@ -130,7 +130,7 @@ handler := client.Middleware(rootMux)   // wrap the ROOT mux so all routes are c
 export NEMESIS_SHIELD_BOOTSTRAP="/login,/admin,/healthz"
 ```
 
-**Verify coverage** — in observe mode, hit a normal route, a param, and a scanner path, then confirm all three appear in the console (Activity / Behaviors):
+**Verify coverage** - in observe mode, hit a normal route, a param, and a scanner path, then confirm all three appear in the console (Activity / Behaviors):
 
 ```bash
 curl -s "http://localhost:8080/" >/dev/null

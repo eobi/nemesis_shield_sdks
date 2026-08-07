@@ -1,4 +1,4 @@
-"""Deep coverage test — drives the real WSGI middleware end to end and proves the Python SDK SEES an
+"""Deep coverage test - drives the real WSGI middleware end to end and proves the Python SDK SEES an
 attacker's request from ANY route and blocks it in enforce mode: unknown paths, injected/extra query
 params, param-type / method / auth anomalies, knownBad. Also proves the safe-unlock (never block the
 login/auth path), fail-open (no baseline), and that query params now change the shape. Run:

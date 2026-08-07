@@ -1,4 +1,4 @@
-"""LLM Guard — mirrors the JS shared analyzeLLM. OWASP LLM Top 10 (2025) detection at the model
+"""LLM Guard - mirrors the JS shared analyzeLLM. OWASP LLM Top 10 (2025) detection at the model
 boundary, with identical shape hashes to the Node SDK. Includes blocking helpers (guard_llm /
 llm_should_block) at parity with the Node SDK so a Python app can enforce, not just observe."""
 
@@ -52,7 +52,7 @@ _INTERNAL_HOST = re.compile(
 )
 _URL_RE = re.compile(r"https?://([^/\s\"'<>)\]]+)", re.I)
 
-# Model self-refusal — informational (the app defended itself; never blocked).
+# Model self-refusal - informational (the app defended itself; never blocked).
 _REFUSAL = [
     (re.compile(r"\bI\s+(can'?t|cannot|won'?t|am\s+not\s+able\s+to|am\s+unable\s+to)\b", re.I), "refusal_cannot"),
     (re.compile(r"\bI'?m\s+sorry,?\s+but\b", re.I), "refusal_sorry"),
@@ -151,13 +151,13 @@ def analyze_llm(
     if (prompt_tokens or 0) > 12000 or (completion_tokens or 0) > 6000:
         detections.append({"kind": "excessive_output", "severity": "medium", "signal": "tokens_over_budget"})
 
-    # model self-refusal — informational only (never blocked).
+    # model self-refusal - informational only (never blocked).
     if response:
         for s in _scan(response, _REFUSAL):
             detections.append({"kind": "model_refused", "severity": "info", "signal": s})
             break
 
-    # ML classifier (HashLR) — catches obfuscated/paraphrased injection the regex layer misses. Runs
+    # ML classifier (HashLR) - catches obfuscated/paraphrased injection the regex layer misses. Runs
     # only when no injection-family regex fired, so it adds coverage without changing existing shapes.
     has_inj_family = any(d["kind"] in ("prompt_injection", "jailbreak", "indirect_injection") for d in detections)
     if not has_inj_family:

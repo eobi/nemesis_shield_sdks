@@ -1,4 +1,4 @@
-# LLM Guard for Ruby — OWASP-LLM-Top-10 detection with the HashLR ML classifier shared across every
+# LLM Guard for Ruby - OWASP-LLM-Top-10 detection with the HashLR ML classifier shared across every
 # Nemesis Shield SDK. Feature buckets are fnv1a(feature) % dim (the same hash used for HTTP sketches),
 # so scores match every other language. Char n-grams over a canonicalized (de-leetspeaked, ASCII-alnum)
 # form catch obfuscation the regex layer misses.
@@ -9,7 +9,7 @@ require_relative "nemesis_shield"
 module NemesisShield
   module LLM
     MODEL = JSON.parse(File.read(File.join(__dir__, "ml_weights.json"))).freeze
-    DIM = MODEL["dim"] # feature space is fixed across versions — only weights/bias/thresholds swap
+    DIM = MODEL["dim"] # feature space is fixed across versions - only weights/bias/thresholds swap
     # Swappable model state (module ivars so refresh_model can hot-swap a newer published version).
     @bias = MODEL["bias"]
     @weights = MODEL["weights"]
@@ -73,8 +73,8 @@ module NemesisShield
     def verify_model_signature(raw, sig_b64)
       require "openssl"
       require "base64"
-      return true if MODEL_PUBLIC_KEY_HEX.empty? # no key pinned — version gate + HTTPS apply
-      return false if sig_b64.nil? || sig_b64.empty? # key pinned but bundle unsigned — reject
+      return true if MODEL_PUBLIC_KEY_HEX.empty? # no key pinned - version gate + HTTPS apply
+      return false if sig_b64.nil? || sig_b64.empty? # key pinned but bundle unsigned - reject
       pk = OpenSSL::PKey.new_raw_public_key("ED25519", [MODEL_PUBLIC_KEY_HEX].pack("H*"))
       pk.verify(nil, Base64.strict_decode64(sig_b64), raw)
     rescue StandardError

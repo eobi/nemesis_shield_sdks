@@ -15,7 +15,7 @@ function ok($cond, $msg) {
 function section($t) { echo "\n\033[1m$t\033[0m\n"; }
 function hits($code) { return Nemesis_Shield_Scanner::scan_string($code); }
 
-echo "\033[1mNemesis Shield — malware scanner patterns\033[0m\n";
+echo "\033[1mNemesis Shield - malware scanner patterns\033[0m\n";
 
 section('1 · Catches high-signal backdoors');
 $malware = array(

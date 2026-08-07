@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <!-- net8.0 = modern ASP.NET Core; netstandard2.0 = broad reach (.NET Framework 4.6.1+, .NET 6/7/8,
-         .NET Core 2.0+) — the combination banks need for mixed legacy + modern estates. -->
+         .NET Core 2.0+) - the combination banks need for mixed legacy + modern estates. -->
     <TargetFrameworks>net8.0;netstandard2.0</TargetFrameworks>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
@@ -16,7 +16,7 @@
     <Version>0.1.3</Version>
     <Authors>Autogon Inc.</Authors>
     <Company>Nemesis Labs</Company>
-    <Description>Nemesis Shield — Sentinel SDK for .NET / ASP.NET Core. Positive-security runtime protection: learns your app's normal behavior and blocks off-baseline requests (auth bypass, BOLA, path traversal, scanners, unusual methods) in enforce mode BEFORE your endpoints run, plus an OWASP-LLM prompt-injection guard with an embedded ML model (byte-identical across all Nemesis Shield SDKs). One line: app.UseMiddleware&lt;NemesisShield.SentinelMiddleware&gt;(). Fail-open, privacy-preserving. Targets net8.0 + netstandard2.0 (.NET Framework 4.6.1+ / .NET 6/8 / .NET Core).</Description>
+    <Description>Nemesis Shield - Sentinel SDK for .NET / ASP.NET Core. Positive-security runtime protection: learns your app's normal behavior and blocks off-baseline requests (auth bypass, BOLA, path traversal, scanners, unusual methods) in enforce mode BEFORE your endpoints run, plus an OWASP-LLM prompt-injection guard with an embedded ML model (byte-identical across all Nemesis Shield SDKs). One line: app.UseMiddleware&lt;NemesisShield.SentinelMiddleware&gt;(). Fail-open, privacy-preserving. Targets net8.0 + netstandard2.0 (.NET Framework 4.6.1+ / .NET 6/8 / .NET Core).</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://nemesislabs.xyz</PackageProjectUrl>
     <RepositoryUrl>https://github.com/eobi/nemesis_shield_sdks</RepositoryUrl>

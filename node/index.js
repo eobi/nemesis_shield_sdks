@@ -1,5 +1,5 @@
-// Nemesis Shield — Sentinel SDK for Node. Native SDK: computes a privacy-preserving request shape
-// locally, learns your app's normal behavior, and — in enforce mode — BLOCKS off-baseline requests
+// Nemesis Shield - Sentinel SDK for Node. Native SDK: computes a privacy-preserving request shape
+// locally, learns your app's normal behavior, and - in enforce mode - BLOCKS off-baseline requests
 // (auth bypass, path traversal, scanners, unusual methods) before your routes run. Fail-open.
 //
 //   import { sentinel } from "@nemesis-shield-autogon/sentinel/express";
@@ -26,5 +26,5 @@ export async function reportLLM(token, exchange, opts = {}) {
   } catch { /* fail open */ }
 }
 
-// LLM Guard — OWASP-LLM-Top-10 detection + HashLR ML classifier (see lib/llm.js).
+// LLM Guard - OWASP-LLM-Top-10 detection + HashLR ML classifier (see lib/llm.js).
 export { guardLLM, mlInjectionScore, refreshModel, MODEL_VERSION, ML_BLOCK_THRESHOLD, ML_FLAG_THRESHOLD } from "./lib/llm.js";

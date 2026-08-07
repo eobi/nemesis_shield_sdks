@@ -1,6 +1,6 @@
-# Nemesis Shield — Sentinel SDK for Ruby (native: local shape + policy cache + inline blocking).
+# Nemesis Shield - Sentinel SDK for Ruby (native: local shape + policy cache + inline blocking).
 # Learns your app's normal behavior; in enforce mode blocks off-baseline requests (auth bypass, path
-# traversal, scanners, unusual methods) before your app runs. Works with any Rack app — Rails,
+# traversal, scanners, unusual methods) before your app runs. Works with any Rack app - Rails,
 # Sinatra, Hanami, raw Rack. Fail-open, privacy-preserving.
 #
 #   # Rails (config/application.rb):     config.middleware.use NemesisShield::Middleware, token: ENV["NEMESIS_TOKEN"]
@@ -12,7 +12,7 @@ require "thread"
 
 module NemesisShield
   DEFAULT_ENDPOINT = "https://shield.nemesislabs.xyz/api/v1/sketches".freeze
-  # Canonical value taxonomy — must match the shared engine (tokenize.ts) byte-for-byte so a Ruby
+  # Canonical value taxonomy - must match the shared engine (tokenize.ts) byte-for-byte so a Ruby
   # app and a Node/Python app produce identical shape hashes.
   UUID = /\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/i
   EMAIL = /\A[^@\s]+@[^@\s]+\.[^@\s]+\z/

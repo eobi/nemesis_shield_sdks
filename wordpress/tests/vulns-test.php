@@ -14,7 +14,7 @@ function ok($cond, $msg) {
 }
 function section($t) { echo "\n\033[1m$t\033[0m\n"; }
 
-echo "\033[1mNemesis Shield — vulnerability awareness\033[0m\n";
+echo "\033[1mNemesis Shield - vulnerability awareness\033[0m\n";
 
 section('1 · Inventory of installed plugins + themes');
 $GLOBALS['ns_plugins'] = array(

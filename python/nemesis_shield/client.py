@@ -1,4 +1,4 @@
-"""Sentinel client for Python — local policy cache (fast decisions), async batched fail-open
+"""Sentinel client for Python - local policy cache (fast decisions), async batched fail-open
 shipper. Mirrors the Node client's contract."""
 
 import json
@@ -101,7 +101,7 @@ class SentinelClient:
             return {"action": "block", "reason": "policy: blocked shape"}
         if shape in (self._policy.get("knownBad") or []):
             return {"action": "block", "reason": "global threat intelligence"}
-        # unknown shape: this app has never legitimately behaved this way. Block it — but only once
+        # unknown shape: this app has never legitimately behaved this way. Block it - but only once
         # the server has established a baseline (else a fresh app would block its own traffic).
         if self._have_baseline:
             return {"action": "block", "reason": "off-baseline: unapproved behavior"}
@@ -147,7 +147,7 @@ class SentinelClient:
                 self._on_error(e)  # drop batch; downtime is worse than telemetry loss
 
     def _merge_policy(self, p: dict):
-        # The server sends the full compiled allow-list each time — replace, so revoked approvals
+        # The server sends the full compiled allow-list each time - replace, so revoked approvals
         # (allow-list shrinking) propagate too.
         shapes = p.get("shapes")
         if shapes is not None:

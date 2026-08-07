@@ -3,7 +3,7 @@
     from nemesis_shield.wsgi import SentinelWSGI
     app.wsgi_app = SentinelWSGI(app.wsgi_app, token=os.environ["NEMESIS_TOKEN"])
 
-Observes every request, ships a privacy-preserving sketch, and — in enforce mode — blocks
+Observes every request, ships a privacy-preserving sketch, and - in enforce mode - blocks
 off-baseline requests (403) before the app ever sees them. Fail-open throughout.
 """
 

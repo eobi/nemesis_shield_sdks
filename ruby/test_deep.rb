@@ -1,4 +1,4 @@
-# Deep coverage test — drives the real Rack middleware end to end and proves the Ruby SDK SEES an
+# Deep coverage test - drives the real Rack middleware end to end and proves the Ruby SDK SEES an
 # attacker's request from ANY route and blocks it in enforce mode, plus the safe-unlock and fail-open.
 # Run: ruby test_deep.rb
 require_relative "nemesis_shield"
@@ -46,13 +46,13 @@ ALLOW = [
   shape_of("POST", "/api/orders", "", true),
 ]
 
-puts "\e[1mNemesis Shield — Ruby deep coverage test\e[0m"
+puts "\e[1mNemesis Shield - Ruby deep coverage test\e[0m"
 
 puts "\n\e[1m1 · query params change the shape\e[0m"
 ok(shape_of("GET", "/search", "q=x", false) != shape_of("GET", "/search", "q=x&inject=1", false), "adding a param changes the shape")
 ok(shape_of("GET", "/search", "q=shoes", false) != shape_of("GET", "/search", "q=' OR 1=1", false), "param kind change changes the shape")
 
-puts "\n\e[1m2 · enforce — attacks from ANY route blocked, approved passes\e[0m"
+puts "\n\e[1m2 · enforce - attacks from ANY route blocked, approved passes\e[0m"
 m = mw(allow: ALLOW)
 ok(!blocked?(m, path: "/"), "approved GET / passes")
 ok(!blocked?(m, path: "/products/999"), "approved GET /products/{int} passes")
@@ -70,7 +70,7 @@ puts "\n\e[1m3 · knownBad (global threat intel)\e[0m"
 bad = shape_of("POST", "/xmlrpc.php", "", false)
 ok(blocked?(mw(allow: ALLOW, known_bad: [bad]), method: "POST", path: "/xmlrpc.php"), "knownBad shape blocked")
 
-puts "\n\e[1m4 · safe-unlock — auth path never blocked\e[0m"
+puts "\n\e[1m4 · safe-unlock - auth path never blocked\e[0m"
 ok(!blocked?(m, method: "POST", path: "/login", qs: "next=x"), "/login never blocked")
 ok(!blocked?(m, path: "/wp-login.php"), "/wp-login.php never blocked")
 tight = mw(allow: ALLOW, bootstrap: ["/custom-auth"])

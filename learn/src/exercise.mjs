@@ -1,7 +1,7 @@
 // The exercise engine: turn discovered endpoints into realistic traffic. It authenticates once, then
 // walks every route generating plausible inputs (from OpenAPI schemas + field-name heuristics, refined
 // by the LLM when available), handling file uploads and reusing ids returned by earlier calls so CRUD
-// flows chain. This is the traffic Nemesis Shield learns from — the more of the app it touches, the
+// flows chain. This is the traffic Nemesis Shield learns from - the more of the app it touches, the
 // sooner the baseline is complete and you can enforce.
 
 import { request } from "./http.mjs";
@@ -108,7 +108,7 @@ async function buildRequest(ep, base, ids, llm) {
   let json, form, files = [];
   if (ep.form) {
     if (ep.method === "GET" || String(ep.form.method || "").toUpperCase() === "GET") {
-      // A GET form submits its fields as the query string — never a body.
+      // A GET form submits its fields as the query string - never a body.
       for (const f of ep.form.fields) if (f.type !== "file") qs.set(f.name, String(heuristicString(f.name)));
     } else {
       const fd = new FormData();

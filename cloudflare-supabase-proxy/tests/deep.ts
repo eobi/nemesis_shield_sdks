@@ -1,4 +1,4 @@
-// Deep test for the Cloudflare Worker proxy — drives the actual exported worker.fetch with a stubbed
+// Deep test for the Cloudflare Worker proxy - drives the actual exported worker.fetch with a stubbed
 // global fetch (mock Shield policy + mock Supabase backend) and proves: only /rest/ is guarded,
 // off-baseline DB queries are blocked (403), approved ones pass, non-DB paths forward untouched, and
 // the query STRUCTURE (PostgREST select/filter) is fed into the decision. Run: deno test tests/deep.ts

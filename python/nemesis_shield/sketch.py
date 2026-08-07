@@ -1,4 +1,4 @@
-"""Behavioral sketch — mirrors the JS shared package, producing identical shape hashes."""
+"""Behavioral sketch - mirrors the JS shared package, producing identical shape hashes."""
 
 from dataclasses import dataclass, field, asdict
 from typing import Any, Optional
@@ -82,7 +82,7 @@ def build_sketch(
     body_obj = body if isinstance(body, dict) else None
 
     params = _shape_params(query) + _shape_params(body_obj)
-    # dedupe by name (first wins), then sort by name — matches JS
+    # dedupe by name (first wins), then sort by name - matches JS
     seen = set()
     deduped = []
     for p in params:

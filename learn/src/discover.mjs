@@ -1,10 +1,10 @@
 // Route discovery from independent sources, merged. Any one is enough; together they aim for COMPLETE
-// coverage of an app in ANY language/framework, new or very old — because a route missed here becomes a
+// coverage of an app in ANY language/framework, new or very old - because a route missed here becomes a
 // false block the day you enforce. The goal is a seamless observe -> enforce transition.
 //
-//   1. OpenAPI/Swagger  — the strongest signal (methods, params, body schemas, security). Zero guessing.
-//   2. HTML crawl       — same-origin links, <form> actions, sitemap.xml, and URLs embedded in JS.
-//   3. Repo static scan — framework route patterns + config files + file/controller conventions:
+//   1. OpenAPI/Swagger  - the strongest signal (methods, params, body schemas, security). Zero guessing.
+//   2. HTML crawl       - same-origin links, <form> actions, sitemap.xml, and URLs embedded in JS.
+//   3. Repo static scan - framework route patterns + config files + file/controller conventions:
 //        modern:  Express/Fastify/Koa/Nest, FastAPI/Flask/Django, Rails/Sinatra, Laravel/Lumen/Slim,
 //                 Spring, Go (chi/gin/echo/gorilla), ASP.NET (MVC + minimal APIs).
 //        legacy:  CodeIgniter, CakePHP, Symfony (annotations/attributes), Yii, JAX-RS, Java Servlets,
@@ -87,7 +87,7 @@ export async function crawl(base, session, { maxPages = 40 } = {}) {
     endpoints.push({ method: "GET", path: pathOf(url), source: "crawl", params: [], body: null });
     if (!res.text) continue;
     const isHtml = (res.headers?.["content-type"] || "").includes("html");
-    // JS-embedded API URLs (fetch/axios/XHR/string literals) — catches SPA + AJAX endpoints.
+    // JS-embedded API URLs (fetch/axios/XHR/string literals) - catches SPA + AJAX endpoints.
     for (const u of extractJsUrls(res.text)) {
       const abs = safeUrl(u, url);
       if (abs && abs.startsWith(origin) && !isAsset(abs)) endpoints.push({ method: "GET", path: pathOf(abs), source: "crawl-js", params: [], body: null });
@@ -174,7 +174,7 @@ const ROUTE_PATTERNS = [
   { ext: ["rb"], re: /\bmatch\s+[`'"]([^`'"]+)[`'"]/gi, m: null, p: 1 },
   // PHP: Laravel / Lumen
   { ext: ["php"], re: /Route::(get|post|put|patch|delete|options|any|match)\s*\(\s*[`'"]([^`'"]+)[`'"]/gi, m: 1, p: 2 },
-  // PHP: Slim / Silex / Lumen closures — $app->get('/x', ...)  (require a leading-slash path to avoid $x->get('field'))
+  // PHP: Slim / Silex / Lumen closures - $app->get('/x', ...)  (require a leading-slash path to avoid $x->get('field'))
   { ext: ["php"], re: /\$\w+\s*->\s*(get|post|put|patch|delete|options|any|map)\s*\(\s*[`'"](\/[^`'"]*)[`'"]/gi, m: 1, p: 2 },
   // PHP: Symfony annotations + PHP8 attributes
   { ext: ["php"], re: /(?:@Route|#\[\s*Route)\s*\(\s*(?:path\s*[:=]\s*)?[`'"]([^`'"]+)[`'"]/g, m: null, p: 1 },
@@ -210,18 +210,18 @@ function parseConfigRoutes(name, src, file) {
   const eps = [];
   const push = (method, path) => { let p = normPath(path); if (p) eps.push({ method: normMethod(method), path: p, source: `repo-config:${file}`, params: [], body: null }); };
 
-  // CodeIgniter application/config/routes.php  — $route['from'] = 'controller/method';
+  // CodeIgniter application/config/routes.php  - $route['from'] = 'controller/method';
   if (/routes\.php$/i.test(name) && /\$route\s*\[/.test(src)) {
     const re = /\$route\s*\[\s*[`'"]([^`'"]+)[`'"]\s*\]\s*=/g; let m;
     const skip = new Set(["default_controller", "translate_uri_dashes", "404_override"]);
     while ((m = re.exec(src))) { const key = m[1]; if (skip.has(key)) continue; push("GET", "/" + key.replace(/\(:any\)/g, "*").replace(/\(:num\)/g, "*")); }
   }
-  // Java web.xml  — <url-pattern>/foo/*</url-pattern>
+  // Java web.xml  - <url-pattern>/foo/*</url-pattern>
   if (/web\.xml$/i.test(name)) {
     const re = /<url-pattern>\s*([^<\s]+)\s*<\/url-pattern>/gi; let m;
     while ((m = re.exec(src))) push("GET", m[1].replace(/\*$/, ""));
   }
-  // Struts  — <action name="save" ...>  -> /save.action and /save
+  // Struts  - <action name="save" ...>  -> /save.action and /save
   if (/struts.*\.xml$/i.test(name) || /struts\.xml$/i.test(name)) {
     const re = /<action\b[^>]*\bname\s*=\s*["']([^"'*]+)["']/gi; let m;
     while ((m = re.exec(src))) { push("GET", "/" + m[1] + ".action"); push("GET", "/" + m[1]); }
@@ -284,7 +284,7 @@ function classPrefix(src, ext) {
     return null;
   }
   if (["java", "kt", "scala", "groovy"].includes(ext)) {
-    // Spring class-level @RequestMapping — the one immediately preceding the class/interface declaration.
+    // Spring class-level @RequestMapping - the one immediately preceding the class/interface declaration.
     const m = src.match(/@RequestMapping\s*\(\s*(?:value\s*=\s*|path\s*=\s*)?\{?\s*[`'"]([^`'"]+)[`'"][\s\S]{0,500}?\b(?:public\s+|final\s+|abstract\s+)*(?:class|interface)\s/);
     if (m) return m[1];
     return null;
@@ -337,7 +337,7 @@ export function discoverRepo(dir, { maxFiles = 8000 } = {}) {
       if (e.isDirectory()) { if (!SKIP_DIRS.has(e.name) && !(e.name.startsWith(".") && e.name.length > 1)) walk(full); continue; }
       const file = relative(dir, full).split(sep).join("/");
 
-      // (a) File-per-route pass — classic PHP/ASP/JSP/CFM/CGI sites. Only inside the docroot and not in
+      // (a) File-per-route pass - classic PHP/ASP/JSP/CFM/CGI sites. Only inside the docroot and not in
       //     framework source dirs. This is the "nothing missing" catch-all for convention-routed apps.
       if (SERVE_EXT.test(e.name) && full.startsWith(webRoot) && !NONSERVE_SEG.test(file)) {
         endpoints.push(fileToRoute(full, webRoot, file));
@@ -353,7 +353,7 @@ export function discoverRepo(dir, { maxFiles = 8000 } = {}) {
       for (const ep of parseConfigRoutes(e.name, src, file)) endpoints.push(ep);
       // (c) Controller-convention routes (CodeIgniter/CakePHP).
       for (const ep of parseControllerConvention(e.name, src, file)) endpoints.push(ep);
-      // (d) Framework route DSL patterns — only those matching this file's language.
+      // (d) Framework route DSL patterns - only those matching this file's language.
       const ext = (e.name.match(/\.([a-z0-9]+)$/i) || [])[1]?.toLowerCase();
       const prefixRaw = ext ? classPrefix(src, ext) : null;         // NestJS @Controller / Spring class @RequestMapping
       const prefix = prefixRaw ? normPath(prefixRaw) : null;
@@ -409,7 +409,7 @@ function normPath(raw) {
   if (!p) return null;
   if (/^(https?:)?\/\//i.test(p)) { try { p = new URL(p.startsWith("//") ? "http:" + p : p).pathname; } catch { return null; } }
   p = p.split("?")[0].split("#")[0];
-  // Rails/Sinatra "get 'foo'" style, Yii "foo/bar" — ensure a leading slash.
+  // Rails/Sinatra "get 'foo'" style, Yii "foo/bar" - ensure a leading slash.
   if (!p.startsWith("/")) p = "/" + p;
   // Normalize placeholders: :id  {id}  <id>  <int:id>  (:num)  *  -> {seg}
   p = p.replace(/\(:num\)/g, "{id}").replace(/\(:any\)/g, "{seg}")

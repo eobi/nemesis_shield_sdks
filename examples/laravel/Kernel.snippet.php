@@ -1,5 +1,5 @@
 <?php
-// Manual registration (Option B) — only needed if you did NOT install via Composer auto-discovery.
+// Manual registration (Option B) - only needed if you did NOT install via Composer auto-discovery.
 // In app/Http/Kernel.php, require the file and add the middleware to the GLOBAL $middleware array so
 // it runs on every request. Put it FIRST so it can guard before your app's middleware in enforce mode.
 

@@ -1,5 +1,5 @@
 <?php
-// Minimal WordPress function/constant stubs — just enough to load the plugin and
+// Minimal WordPress function/constant stubs - just enough to load the plugin and
 // fire its `init` / `shutdown` / `rest_pre_dispatch` hooks in isolation, so the
 // gating logic can be exercised without a full WordPress install. The Docker e2e
 // covers the real WordPress path; this proves the behaviour deterministically.
@@ -55,7 +55,7 @@ function wp_json_encode($d, $o = 0, $depth = 512) { return json_encode($d, $o, $
 function status_header($code)        { $GLOBALS['ns_status'] = (int) $code; }
 function nocache_headers()           {}
 
-// UI helpers referenced only by the (unexercised) settings screen — stubbed so the
+// UI helpers referenced only by the (unexercised) settings screen - stubbed so the
 // file parses/loads cleanly if ever included in an admin context.
 function esc_attr($s)        { return htmlspecialchars((string) $s, ENT_QUOTES); }
 function esc_url_raw($s)     { return (string) $s; }
@@ -100,7 +100,7 @@ function is_wp_error($t) { return $t instanceof WP_Error; }
 function wp_remote_retrieve_response_code($r) { return is_array($r) ? ($r['response']['code'] ?? 0) : 0; }
 function wp_remote_retrieve_body($r) { return is_array($r) ? ($r['body'] ?? '') : ''; }
 
-// ── Transients (in-process; each test child starts empty, which is fine — it just refetches policy) ─
+// ── Transients (in-process; each test child starts empty, which is fine - it just refetches policy) ─
 $GLOBALS['ns_transients'] = array();
 function get_transient($k) { return $GLOBALS['ns_transients'][$k] ?? false; }
 function set_transient($k, $v, $ttl = 0) { $GLOBALS['ns_transients'][$k] = $v; return true; }

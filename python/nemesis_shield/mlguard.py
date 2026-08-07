@@ -1,4 +1,4 @@
-"""HashLR — ML prompt-injection classifier (Python). Byte-for-byte identical scoring to the JS/shared
+"""HashLR - ML prompt-injection classifier (Python). Byte-for-byte identical scoring to the JS/shared
 implementation: feature buckets are int(fnv1a(feature),16) % dim, char n-grams over a canonicalized
 (de-leetspeaked, ASCII-alnum) form. Complements the regex layer; catches obfuscation it misses."""
 
@@ -21,7 +21,7 @@ MODEL_VERSION = int(_MODEL.get("version", 1))
 
 
 def refresh_model(url: str | None = None, timeout: float = 5.0):
-    """Hot-swap the HashLR model from a cloud URL if a newer version is published — so the AI model
+    """Hot-swap the HashLR model from a cloud URL if a newer version is published - so the AI model
     can be retrained and pushed centrally without redeploying any SDK. Returns the new version number
     if updated, else None. Fail-safe: on any error the current (embedded) model is kept unchanged.
 
@@ -64,9 +64,9 @@ MODEL_PUBLIC_KEY_HEX = "79d81a3b41966b379a9ba719155b8713f70bb341c3e8fab09fd5563a
 
 def _verify_model_signature(raw: bytes, sig_b64) -> bool:
     if not MODEL_PUBLIC_KEY_HEX:
-        return True  # no key pinned yet — version gate + HTTPS still protect the swap
+        return True  # no key pinned yet - version gate + HTTPS still protect the swap
     if not sig_b64:
-        return False  # a key is pinned but the bundle is unsigned — reject
+        return False  # a key is pinned but the bundle is unsigned - reject
     try:
         import base64
         from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey

@@ -1,8 +1,8 @@
-//! Nemesis Shield — Sentinel SDK for Rust (native: local shape + policy cache + inline blocking).
+//! Nemesis Shield - Sentinel SDK for Rust (native: local shape + policy cache + inline blocking).
 //!
 //! Learns your app's normal behavior; in enforce mode **blocks off-baseline requests** (auth bypass,
 //! path traversal, scanners, unusual methods) before your handlers run. Positive-security, fail-open,
-//! privacy-preserving — ships only method + route shape + auth, never bodies or secrets. The console
+//! privacy-preserving - ships only method + route shape + auth, never bodies or secrets. The console
 //! flips observe↔enforce with no redeploy (a background thread polls the compiled policy).
 //!
 //! ```no_run
@@ -236,7 +236,7 @@ impl Client {
         }
     }
 
-    // Canonical value taxonomy — must match the shared engine (tokenize.ts) byte-for-byte.
+    // Canonical value taxonomy - must match the shared engine (tokenize.ts) byte-for-byte.
     fn kind_of(v: &str) -> &'static str {
         if v.is_empty() {
             "empty"
@@ -569,7 +569,7 @@ mod deep_coverage {
         let bad = shape(&r, "POST", "/xmlrpc.php", false);
         assert!(blocked(&client("enforce", &allow, &[bad]), "POST", "/xmlrpc.php", false));
 
-        // safe-unlock — auth path never blocked
+        // safe-unlock - auth path never blocked
         assert!(!blocked(&c, "POST", "/login?next=x", false));
         assert!(!blocked(&c, "GET", "/wp-login.php", false));
         assert!(!blocked(&c, "GET", "/wp-admin/options.php", false));

@@ -1,4 +1,4 @@
-// Deep behaviour test — proves the Node SDK SEES an attacker's request from ANY route and blocks it
+// Deep behaviour test - proves the Node SDK SEES an attacker's request from ANY route and blocks it
 // in enforce mode: unknown paths, injected/extra query params, param-type / method / auth anomalies,
 // and global threat-intel shapes. Also proves the safe-unlock (never block the login/auth path) and
 // fail-open (no baseline => nothing blocked). Run: node tests/deep.mjs
@@ -9,7 +9,7 @@ let pass = 0, fail = 0;
 const ok = (c, m) => (c ? (pass++, console.log("  \x1b[32m✓\x1b[0m " + m)) : (fail++, console.log("  \x1b[31m✗ " + m + "\x1b[0m")));
 const sec = (t) => console.log("\n\x1b[1m" + t + "\x1b[0m");
 
-// A client whose policy we control directly (no network) — this is exactly what every adapter holds.
+// A client whose policy we control directly (no network) - this is exactly what every adapter holds.
 function clientWith({ mode = "enforce", allow = [], knownBad = [], bootstrap } = {}) {
   const c = new SentinelClient({ token: "t", transport: async () => null, mode, bootstrap });
   c._policy = { shapes: Object.fromEntries(allow.map((s) => [s, "allow"])), knownBad };
@@ -21,7 +21,7 @@ const shapeOf = (o) => buildSketch(o).shape;
 const blocked = (c, req) =>
   c.mode === "enforce" && !c.neverBlock(req.path) && c.shouldBlock(c.decide(buildSketch(req)));
 
-console.log("\x1b[1mNemesis Shield — Node deep coverage test\x1b[0m");
+console.log("\x1b[1mNemesis Shield - Node deep coverage test\x1b[0m");
 
 // The site's learned "normal": home, a product-by-id page, and a search with one alnum query param.
 const BASE = [
@@ -40,7 +40,7 @@ ok(shapeOf({ method: "GET", path: "/search", query: { q: "shoes" } }) !==
    shapeOf({ method: "GET", path: "/search", query: { q: "1 OR 1=1" } }),
    "param KIND change (alnum → string payload) yields a different shape");
 
-sec("2 · enforce — attacker requests from ANY route are blocked");
+sec("2 · enforce - attacker requests from ANY route are blocked");
 const c = clientWith({ allow });
 ok(!blocked(c, { method: "GET", path: "/" }), "approved GET / passes");
 ok(!blocked(c, { method: "GET", path: "/products/999" }), "approved GET /products/{int} passes");
@@ -58,7 +58,7 @@ const badShape = shapeOf({ method: "POST", path: "/xmlrpc.php" });
 const c2 = clientWith({ allow, knownBad: [badShape] });
 ok(blocked(c2, { method: "POST", path: "/xmlrpc.php" }), "knownBad shape blocked by global intel");
 
-sec("4 · safe-unlock — the login/auth path is never blocked");
+sec("4 · safe-unlock - the login/auth path is never blocked");
 ok(!blocked(c, { method: "POST", path: "/login", query: { next: "x" } }), "/login never blocked (default bootstrap)");
 ok(!blocked(c, { method: "GET", path: "/wp-login.php" }), "/wp-login.php never blocked");
 ok(!blocked(c, { method: "GET", path: "/wp-admin/options.php" }), "/wp-admin never blocked");
@@ -66,7 +66,7 @@ const cTight = clientWith({ allow, bootstrap: ["/custom-auth"] });
 ok(blocked(cTight, { method: "POST", path: "/login" }), "custom bootstrap replaces default (/login now enforced)");
 ok(!blocked(cTight, { method: "POST", path: "/custom-auth" }), "custom bootstrap /custom-auth honored");
 
-sec("5 · fail-open — no baseline yet, nothing is blocked");
+sec("5 · fail-open - no baseline yet, nothing is blocked");
 const cEmpty = clientWith({ allow: [], knownBad: [] });
 ok(!blocked(cEmpty, { method: "GET", path: "/.env" }), "off-baseline passes while no baseline exists");
 

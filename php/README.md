@@ -1,4 +1,4 @@
-# Nemesis Shield — PHP
+# Nemesis Shield - PHP
 
 Native PHP SDK for [Nemesis Shield](https://shield.nemesislabs.xyz). Learns your app's normal
 behavior; in **enforce mode BLOCKS off-baseline requests** (auth bypass, path traversal, scanners,
@@ -14,7 +14,7 @@ if (NemesisShield::guard($token)) return;   // pre-dispatch block (enforce mode)
 NemesisShield::observe($token);             // record after the response
 ```
 
-**Laravel (Composer, 6+ / PHP 7.2+)** — zero-config via package auto-discovery:
+**Laravel (Composer, 6+ / PHP 7.2+)** - zero-config via package auto-discovery:
 ```bash
 composer require nemesislabs/sentinel
 ```
@@ -22,12 +22,12 @@ composer require nemesislabs/sentinel
 # .env
 NEMESIS_TOKEN=nsk_your_app_token
 ```
-`NemesisShieldServiceProvider` prepends the middleware to the global stack automatically — no
+`NemesisShieldServiceProvider` prepends the middleware to the global stack automatically - no
 `Kernel.php` edit. Full guide + manual (no-Composer) fallback + Namecheap/shared-hosting notes:
 [`examples/laravel/`](../examples/laravel/). (No Composer? drop `NemesisShield.php` +
-`NemesisShieldMiddleware.php` in and register the middleware yourself — see the example.)
+`NemesisShieldMiddleware.php` in and register the middleware yourself - see the example.)
 
-**Symfony** — register it as a PSR-15 middleware / kernel subscriber wrapping `guard`/`observe`.
+**Symfony** - register it as a PSR-15 middleware / kernel subscriber wrapping `guard`/`observe`.
 
 Observe (default) → learn & approve in the console → flip to **enforce** → off-baseline requests get
 `403 blocked_by_nemesis_shield`. Verified end-to-end (learn → enforce → attack) on raw PHP: legit
@@ -35,7 +35,7 @@ passes (200); attacks blocked (403).
 
 ## LLM Guard (OWASP LLM Top 10)
 
-The same HashLR ML classifier every Nemesis Shield SDK ships — catches obfuscated prompt injection
+The same HashLR ML classifier every Nemesis Shield SDK ships - catches obfuscated prompt injection
 signature rules miss, scored identically in every language.
 
 ```php
@@ -43,7 +43,7 @@ require 'NemesisShieldLLM.php';
 
 $v = NemesisShieldLLM::guardLLM($userPrompt, true); // enforce
 if ($v['blocked']) {
-    // refuse — $v['kind'], $v['score'], $v['owasp'] ("LLM01")
+    // refuse - $v['kind'], $v['score'], $v['owasp'] ("LLM01")
 }
 
 $score = NemesisShieldLLM::mlInjectionScore($userPrompt); // 0..1
@@ -53,7 +53,7 @@ Regex first, then ML. Blocks at ≥ 0.85 (high), flags at ≥ 0.45.
 
 ## Full coverage & safe-unlock
 
-**Mount it first / outermost** so *every* route is inspected (not just API routes — attackers hit any path):
+**Mount it first / outermost** so *every* route is inspected (not just API routes - attackers hit any path):
 
 ```
 if (NemesisShield::guard($token)) return;   // at the very top of the request, before routing
@@ -67,7 +67,7 @@ if (NemesisShield::guard($token)) return;   // at the very top of the request, b
 export NEMESIS_SHIELD_BOOTSTRAP="/login,/admin,/healthz"
 ```
 
-**Verify coverage** — in observe mode, hit a normal route, a param, and a scanner path, then confirm all three appear in the console (Activity / Behaviors):
+**Verify coverage** - in observe mode, hit a normal route, a param, and a scanner path, then confirm all three appear in the console (Activity / Behaviors):
 
 ```bash
 curl -s "http://localhost:8080/" >/dev/null

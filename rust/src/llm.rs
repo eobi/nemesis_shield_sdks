@@ -1,4 +1,4 @@
-//! LLM Guard for Rust — OWASP-LLM-Top-10 detection with the HashLR ML classifier shared across every
+//! LLM Guard for Rust - OWASP-LLM-Top-10 detection with the HashLR ML classifier shared across every
 //! Nemesis Shield SDK. Feature buckets are fnv1a(feature) % dim, identical to every other language;
 //! char n-grams over a canonicalized (de-leetspeaked, ASCII-alnum) form catch obfuscation the regex
 //! layer misses.
@@ -191,11 +191,11 @@ fn hex_to_bytes(s: &str) -> Option<Vec<u8>> {
 fn verify_model_signature(raw: &[u8], sig_b64: Option<&str>) -> bool {
     use base64::Engine;
     if MODEL_PUBLIC_KEY_HEX.is_empty() {
-        return true; // no key pinned — version gate + HTTPS apply
+        return true; // no key pinned - version gate + HTTPS apply
     }
     let sig_b64 = match sig_b64 {
         Some(s) if !s.is_empty() => s,
-        _ => return false, // key pinned but bundle unsigned — reject
+        _ => return false, // key pinned but bundle unsigned - reject
     };
     let key_bytes = match hex_to_bytes(MODEL_PUBLIC_KEY_HEX) {
         Some(k) if k.len() == 32 => k,

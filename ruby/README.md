@@ -1,11 +1,11 @@
-# Nemesis Shield — Ruby
+# Nemesis Shield - Ruby
 
 Native Ruby SDK for [Nemesis Shield](https://shield.nemesislabs.xyz). Learns your app's normal
 behavior; in **enforce mode BLOCKS off-baseline requests** (auth bypass, path traversal, scanners,
 unusual methods) before your app runs. One Rack middleware works with **Rails, Sinatra and any Rack
 app**. Positive-security, fail-open, privacy-preserving.
 
-**Rails** — `config/application.rb`:
+**Rails** - `config/application.rb`:
 ```ruby
 require "nemesis_shield"
 config.middleware.use NemesisShield::Middleware, token: ENV["NEMESIS_TOKEN"]
@@ -31,7 +31,7 @@ attacks blocked (403).
 
 ## LLM Guard (OWASP LLM Top 10)
 
-The same HashLR ML classifier every Nemesis Shield SDK ships — catches obfuscated/paraphrased prompt
+The same HashLR ML classifier every Nemesis Shield SDK ships - catches obfuscated/paraphrased prompt
 injection signature rules miss, scored identically in every language.
 
 ```ruby
@@ -47,7 +47,7 @@ Regex first, then ML. Blocks at ≥ 0.85 (high), flags at ≥ 0.45.
 
 ## Full coverage & safe-unlock
 
-**Mount it first / outermost** so *every* route is inspected (not just API routes — attackers hit any path):
+**Mount it first / outermost** so *every* route is inspected (not just API routes - attackers hit any path):
 
 ```
 use NemesisShield::Middleware, token: ENV["NEMESIS_TOKEN"]   # top of the Rack stack
@@ -61,7 +61,7 @@ use NemesisShield::Middleware, token: ENV["NEMESIS_TOKEN"]   # top of the Rack s
 export NEMESIS_SHIELD_BOOTSTRAP="/login,/admin,/healthz"
 ```
 
-**Verify coverage** — in observe mode, hit a normal route, a param, and a scanner path, then confirm all three appear in the console (Activity / Behaviors):
+**Verify coverage** - in observe mode, hit a normal route, a param, and a scanner path, then confirm all three appear in the console (Activity / Behaviors):
 
 ```bash
 curl -s "http://localhost:8080/" >/dev/null

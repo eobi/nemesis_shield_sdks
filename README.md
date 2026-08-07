@@ -1,20 +1,20 @@
-# Nemesis Shield — SDKs
+# Nemesis Shield - SDKs
 
-Official, open-source SDKs for [**Nemesis Shield**](https://shield.nemesislabs.xyz) — the unified
+Official, open-source SDKs for [**Nemesis Shield**](https://shield.nemesislabs.xyz) - the unified
 runtime security platform (application/API/LLM shield, telemetry correlation, network/DNS, response,
 and compliance). Drop one into your app and Nemesis **learns your app's normal behavior**, then
-flags — and, in enforce mode, blocks — anything that deviates. It's a positive-security (allow-list)
+flags - and, in enforce mode, blocks - anything that deviates. It's a positive-security (allow-list)
 model: instead of guessing at generic attack signatures, it enforces *"this app only ever behaves
 in these ways."*
 
-**Privacy by design:** the SDKs ship only behavioral *metadata* — HTTP method, the *shape* of the
+**Privacy by design:** the SDKs ship only behavioral *metadata* - HTTP method, the *shape* of the
 path (`/orders/123` → `/orders/{int}`), status code, and whether the caller was authenticated. They
 never send your request bodies, responses, secrets, or source code. Every SDK is **fail-open**: if
 Nemesis is unreachable, your app is completely unaffected.
 
 > **New app? Finish learning in minutes with [Nemesis Learn](learn/).** Drop in an SDK (observe mode),
-> then run one command and the agent exercises every route of your app in dev/staging — endpoints,
-> forms, uploads, CRUD flows — so the baseline completes without waiting on real traffic. It's
+> then run one command and the agent exercises every route of your app in dev/staging - endpoints,
+> forms, uploads, CRUD flows - so the baseline completes without waiting on real traffic. It's
 > language- and framework-agnostic (drives your app over HTTP), runs offline, can read your repo to
 > find routes, and reports coverage back so the console shows exactly when you're ready to enforce.
 > ```bash
@@ -33,11 +33,11 @@ Nemesis is unreachable, your app is completely unaffected.
 | **.NET / C#** | `dotnet add package NemesisShield` | ASP.NET Core middleware (net8.0 + netstandard2.0) → [`dotnet/`](dotnet/) |
 | **Rust** | `cargo add nemesis-shield` | axum (tower) / actix-web middleware → [`rust/`](rust/) |
 | **Edge / Supabase** (Deno TS) | `@nemesis-shield-autogon/edge` (npm) · `@nemesis-shield/edge` (JSR) | `withShield()` for Supabase Edge / Deno / CF Workers / Vercel Edge / Next.js → [`edge/`](edge/) |
-| **Supabase direct DB API** | Cloudflare Worker | reverse-proxy that guards `supabase.from()` (PostgREST) — off-baseline table/verb/auth blocked before your DB → [`cloudflare-supabase-proxy/`](cloudflare-supabase-proxy/) |
+| **Supabase direct DB API** | Cloudflare Worker | reverse-proxy that guards `supabase.from()` (PostgREST) - off-baseline table/verb/auth blocked before your DB → [`cloudflare-supabase-proxy/`](cloudflare-supabase-proxy/) |
 
 ### Front-end (browser)
 
-The back-end SDKs above protect the server. The **browser SDK** protects the *other* half — the
+The back-end SDKs above protect the server. The **browser SDK** protects the *other* half - the
 client-side attacks a WAF and a backend never see. Built **checkout-grade** for payment / e-commerce
 pages: it blocks card-skimming **data exfiltration across every channel** (fetch, XHR, beacon, image
 beacons, WebSocket, EventSource), **Magecart/injected scripts**, and **form-jacking**; detects inline
@@ -48,16 +48,16 @@ tampering, field injection, and **clickjacking**; and maps directly to **PCI DSS
 |---|---|---|
 | **React · Angular · Vue · jQuery · plain JS** | `@nemesis-shield-autogon/browser` | one `<script data-token>` tag, or `NemesisShield.init({token})` → [`browser/`](browser/) |
 
-One SDK covers every framework — they all share the same browser primitives.
+One SDK covers every framework - they all share the same browser primitives.
 
-> **Using TypeScript?** There's no separate TS SDK — TypeScript is these same runtimes. Node backends
+> **Using TypeScript?** There's no separate TS SDK - TypeScript is these same runtimes. Node backends
 > use [`@nemesis-shield-autogon/sentinel`](node/) (ships `.d.ts`), Supabase Edge / Deno / Workers use
 > [`edge/`](edge/), and TS front-ends use [`@nemesis-shield-autogon/browser`](browser/) (ships `.d.ts`).
 
 ## Get a token
 
 1. Sign up at **[shield.nemesislabs.xyz](https://shield.nemesislabs.xyz)** (free, no card).
-2. **Protect an app** — you'll get a one-time install token (`nsk_…`).
+2. **Protect an app** - you'll get a one-time install token (`nsk_…`).
 3. Add the SDK below, set the token, deploy. Traffic starts building a per-app baseline immediately;
    review learned behaviors and approve/block them in the console.
 
@@ -92,19 +92,19 @@ http.ListenAndServe(":8080", handler)
 use NemesisShield::Middleware, token: ENV["NEMESIS_TOKEN"]
 ```
 
-**PHP** — `composer require nemesislabs/sentinel` (Laravel auto-discovers the middleware; raw PHP:)
+**PHP** - `composer require nemesislabs/sentinel` (Laravel auto-discovers the middleware; raw PHP:)
 ```php
 NemesisShield::guard(getenv('NEMESIS_TOKEN'));                                        // block off-baseline
 register_shutdown_function(fn() => NemesisShield::observe(getenv('NEMESIS_TOKEN'))); // learn
 ```
 
-**WordPress** — a full security plugin: the AI behavioral firewall plus brute-force login lockout, malware / file-integrity scanning, and vulnerability alerts. Drop the [`wordpress/nemesis-shield/`](wordpress/) plugin into `wp-content/plugins/`, activate, and set the token:
+**WordPress** - a full security plugin: the AI behavioral firewall plus brute-force login lockout, malware / file-integrity scanning, and vulnerability alerts. Drop the [`wordpress/nemesis-shield/`](wordpress/) plugin into `wp-content/plugins/`, activate, and set the token:
 ```php
 // wp-config.php
 define('NEMESIS_SHIELD_TOKEN', 'nsk_your_site_token');
 ```
 
-**Java** — `io.github.eobi:sentinel` on Maven Central (Spring Boot filter, or raw:)
+**Java** - `io.github.eobi:sentinel` on Maven Central (Spring Boot filter, or raw:)
 ```java
 import io.github.eobi.sentinel.NemesisShield;
 var nemesis = new NemesisShield(System.getenv("NEMESIS_TOKEN"));
@@ -112,19 +112,19 @@ if (nemesis.guard(method, path, authed, exchange)) return;   // block off-baseli
 nemesis.observe(method, path, authed, status);               // learn
 ```
 
-**.NET / C#** — `dotnet add package NemesisShield` (net8.0 + netstandard2.0 / .NET Framework 4.6.1+)
+**.NET / C#** - `dotnet add package NemesisShield` (net8.0 + netstandard2.0 / .NET Framework 4.6.1+)
 ```csharp
-// Program.cs — register FIRST (before UseRouting) so it inspects every request, incl. unmatched paths
+// Program.cs - register FIRST (before UseRouting) so it inspects every request, incl. unmatched paths
 app.UseMiddleware<NemesisShield.SentinelMiddleware>();   // set NEMESIS_TOKEN in env
 ```
 
-**Rust** (axum / actix — see [`rust/`](rust/) for the middleware)
+**Rust** (axum / actix - see [`rust/`](rust/) for the middleware)
 ```rust
 let shield = nemesis_shield::Client::new(std::env::var("NEMESIS_TOKEN").unwrap_or_default());
 // .layer(middleware::from_fn_with_state(shield.clone(), shield_mw))
 ```
 
-**Edge** (Deno / Cloudflare Workers / Vercel Edge / Supabase / Next.js middleware) — `npm i @nemesis-shield-autogon/edge` or `deno add jsr:@nemesis-shield/edge`
+**Edge** (Deno / Cloudflare Workers / Vercel Edge / Supabase / Next.js middleware) - `npm i @nemesis-shield-autogon/edge` or `deno add jsr:@nemesis-shield/edge`
 ```ts
 import { withShield } from "@nemesis-shield-autogon/edge";
 // wraps any Web-standard (Request) => Response; same line on every edge runtime:
@@ -135,15 +135,15 @@ Deno.serve(withShield(handler, { token: Deno.env.get("NEMESIS_TOKEN") }));   // 
 ## How enforcement works (all SDKs)
 
 Every SDK is **native**: it computes the privacy-preserving request *shape* locally, caches the
-compiled policy, and makes the block decision **in-process, before your handler runs** — no proxy,
+compiled policy, and makes the block decision **in-process, before your handler runs** - no proxy,
 no sidecar, no per-request round-trip.
 
-1. **Observe** (default) — the SDK records the shape of each request and builds a per-app baseline.
-2. **Approve** — review learned behaviors in the console; approve the legitimate ones (auto-approved
+1. **Observe** (default) - the SDK records the shape of each request and builds a per-app baseline.
+2. **Approve** - review learned behaviors in the console; approve the legitimate ones (auto-approved
    during the learning window).
-3. **Enforce** — flip the app to enforce in the console. Requests whose shape isn't in the approved
+3. **Enforce** - flip the app to enforce in the console. Requests whose shape isn't in the approved
    baseline are blocked with `403 blocked_by_nemesis_shield` and reported as findings. **No redeploy**
-   — a background poller picks up the mode change (PHP refreshes a short-TTL policy cache instead).
+   - a background poller picks up the mode change (PHP refreshes a short-TTL policy cache instead).
 
 Verified end-to-end (learn → enforce → attack, real blocking) across **8 languages / ~20 frameworks**:
 Python (FastAPI/Flask/Django), Node (Express/Fastify/Koa), Go (net/http/Chi/Gin/Echo), Ruby
@@ -154,7 +154,7 @@ Rust (axum/actix). Legit traffic passes; auth bypass, BOLA, path traversal and s
 
 The Node and Python SDKs also report LLM exchanges for OWASP-LLM-Top-10 behavioral protection
 (prompt injection, jailbreak, system-prompt leak, unauthorized tool calls, sensitive output). Only
-detection labels and shapes are stored — never raw prompts or responses.
+detection labels and shapes are stored - never raw prompts or responses.
 
 ```js
 import { reportLLM } from "@nemesis-shield-autogon/sentinel";
@@ -163,11 +163,11 @@ await reportLLM(token, { prompt, system, response, tools, allowedTools: ["search
 
 ## License
 
-[MIT](LICENSE) © Autogon Inc. — use them freely, in any project.
+[MIT](LICENSE) © Autogon Inc. - use them freely, in any project.
 
 ## Coverage & safe-unlock (all SDKs)
 
-Every backend SDK is mounted **outermost** so it sees *every* route (attacks come from any path, not just your API), and the request **shape now includes query-param structure** — names + kinds, never values — so param tampering, injected params, and type anomalies on a *known* route are caught, not just unknown paths. Path-traversal segments normalize to `{traversal}`.
+Every backend SDK is mounted **outermost** so it sees *every* route (attacks come from any path, not just your API), and the request **shape now includes query-param structure** - names + kinds, never values - so param tampering, injected params, and type anomalies on a *known* route are caught, not just unknown paths. Path-traversal segments normalize to `{traversal}`.
 
 Enforcement covers **every route with a break-glass**: the login/auth path is never blocked, so a still-learning baseline can't lock you out. Defaults: `/login /signin /sign-in /auth /oauth /session /wp-login.php /wp-admin`. Override per app:
 
