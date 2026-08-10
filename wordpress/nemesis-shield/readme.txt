@@ -4,7 +4,7 @@ Tags: security, firewall, waf, malware, brute-force
 Requires at least: 5.9
 Tested up to: 7.0
 Requires PHP: 7.2
-Stable tag: 1.0.1
+Stable tag: 1.0.2
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -114,6 +114,9 @@ Yes. Set the endpoint under **Settings → Nemesis Shield → Endpoint (advanced
 2. An off-baseline request blocked with a 403 blocked_by_nemesis_shield response, stopped before WordPress ran.
 
 == Changelog ==
+
+= 1.0.2 =
+* Tokenizer parity: hostname path segments now normalize to `{domain}` and underscored generated ids to `{id}`, matching the other Nemesis Shield SDKs so shape hashes stay identical across platforms.
 
 = 1.0.0 =
 * Initial release.

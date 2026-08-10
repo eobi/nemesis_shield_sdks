@@ -3,7 +3,7 @@
  * Plugin Name:       Nemesis Shield
  * Plugin URI:        https://shield.nemesislabs.xyz
  * Description:       AI behavioral firewall for WordPress: learns your site's normal behaviour and blocks off-baseline requests (including zero-day and business-logic attacks signatures miss), backed by the Nemesis Shield service. Adds brute-force login protection, malware / file-integrity scanning, and vulnerability alerts. Privacy-preserving, fail-open.
- * Version:           1.0.1
+ * Version:           1.0.2
  * Requires at least: 5.9
  * Requires PHP:      7.2
  * Author:            Nemesis Labs

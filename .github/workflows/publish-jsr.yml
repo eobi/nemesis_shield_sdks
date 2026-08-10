@@ -1,0 +1,25 @@
+# Publishes the edge SDK to JSR (jsr.io) via keyless GitHub OIDC - no stored token.
+#
+# ONE-TIME setup before the first run (manual, on jsr.io):
+#   1. Create the scope `@nemesis-shield-autogon` (sign in with GitHub).
+#   2. In the scope's settings, add this GitHub repo (eobi/nemesis_shield_sdks) as a
+#      publisher / link it, so OIDC from this workflow is trusted.
+# After that, run this workflow from the Actions tab (workflow_dispatch). The version is
+# read from edge/jsr.json - bump it there for each release.
+name: publish-jsr
+on:
+  workflow_dispatch: {}
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write   # required for JSR OIDC
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Publish edge to JSR
+        working-directory: edge
+        run: npx -y jsr publish

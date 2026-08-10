@@ -104,6 +104,17 @@ class NemesisShieldWP
                         $segs[$i] = '{id}';
                     }
                     break;
+                default:
+                    // Hostnames (network-zone routes) collapse to {domain}; underscored generated ids that
+                    // carry a digit (or are very long) collapse to {id}. Kebab route names (iso-27001) stay literal.
+                    if (preg_match('/^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}$/i', $s)) {
+                        $segs[$i] = '{domain}';
+                        break;
+                    }
+                    if (strpos($s, '_') !== false && (preg_match('/\d/', $s) || strlen($s) >= 20)) {
+                        $segs[$i] = '{id}';
+                        break;
+                    }
             }
         }
         $out = implode('/', $segs);

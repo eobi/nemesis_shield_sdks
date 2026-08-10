@@ -1,6 +1,6 @@
 {
-  "name": "@nemesis-shield/edge",
-  "version": "0.1.2",
+  "name": "@nemesis-shield-autogon/edge",
+  "version": "0.1.3",
   "license": "MIT",
   "exports": "./nemesis-shield.ts",
   "publish": {
