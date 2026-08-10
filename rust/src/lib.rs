@@ -25,6 +25,16 @@ use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
 use std::time::Duration;
 
+use once_cell::sync::Lazy;
+use regex::Regex;
+
+// A hostname path segment (network-zone routes like example.com, sub.example.co.uk). Path segments
+// almost never contain dots except hostnames, so collapsing these to {domain} stops per-domain shape
+// explosion. Deliberately LOOKAHEAD-FREE so it ports byte-identically to the JS/Go reference and the
+// RE2/`regex` engine here. Mirrors RE.domain in packages/shared/src/tokenize.ts.
+static DOMAIN_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"(?i)^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}$").unwrap());
+
 pub const DEFAULT_ENDPOINT: &str = "https://shield.nemesislabs.xyz/api/v1/sketches";
 
 pub mod llm;
@@ -223,8 +233,23 @@ impl Client {
                     "uuid" => "{uuid}".to_string(),
                     "hex" => "{hex}".to_string(),
                     "base64" => "{token}".to_string(),
+                    // a long alnum segment is likely an id - unless it reads like a word / route name
                     "alnum" if s.len() >= 12 && !Self::has_word_run(s) => "{id}".to_string(),
-                    _ => s.to_string(),
+                    "alnum" => s.to_string(),
+                    _ => {
+                        // Hostnames (network-zone routes) collapse to {domain}; underscored generated ids
+                        // that carry a digit (or are very long) collapse to {id}. Route names are single
+                        // words or kebab-case and never carry underscores, so kebab like "iso-27001" stays.
+                        if DOMAIN_RE.is_match(s) {
+                            "{domain}".to_string()
+                        } else if s.contains('_')
+                            && (s.bytes().any(|b| b.is_ascii_digit()) || s.len() >= 20)
+                        {
+                            "{id}".to_string()
+                        } else {
+                            s.to_string()
+                        }
+                    }
                 }
             })
             .collect::<Vec<_>>()

@@ -36,6 +36,12 @@ public sealed class SentinelClient
     private static readonly Regex Alnum = new("^[A-Za-z0-9]+$", RegexOptions.Compiled);
     // A run of 7+ letters => reads like a word / route name, not an opaque id/token.
     private static readonly Regex Word = new("[A-Za-z]{7,}", RegexOptions.Compiled);
+    // A hostname path segment (network-zone routes like example.com, sub.example.co.uk). Path segments
+    // almost never carry dots except hostnames, so collapsing these to {domain} stops per-domain shape
+    // explosion. Lookahead-free so it ports byte-identically to RE2 engines (Go, Rust regex).
+    private static readonly Regex Domain = new(@"^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    // A digit, used to tell a generated composite id (inc_ip_1_2_3_4_178..) from a snake_case word.
+    private static readonly Regex Digit = new(@"\d", RegexOptions.Compiled);
 
     internal static string KindOf(string s)
     {
@@ -154,15 +160,26 @@ public sealed class SentinelClient
         var segs = path.Split('/');
         for (var i = 0; i < segs.Length; i++)
         {
-            if (segs[i].Length == 0) continue;
-            if (segs[i].Contains("..")) { segs[i] = "{traversal}"; continue; } // keeps ".." out of telemetry
-            switch (KindOf(segs[i]))
+            var seg = segs[i];
+            if (seg.Length == 0) continue;
+            // Tokenize the RAW (un-decoded) segment, byte-identically to the edge SDK reference - so every
+            // SDK agrees on the shape hash without depending on locale / URL-decoding differences.
+            if (seg.Contains("..")) { segs[i] = "{traversal}"; continue; } // keeps ".." out of telemetry
+            switch (KindOf(seg))
             {
                 case "int": case "float": segs[i] = "{int}"; break;
                 case "uuid": segs[i] = "{uuid}"; break;
                 case "hex": segs[i] = "{hex}"; break;
                 case "base64": segs[i] = "{token}"; break;
-                case "alnum": if (segs[i].Length >= 12 && !Word.IsMatch(segs[i])) segs[i] = "{id}"; break;
+                // a long alnum segment is likely an id - unless it reads like a word / route name
+                case "alnum": segs[i] = seg.Length >= 12 && !Word.IsMatch(seg) ? "{id}" : seg; break;
+                default:
+                    // Hostnames (network-zone routes) collapse to {domain}; underscored generated ids that
+                    // carry a digit (or are very long) collapse to {id}. Route names are single words or
+                    // kebab-case and never carry underscores, so kebab segments like "iso-27001" stay literal.
+                    if (Domain.IsMatch(seg)) segs[i] = "{domain}";
+                    else if (seg.IndexOf('_') >= 0 && (Digit.IsMatch(seg) || seg.Length >= 20)) segs[i] = "{id}";
+                    break;
             }
         }
         var outp = string.Join("/", segs);

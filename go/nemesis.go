@@ -70,6 +70,12 @@ var (
 	reAlnum = regexp.MustCompile(`^[A-Za-z0-9]+$`)
 	// A run of 7+ letters => reads like a word / route name, not an opaque id/token.
 	reWord = regexp.MustCompile(`[A-Za-z]{7,}`)
+	// A hostname path segment (network-zone routes like example.com, sub.example.co.uk). Path segments
+	// almost never contain dots except hostnames, so collapsing these to {domain} stops per-domain shape
+	// explosion. Lookahead-free (RE2-safe), byte-identical to the shared engine (tokenize.ts).
+	reDomain = regexp.MustCompile(`(?i)^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}$`)
+	// A digit, used to tell a generated composite id (inc_ip_1_2_3_4_178..) from a snake_case word.
+	reDigit = regexp.MustCompile(`\d`)
 )
 
 // Param is a query-parameter shape (name + kind, never the value).
@@ -148,6 +154,15 @@ func normalizePath(path string) string {
 			segs[i] = "{token}"
 		case "alnum":
 			if len(s) >= 12 && !reWord.MatchString(s) {
+				segs[i] = "{id}"
+			}
+		default:
+			// Hostnames (network-zone routes) collapse to {domain}; underscored generated ids that carry
+			// a digit (or are very long) collapse to {id}. Route names are single words or kebab-case and
+			// never carry underscores, so kebab segments like "iso-27001" stay literal.
+			if reDomain.MatchString(s) {
+				segs[i] = "{domain}"
+			} else if strings.Contains(s, "_") && (reDigit.MatchString(s) || len(s) >= 20) {
 				segs[i] = "{id}"
 			}
 		}

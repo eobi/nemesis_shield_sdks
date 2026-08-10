@@ -1,0 +1,46 @@
+{
+  "_comment": "CANONICAL tokenizer parity vectors. Every Nemesis Shield SDK (node/python/ruby/go/rust/php/java/dotnet/browser/edge) MUST normalize each `path` to exactly `expect`. This is the source of truth for cross-SDK byte-parity. Keep in sync with packages/shared/src/tokenize.ts.",
+  "normalizePath": [
+    { "path": "/", "expect": "/", "why": "root" },
+    { "path": "/app", "expect": "/app", "why": "single short word" },
+    { "path": "/app/network/protection", "expect": "/app/network/protection", "why": "words stay literal" },
+    { "path": "/app/api-security", "expect": "/app/api-security", "why": "kebab, no digit, stays literal" },
+    { "path": "/app/compliance/iso-27001", "expect": "/app/compliance/iso-27001", "why": "kebab WITH digit but no underscore -> literal (framework route)" },
+    { "path": "/app/models/edge", "expect": "/app/models/edge", "why": "enumerable product name literal" },
+    { "path": "/app/omniguard/transactions", "expect": "/app/omniguard/transactions", "why": "12-char word stays literal (WORD guard)" },
+    { "path": "/app/administration", "expect": "/app/administration", "why": "14-char word (over-collapse regression) stays literal" },
+    { "path": "/app/getAllReportDataTable", "expect": "/app/getAllReportDataTable", "why": "camelCase route name >=16 stays literal (WORD guard on base64)" },
+
+    { "path": "/app/applications/f47ac10b-58cc-4372-a567-0e02b2c3d479", "expect": "/app/applications/{uuid}", "why": "uuid" },
+    { "path": "/app/incidents/inc_ip_113_31_186_196_1786400000000", "expect": "/app/incidents/{id}", "why": "underscored composite id with digits" },
+    { "path": "/app/incidents/inc_app_2aec4f94_8cf1_4746_b06b_1786", "expect": "/app/incidents/{id}", "why": "underscored composite id" },
+    { "path": "/app/incidents/inc_device_127_0_0_1_1786", "expect": "/app/incidents/{id}", "why": "underscored composite id" },
+    { "path": "/app/incidents/inc_domain_icann_org_1785561604856", "expect": "/app/incidents/{id}", "why": "underscored composite id" },
+    { "path": "/app/omniguard/functions/og_2aec4f94_1786400000000", "expect": "/app/omniguard/functions/{id}", "why": "og_ prefixed composite id" },
+    { "path": "/tokens/nsk_9fA2bC7dE1fG3hJ5kL8mN0p", "expect": "/tokens/{id}", "why": "nsk_ token underscored" },
+
+    { "path": "/x/12345", "expect": "/x/{int}", "why": "int" },
+    { "path": "/x/-42", "expect": "/x/{int}", "why": "negative int" },
+    { "path": "/x/3.14", "expect": "/x/{int}", "why": "float -> {int}" },
+    { "path": "/x/a1b2c3d4e5f6a1b2", "expect": "/x/{hex}", "why": "16-char hex" },
+    { "path": "/x/deadbeefdeadbeef1234", "expect": "/x/{hex}", "why": "long hex" },
+    { "path": "/x/AbC123dEf456GhIjK", "expect": "/x/{token}", "why": "opaque 16+ mixed alnum, no 7-letter word -> base64/{token}" },
+    { "path": "/x/aVeryLongOpaqueId123", "expect": "/x/aVeryLongOpaqueId123", "why": "has a 7+ letter run -> reads like a word, stays literal" },
+    { "path": "/x/x1y2z3a4b5c6", "expect": "/x/{id}", "why": "12-char alnum, no 7-letter word -> {id}" },
+
+    { "path": "/app/network/autogon.ai", "expect": "/app/network/{domain}", "why": "hostname" },
+    { "path": "/app/network/pools.com.ng", "expect": "/app/network/{domain}", "why": "multi-part TLD hostname" },
+    { "path": "/app/network/sub.example.co.uk", "expect": "/app/network/{domain}", "why": "subdomain + 2-part TLD" },
+    { "path": "/app/network/vulnapps.xyz", "expect": "/app/network/{domain}", "why": "hostname" },
+    { "path": "/app/network/xn--80ak6aa92e.com", "expect": "/app/network/{domain}", "why": "punycode host" },
+
+    { "path": "/x/../etc/passwd", "expect": "/x/{traversal}/etc/passwd", "why": "literal .. traversal segment" },
+    { "path": "/x/%2e%2e/y", "expect": "/x/%2e%2e/y", "why": "raw segment is NOT url-decoded (parity: matches edge) so %2e%2e stays literal" },
+    { "path": "/x/user%40host", "expect": "/x/user%40host", "why": "raw segment not decoded; stays literal" },
+
+    { "path": "/app/findings?status=open", "expect": "/app/findings", "why": "query string stripped" },
+    { "path": "/app/findings#frag", "expect": "/app/findings", "why": "fragment stripped" },
+    { "path": "/APP/Findings", "expect": "/APP/Findings", "why": "case preserved for word segments" },
+    { "path": "/x/1.2.3.4", "expect": "/x/1.2.3.4", "why": "ipv4 in path stays literal (matches edge 0.1.3)" }
+  ]
+}

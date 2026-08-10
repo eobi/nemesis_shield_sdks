@@ -18,6 +18,12 @@ _RE = {
     "alnum": re.compile(r"^[A-Za-z0-9]+$"),
     # A run of 7+ letters => reads like a word / route name, not an opaque id/token.
     "word": re.compile(r"[A-Za-z]{7,}"),
+    # A hostname path segment (network-zone routes like example.com, sub.example.co.uk). Path segments
+    # almost never contain dots except hostnames, so collapsing these to {domain} stops per-domain shape
+    # explosion. Deliberately LOOKAHEAD-FREE so it ports byte-identically to RE2 engines (Go, Rust regex).
+    "domain": re.compile(r"^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}$", re.I),
+    # A digit, used to tell a generated composite id (inc_ip_1_2_3_4_178..) from a snake_case word.
+    "digit": re.compile(r"\d"),
 }
 
 
@@ -81,11 +87,12 @@ def length_bucket(n: int) -> str:
 def _norm_seg(seg: str) -> str:
     if seg == "":
         return seg
+    # Path traversal never survives into telemetry as a real segment. The RAW (un-decoded) segment is
+    # tokenized, byte-identically to the edge SDK reference - so every SDK agrees on the shape hash
+    # without depending on locale/URL-decoding differences across languages.
     if ".." in seg:
-        return "{traversal}"  # path-traversal segment (also keeps ".." out of telemetry)
-    from urllib.parse import unquote
-
-    kind = classify(unquote(seg))
+        return "{traversal}"
+    kind = classify(seg)
     if kind in ("int", "float"):
         return "{int}"
     if kind == "uuid":
@@ -95,7 +102,15 @@ def _norm_seg(seg: str) -> str:
     if kind == "base64":
         return "{token}"
     if kind == "alnum":
+        # a long alnum segment is likely an id - unless it reads like a word / route name
         return "{id}" if len(seg) >= 12 and not _RE["word"].search(seg) else seg
+    # Hostnames (network-zone routes) collapse to {domain}; underscored generated ids that carry a
+    # digit (or are very long) collapse to {id}. Route names are single words or kebab-case and never
+    # carry underscores, so kebab segments like "iso-27001" stay literal.
+    if _RE["domain"].search(seg):
+        return "{domain}"
+    if "_" in seg and (_RE["digit"].search(seg) or len(seg) >= 20):
+        return "{id}"
     return seg
 
 

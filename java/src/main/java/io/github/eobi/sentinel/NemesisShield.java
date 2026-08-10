@@ -39,6 +39,12 @@ public class NemesisShield {
     private static final Pattern ALNUM = Pattern.compile("^[A-Za-z0-9]+$");
     // A run of 7+ letters => reads like a word / route name, not an opaque id/token.
     private static final Pattern WORD = Pattern.compile("[A-Za-z]{7,}");
+    // A hostname path segment (network-zone routes like example.com, sub.example.co.uk). Path segments
+    // almost never contain dots except hostnames, so collapsing these to {domain} stops per-domain shape
+    // explosion. Lookahead-free to port byte-identically to RE2 engines (Go, Rust), matching tokenize.ts.
+    private static final Pattern DOMAIN = Pattern.compile("^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,24}$", Pattern.CASE_INSENSITIVE);
+    // A digit, used to tell a generated composite id (inc_ip_1_2_3_4_178..) from a snake_case word.
+    private static final Pattern DIGIT = Pattern.compile("\\d");
 
     static String kindOf(String s) {
         if (s == null || s.isEmpty()) return "empty";
@@ -169,19 +175,30 @@ public class NemesisShield {
         int h = path.indexOf('#');
         if (h >= 0) path = path.substring(0, h);
         String[] segs = path.split("/", -1);
-        for (int i = 0; i < segs.length; i++) {
-            if (segs[i].isEmpty()) continue;
-            if (segs[i].contains("..")) { segs[i] = "{traversal}"; continue; } // keeps ".." out of telemetry
-            switch (kindOf(segs[i])) {
-                case "int": case "float": segs[i] = "{int}"; break;
-                case "uuid": segs[i] = "{uuid}"; break;
-                case "hex": segs[i] = "{hex}"; break;
-                case "base64": segs[i] = "{token}"; break;
-                case "alnum": if (segs[i].length() >= 12 && !WORD.matcher(segs[i]).find()) segs[i] = "{id}"; break;
-            }
-        }
+        for (int i = 0; i < segs.length; i++) segs[i] = tokenizeSeg(segs[i]);
         String out = String.join("/", segs);
         return out.isEmpty() ? "/" : out;
+    }
+
+    // Tokenize a single RAW (un-decoded) path segment into a typed placeholder, matching the reference
+    // branch order (edge nemesis-shield.ts / shared tokenize.ts) so every SDK agrees on the shape hash.
+    private static String tokenizeSeg(String seg) {
+        if (seg.isEmpty()) return seg;
+        if (seg.contains("..")) return "{traversal}"; // keeps ".." out of telemetry (on RAW segment)
+        switch (kindOf(seg)) {
+            case "int": case "float": return "{int}";
+            case "uuid": return "{uuid}";
+            case "hex": return "{hex}";
+            case "base64": return "{token}";
+            // a long alnum segment is likely an id - unless it reads like a word / route name
+            case "alnum": return (seg.length() >= 12 && !WORD.matcher(seg).find()) ? "{id}" : seg;
+        }
+        // Hostnames (network-zone routes) collapse to {domain}; underscored generated ids that carry a
+        // digit (or are very long) collapse to {id}. Route names are single words or kebab-case and never
+        // carry underscores, so kebab segments like "iso-27001" stay literal.
+        if (DOMAIN.matcher(seg).matches()) return "{domain}";
+        if (seg.indexOf('_') >= 0 && (DIGIT.matcher(seg).find() || seg.length() >= 20)) return "{id}";
+        return seg;
     }
 
     private static String fnv1a(String s) {

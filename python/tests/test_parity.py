@@ -2,7 +2,25 @@
 so a Python app and a Node app with the same behavior share intelligence. Reference values were
 computed from packages/shared/dist (the JS source of truth)."""
 
-from nemesis_shield import fnv1a, shape_hash, build_sketch, analyze_llm
+import json
+import os
+
+import pytest
+
+from nemesis_shield import fnv1a, shape_hash, build_sketch, analyze_llm, normalize_path
+
+# The single source of truth for cross-SDK tokenizer byte-parity. Every SDK MUST normalize each
+# `path` to exactly `expect`; see nemesis_shield_sdks/tokenize.vectors.json.
+_VECTORS_PATH = os.path.join(
+    os.path.dirname(__file__), "..", "..", "tokenize.vectors.json"
+)
+with open(_VECTORS_PATH, encoding="utf-8") as _f:
+    _NORMALIZE_PATH_VECTORS = json.load(_f)["normalizePath"]
+
+
+@pytest.mark.parametrize("case", _NORMALIZE_PATH_VECTORS, ids=[c["path"] for c in _NORMALIZE_PATH_VECTORS])
+def test_normalize_path_canonical_vectors(case):
+    assert normalize_path(case["path"]) == case["expect"], case.get("why", "")
 
 
 def test_fnv1a_matches_js():

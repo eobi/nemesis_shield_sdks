@@ -29,6 +29,11 @@ module NemesisShield
   ALNUM = /\A[A-Za-z0-9]+\z/
   # A run of 7+ letters => reads like a word / route name, not an opaque id/token.
   WORD = /[A-Za-z]{7,}/
+  # A hostname path segment (network-zone routes like example.com, sub.example.co.uk) collapses to
+  # {domain}. Lookahead-free so it ports byte-identically to RE2 engines and matches the edge SDK.
+  DOMAIN = /\A([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}\z/i
+  # A digit, used to tell a generated composite id (inc_ip_1_2_3_4_178..) from a snake_case word.
+  DIGIT = /\d/
 
   module_function
 
@@ -43,7 +48,13 @@ module NemesisShield
       when "hex" then "{hex}"
       when "base64" then "{token}"
       when "alnum" then (seg.length >= 12 && seg !~ WORD) ? "{id}" : seg
-      else seg end
+      else
+        # Hostnames collapse to {domain}; underscored generated ids that carry a digit (or are very
+        # long) collapse to {id}. Kebab route names (iso-27001) have no underscore, so stay literal.
+        if seg =~ DOMAIN then "{domain}"
+        elsif seg.include?("_") && (seg =~ DIGIT || seg.length >= 20) then "{id}"
+        else seg end
+      end
     end.join("/")
     out.empty? ? "/" : out
   end
