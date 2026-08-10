@@ -15,21 +15,25 @@ Legend: `[x]` done · `[ ]` not yet.
 
 | # | SDK | Registry | Package name (final) | Install | Published? | Pull-tested? |
 |---|-----|----------|----------------------|---------|-----------|--------------|
-| 1 | node | npm | **`@nemesis-shield-autogon/sentinel`** | `npm i @nemesis-shield-autogon/sentinel` | ✅ 0.2.0 + 0.2.1 | ✅ works |
-| 2 | browser | npm | **`@nemesis-shield-autogon/browser`** | `npm i @nemesis-shield-autogon/browser` | ✅ 0.1.0 | ✅ works |
-| 3 | edge | npm + JSR | **`@nemesis-shield-autogon/edge`** | `npm i @nemesis-shield-autogon/edge` | [ ] | [ ] |
-| 4 | python | PyPI | **`nemesis-shield`** (v0.1.0) | `pip install nemesis-shield` | ✅ 0.1.0 | ✅ works |
-| 5 | go | Go modules | **`github.com/eobi/nemesis_shield_sdks/go`** (tag `go/v0.1.0`) | `go get github.com/eobi/nemesis_shield_sdks/go` | ✅ go/v0.1.0 | ✅ works |
-| 6 | ruby | RubyGems | **`nemesis-shield`** (v0.1.0) | `gem install nemesis-shield` | ✅ 0.1.0 | ✅ works |
-| 7 | php | Packagist | **`nemesislabs/sentinel`** (v0.1.0) | `composer require nemesislabs/sentinel` | ✅ 0.1.0 | ✅ works |
-| 8 | java | Maven Central | **`io.github.eobi:sentinel`** (v0.1.1) | Maven/Gradle coord | ✅ 0.1.1 (canonical) | ✅ works |
-| 9 | dotnet | NuGet | **`NemesisShield`** (v0.1.1) | `dotnet add package NemesisShield` | ✅ 0.1.1 | ✅ works |
-| 10 | rust | crates.io | **`nemesis-shield`** (v0.1.0) | `cargo add nemesis-shield` | ✅ 0.1.0 | ✅ works |
+| 1 | node | npm | **`@nemesis-shield-autogon/sentinel`** | `npm i @nemesis-shield-autogon/sentinel` | ✅ 0.2.6 | ✅ works |
+| 2 | browser | npm | **`@nemesis-shield-autogon/browser`** | `npm i @nemesis-shield-autogon/browser` | ✅ 0.1.1 | ✅ works |
+| 3 | edge | npm + JSR | **`@nemesis-shield-autogon/edge`** | `npm i @nemesis-shield-autogon/edge` | ✅ 0.1.3 (npm) | ✅ works · JSR [ ] |
+| 4 | python | PyPI | **`nemesis-shield`** (v0.1.4) | `pip install nemesis-shield` | ✅ 0.1.4 | ✅ works |
+| 5 | go | Go modules | **`github.com/eobi/nemesis_shield_sdks/go`** (tag `go/v0.1.3`) | `go get github.com/eobi/nemesis_shield_sdks/go` | ✅ go/v0.1.3 | ✅ works |
+| 6 | ruby | RubyGems | **`nemesis-shield`** (v0.1.3) | `gem install nemesis-shield` | ✅ 0.1.3 | ✅ works |
+| 7 | php | Packagist | **`nemesislabs/sentinel`** (v0.1.3) | `composer require nemesislabs/sentinel` | ✅ 0.1.3 | ✅ works |
+| 8 | java | Maven Central | **`io.github.eobi:sentinel`** (v0.1.4) | Maven/Gradle coord | ✅ 0.1.4 | ✅ works |
+| 9 | dotnet | NuGet | **`NemesisShield`** (v0.1.4) | `dotnet add package NemesisShield` | ✅ 0.1.4 | ✅ works |
+| 10 | rust | crates.io | **`nemesis-shield`** (v0.1.3) | `cargo add nemesis-shield` | ✅ 0.1.3 | ✅ works |
 | 11 | wordpress | WordPress.org | slug **`nemesis-shield`** | Plugins → search | [ ] | [ ] |
 | - | cloudflare-supabase-proxy | (deploy template) | `nemesis-supabase-proxy` | `wrangler deploy` | n/a | n/a |
 
-> Note (#1): node was accidentally published twice (0.2.0 then a premature 0.2.1 during a read-propagation
-> lag). Both are identical code; `0.2.1` is `latest`. Not an error, just untidy.
+> Note (#1): the `{domain}/{id}/{traversal}` tokenizer parity fix (commit `59af7cd`, 2026-08-10) was released
+> across the whole fleet. The prior cohort (0.1.2/0.1.3, cut 2026-08-03) predated the fix, so each SDK was
+> bumped to a version strictly above its live one and republished: node 0.2.6, rust/php/go/ruby 0.1.3,
+> python/java/dotnet 0.1.4, edge 0.1.3. `browser` stayed 0.1.1 (page-shield, no path tokenizer). Registries
+> had diverged (npm ahead, others at 0.1.2/0.1.3), so versions are NOT globally locked — each is correct for
+> its own registry. All ship an identical `ml_weights.json` (sha256 `e206c66c…ec0b0c`) and pass 36/36 parity.
 
 ---
 
@@ -69,10 +73,20 @@ Legend: `[x]` done · `[ ]` not yet.
 
 ---
 
-## Next up (fastest developer payoff)
-- [x] PyPI (`python`) - published `nemesis-shield` 0.1.0, pull-verified (parity + ml_weights sha256 match)
-- [x] crates.io (`rust`) - published nemesis-shield 0.1.0, pull-verified
-- [x] Packagist (`php`) - published nemesislabs/sentinel 0.1.0 via split repo, pull-verified (parity + allow-list)
-- [x] Go - `go/v0.1.0` tag pushed + proxy-verified (`go get` works, embedded ML model matches parity vectors)
-- [x] RubyGems (`ruby`) - published nemesis-shield 0.1.0, pull-verified (parity + ML guard)
-- [ ] then: NuGet, edge (npm+JSR), Maven Central, WordPress.org
+## Published (all live on their registries)
+- [x] npm (`node`) - 0.2.6 · tokenizer parity fix
+- [x] npm (`browser`) - 0.1.1 · unaffected (page-shield, no path tokenizer)
+- [x] npm (`edge`) - 0.1.3 · reference tokenizer ({domain}/{id})
+- [x] PyPI (`python`) - 0.1.4
+- [x] crates.io (`rust`) - 0.1.3
+- [x] Packagist (`php`) - 0.1.3 via split repo
+- [x] Go - tag `go/v0.1.3` (resolves v0.1.3), proxy-verified
+- [x] RubyGems (`ruby`) - 0.1.3
+- [x] NuGet (`dotnet`) - 0.1.4 · keyless OIDC (workflow_dispatch, version input)
+- [x] Maven Central (`java`) - 0.1.4 · signed, published via Central Portal
+
+## Still open
+- [ ] JSR (`edge`) - scope `@nemesis-shield-autogon` + OIDC
+- [ ] WordPress.org - submit for review; then SVN
+- [ ] (nice-to-have) bump `central-publishing-maven-plugin` past 0.5.0 so a successful Maven deploy stops
+      exiting non-zero on the new `warnings` API field

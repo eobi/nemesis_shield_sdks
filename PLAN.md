@@ -14,16 +14,16 @@ All share ONE behavioral contract (identical `ml_weights.json` + FNV-1a shape ha
 
 | SDK dir | Registry | Package id / coordinate | Install command | Status (live) |
 |---|---|---|---|---|
-| `node` | **npm** | `@nemesis-shield-autogon/sentinel` | `npm i @nemesis-shield-autogon/sentinel` | ✅ **PUBLISHED** v0.2.2 · pull-verified |
-| `browser` | **npm** (+ CDN) | `@nemesis-shield-autogon/browser` | `npm i @nemesis-shield-autogon/browser` / unpkg | ✅ **PUBLISHED** v0.1.1 · pull-verified |
-| `edge` | **npm** + **JSR** | `@nemesis-shield-autogon/edge` | `npm i @nemesis-shield-autogon/edge` / `jsr add ...` | ✅ **npm PUBLISHED** v0.1.0 · pull-verified · JSR ready (needs scope+auth) |
-| `python` | **PyPI** | `nemesis-shield` | `pip install nemesis-shield` | ✅ **PUBLISHED** v0.1.1 · pull-verified |
-| `go` | **Go modules** (proxy) | `github.com/eobi/nemesis_shield_sdks/go` | `go get github.com/eobi/nemesis_shield_sdks/go` | ✅ **PUBLISHED** tag `go/v0.1.0` · proxy-verified |
-| `ruby` | **RubyGems** | `nemesis-shield` | `gem install nemesis-shield` | ✅ **PUBLISHED** v0.1.0 · gemspec + pull-verified |
-| `php` | **Packagist** | `nemesislabs/sentinel` | `composer require nemesislabs/sentinel` | ✅ **PUBLISHED** v0.1.0 · split repo (eobi/nemesis-shield-php) · pull-verified |
-| `java` | **Maven Central** | `io.github.eobi:sentinel` | Maven/Gradle coordinate | ✅ **PUBLISHED** v0.1.0 · Central-pull-verified · live-tested Raw HttpServer + Spring Boot |
-| `dotnet` | **NuGet** | `NemesisShield` | `dotnet add package NemesisShield` | ✅ **PUBLISHED** v0.1.1 · Trusted Publishing (keyless OIDC) · nuget-pull-verified · multi-target net8.0+netstandard2.0 · deep ASP.NET Core tested |
-| `rust` | **crates.io** | `nemesis-shield` | `cargo add nemesis-shield` | ✅ **PUBLISHED** v0.1.0 · pull-verified (embedded model, ML parity) |
+| `node` | **npm** | `@nemesis-shield-autogon/sentinel` | `npm i @nemesis-shield-autogon/sentinel` | ✅ **PUBLISHED** v0.2.6 · tokenizer parity fix · pull-verified |
+| `browser` | **npm** (+ CDN) | `@nemesis-shield-autogon/browser` | `npm i @nemesis-shield-autogon/browser` / unpkg | ✅ **PUBLISHED** v0.1.1 · page-shield, no path tokenizer (unaffected by the parity fix) |
+| `edge` | **npm** + **JSR** | `@nemesis-shield-autogon/edge` | `npm i @nemesis-shield-autogon/edge` / `jsr add ...` | ✅ **npm PUBLISHED** v0.1.3 · reference tokenizer ({domain}/{id}) · pull-verified · JSR ready (needs scope+auth) |
+| `python` | **PyPI** | `nemesis-shield` | `pip install nemesis-shield` | ✅ **PUBLISHED** v0.1.4 · tokenizer parity fix · pull-verified |
+| `go` | **Go modules** (proxy) | `github.com/eobi/nemesis_shield_sdks/go` | `go get github.com/eobi/nemesis_shield_sdks/go` | ✅ **PUBLISHED** tag `go/v0.1.3` (resolves v0.1.3) · tokenizer parity fix · proxy-verified |
+| `ruby` | **RubyGems** | `nemesis-shield` | `gem install nemesis-shield` | ✅ **PUBLISHED** v0.1.3 · tokenizer parity fix · gemspec + pull-verified |
+| `php` | **Packagist** | `nemesislabs/sentinel` | `composer require nemesislabs/sentinel` | ✅ **PUBLISHED** v0.1.3 · tokenizer parity fix · split repo (eobi/nemesis-shield-php) · pull-verified |
+| `java` | **Maven Central** | `io.github.eobi:sentinel` | Maven/Gradle coordinate | ✅ **PUBLISHED** v0.1.4 · tokenizer parity fix · Central-pull-verified · live-tested Raw HttpServer + Spring Boot |
+| `dotnet` | **NuGet** | `NemesisShield` | `dotnet add package NemesisShield` | ✅ **PUBLISHED** v0.1.4 · tokenizer parity fix · Trusted Publishing (keyless OIDC) · nuget-pull-verified · multi-target net8.0+netstandard2.0 · deep ASP.NET Core tested |
+| `rust` | **crates.io** | `nemesis-shield` | `cargo add nemesis-shield` | ✅ **PUBLISHED** v0.1.3 · tokenizer parity fix · pull-verified (embedded model, ML parity) |
 | `wordpress` | **WordPress.org** | slug `nemesis-shield` | Plugins → search "Nemesis Shield" | 🟡 ready to submit - `readme.txt` + assets + `build-zip.sh` + `SUBMIT.md` done; awaiting manual review + SVN |
 | `cloudflare-supabase-proxy` | not a package | deploy template | `wrangler deploy` (see note) | template only (ships via GitHub) |
 
