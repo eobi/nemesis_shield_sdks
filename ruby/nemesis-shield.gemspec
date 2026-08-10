@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name        = "nemesis-shield"
-  s.version     = "0.1.2"
+  s.version     = "0.1.3"
   s.summary     = "Nemesis Shield - Sentinel SDK for Ruby (positive-security middleware + LLM guard)"
   s.description = "Learn your app's normal behavior, then block off-baseline requests (auth bypass, " \
                   "path traversal, scanners, unusual methods) in enforce mode. Rack/Rails/Sinatra " \

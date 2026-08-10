@@ -1,6 +1,6 @@
 [project]
 name = "nemesis-shield"
-version = "0.1.3"
+version = "0.1.4"
 description = "Nemesis Shield - Sentinel SDK for Python (web/API/LLM behavioral protection). Learn your app's normal behavior, then block off-baseline requests in enforce mode. ASGI/WSGI/Django middleware + OpenAI/Anthropic/LangChain LLM guards."
 readme = "README.md"
 requires-python = ">=3.9"
