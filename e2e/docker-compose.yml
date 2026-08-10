@@ -1,0 +1,44 @@
+# One container per language runtime. Each service:
+#   1. runs that SDK's committed tokenizer-parity test against the canonical 36 vectors, then
+#   2. builds a real sketch for 3 fixed routes with the SDK and POSTs it to the LIVE sketches endpoint.
+# NEMESIS_TOKEN is injected from the host environment (never baked into an image). Run via ./run.sh.
+name: nemesis-shield-e2e
+
+x-common: &common
+  environment:
+    NEMESIS_TOKEN: "${NEMESIS_TOKEN:-}"
+  restart: "no"
+
+services:
+  node:
+    <<: *common
+    build: { context: .., dockerfile: e2e/node/Dockerfile }
+    image: nemesis-e2e-node
+  python:
+    <<: *common
+    build: { context: .., dockerfile: e2e/python/Dockerfile }
+    image: nemesis-e2e-python
+  ruby:
+    <<: *common
+    build: { context: .., dockerfile: e2e/ruby/Dockerfile }
+    image: nemesis-e2e-ruby
+  go:
+    <<: *common
+    build: { context: .., dockerfile: e2e/go/Dockerfile }
+    image: nemesis-e2e-go
+  rust:
+    <<: *common
+    build: { context: .., dockerfile: e2e/rust/Dockerfile }
+    image: nemesis-e2e-rust
+  php:
+    <<: *common
+    build: { context: .., dockerfile: e2e/php/Dockerfile }
+    image: nemesis-e2e-php
+  java:
+    <<: *common
+    build: { context: .., dockerfile: e2e/java/Dockerfile }
+    image: nemesis-e2e-java
+  dotnet:
+    <<: *common
+    build: { context: .., dockerfile: e2e/dotnet/Dockerfile }
+    image: nemesis-e2e-dotnet

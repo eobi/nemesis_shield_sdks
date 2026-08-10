@@ -1,0 +1,18 @@
+# Keep the Docker build context small: exclude local build artifacts. The e2e
+# containers compile every SDK from source, so none of these are needed.
+.git
+**/target
+**/node_modules
+**/__pycache__
+**/.pytest_cache
+**/*.egg-info
+java/target
+dotnet/bin
+dotnet/obj
+dotnet/**/bin
+dotnet/**/obj
+dotnet/nupkg
+rust/target
+edge/dist
+edge/node_modules
+**/.DS_Store
