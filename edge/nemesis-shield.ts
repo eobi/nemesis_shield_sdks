@@ -40,6 +40,13 @@ const ALPHA = /^[A-Za-z]+$/;
 const ALNUM = /^[A-Za-z0-9]+$/;
 // A run of 7+ letters => reads like a word / route name, not an opaque id/token.
 const WORD = /[A-Za-z]{7,}/;
+// A hostname segment (network-zone routes like example.com, sub.example.co.uk). Path segments almost
+// never contain dots except hostnames, so collapsing these to {domain} stops per-domain shape explosion.
+const DOMAIN = /^(?=.{4,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}$/i;
+// A composite generated id (underscored, e.g. inc_ip_1_2_3_4_1785..., og_..._..). Route names are single
+// words or kebab-case and never carry underscores, so an underscored segment with a digit (or very long)
+// is an id, not a route -> {id}. Stops per-entity (incident/case/txn) shape explosion.
+const COMPOSITE_ID = /_/;
 
 function kindOf(v: unknown): string {
   if (v == null || v === "") return "empty";
@@ -84,6 +91,8 @@ export function normalizePath(path: string): string {
       if (k === "hex") return "{hex}";
       if (k === "base64") return "{token}";
       if (k === "alnum") return seg.length >= 12 && !WORD.test(seg) ? "{id}" : seg;
+      if (DOMAIN.test(seg)) return "{domain}";
+      if (COMPOSITE_ID.test(seg) && (/\d/.test(seg) || seg.length >= 20)) return "{id}";
       return seg;
     })
     .join("/");

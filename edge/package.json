@@ -1,22 +1,47 @@
 {
   "name": "@nemesis-shield-autogon/edge",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Nemesis Shield - Edge SDK for Deno / Cloudflare Workers / Vercel Edge / Supabase Edge Functions. Positive-security: learns your app's normal behavior and blocks off-baseline requests (auth bypass, path traversal, scanners) in enforce mode. Web-standard (Request/Response), zero deps, fail-open.",
   "type": "module",
   "main": "./dist/nemesis-shield.js",
   "types": "./dist/nemesis-shield.d.ts",
   "exports": {
-    ".": { "types": "./dist/nemesis-shield.d.ts", "import": "./dist/nemesis-shield.js" }
+    ".": {
+      "types": "./dist/nemesis-shield.d.ts",
+      "import": "./dist/nemesis-shield.js"
+    }
   },
-  "files": ["dist/", "README.md"],
+  "files": [
+    "dist/",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "prepublishOnly": "tsc -p tsconfig.json"
   },
-  "keywords": ["security", "waf", "rasp", "edge", "cloudflare-workers", "deno", "vercel-edge", "supabase", "positive-security", "nemesis-shield"],
+  "keywords": [
+    "security",
+    "waf",
+    "rasp",
+    "edge",
+    "cloudflare-workers",
+    "deno",
+    "vercel-edge",
+    "supabase",
+    "positive-security",
+    "nemesis-shield"
+  ],
   "license": "MIT",
   "homepage": "https://github.com/eobi/nemesis_shield_sdks/tree/main/edge",
-  "repository": { "type": "git", "url": "https://github.com/eobi/nemesis_shield_sdks.git", "directory": "edge" },
-  "engines": { "node": ">=18" },
-  "devDependencies": { "typescript": "^5.6.0" }
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eobi/nemesis_shield_sdks.git",
+    "directory": "edge"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
 }
