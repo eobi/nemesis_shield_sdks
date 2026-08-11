@@ -161,6 +161,29 @@ export function frameworkList(): string[] {
   return Object.keys(FRAMEWORKS);
 }
 
+// Map detected technology display names (from the fingerprint scanner) to a nemesis_protect framework
+// key, so a scan can tell the developer the exact protect command to run next.
+export function suggestFramework(techNames: string[]): string | null {
+  const hay = techNames.join(" | ").toLowerCase();
+  const rules: Array<[RegExp, string]> = [
+    [/next\.?js|_next\//, "nextjs"],
+    [/fastapi/, "fastapi"],
+    [/django/, "django"],
+    [/\bflask\b/, "flask"],
+    [/express/, "express"],
+    [/fastify/, "fastify"],
+    [/\bkoa\b/, "koa"],
+    [/laravel/, "laravel"],
+    [/ruby on rails|\brails\b/, "rails"],
+    [/spring/, "spring"],
+    [/asp\.?net|\.net|kestrel/, "aspnet"],
+    [/cloudflare workers|workers\.dev/, "cloudflare-workers"],
+    [/supabase/, "supabase-edge"],
+  ];
+  for (const [re, key] of rules) if (re.test(hay)) return key;
+  return null;
+}
+
 export function protectText(raw: string): string {
   const key = resolveFramework(raw);
   if (!key) {

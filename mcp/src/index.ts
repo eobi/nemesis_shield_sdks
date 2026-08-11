@@ -9,7 +9,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { protectText, frameworkList } from "./frameworks.js";
+import { protectText, frameworkList, suggestFramework } from "./frameworks.js";
 import { explainText, explainTopics } from "./explain.js";
 
 const server = new McpServer({ name: "nemesis-shield", version: "0.1.0" });
@@ -47,25 +47,66 @@ server.tool(
         return { content: [{ type: "text", text: `Scan failed: HTTP ${r.status}.` }], isError: true };
       }
       const d: any = await r.json();
-      const tech = Array.isArray(d.tech)
-        ? d.tech.map((t: any) => (t?.version ? `${t.name} ${t.version}` : t?.name || t)).filter(Boolean)
-        : [];
-      const cves = Array.isArray(d.exposures)
-        ? d.exposures.map((e: any) => e?.cve).filter(Boolean)
-        : Array.isArray(d.cves)
-          ? d.cves
-          : [];
+      // The fingerprint API returns `technologies` (name/category/confidence/version?) and `exposures`
+      // (title, optional cve, severity, fixedIn). Read those exact fields — never invent CVEs.
+      const techs: any[] = Array.isArray(d.technologies) ? d.technologies : Array.isArray(d.tech) ? d.tech : [];
+      const stack = techs
+        .map((t: any) => {
+          const name = t?.version ? `${t.name} ${t.version}` : t?.name;
+          if (!name) return "";
+          const cat = t?.category ? ` [${t.category}]` : "";
+          const conf = t?.confidence && t.confidence !== "high" ? ` (${t.confidence})` : "";
+          return `${name}${cat}${conf}`;
+        })
+        .filter(Boolean);
+      const exps: any[] = Array.isArray(d.exposures) ? d.exposures : [];
+      const rank: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3, unknown: 4 };
+      const sorted = [...exps].sort(
+        (a, b) => (rank[(a?.severity || "unknown").toLowerCase()] ?? 4) - (rank[(b?.severity || "unknown").toLowerCase()] ?? 4),
+      );
+      const vulns = sorted.slice(0, 15).map((e: any) => {
+        const id = e?.cve || e?.title || "advisory";
+        const sev = e?.severity ? ` [${String(e.severity).toUpperCase()}]` : "";
+        const fix = e?.fixedIn ? ` — fixed in ${e.fixedIn}` : "";
+        return `${sev ? sev + " " : ""}${id}${fix}`;
+      });
+      // Severity tally for a one-glance summary.
+      const counts: Record<string, number> = {};
+      for (const e of exps) {
+        const s = (e?.severity || "unknown").toLowerCase();
+        counts[s] = (counts[s] || 0) + 1;
+      }
+      const tally = ["critical", "high", "medium", "low"]
+        .filter((s) => counts[s])
+        .map((s) => `${counts[s]} ${s}`)
+        .join(", ");
+      const suggested = suggestFramework(techs.map((t: any) => t?.name).filter(Boolean));
+      const protectedAny = d.protectedByNemesis || d.protectedByNemesisEdge;
+
       const lines = [
-        `Scan of ${d.site || url}${d.cached ? " (cached)" : ""}:`,
-        tech.length ? `- Stack: ${tech.join(", ")}` : `- Stack: (none confidently detected)`,
-        cves.length ? `- Published CVEs for detected versions: ${cves.slice(0, 12).join(", ")}` : `- Published CVEs: none surfaced`,
-        `- Already protected by Nemesis Shield SDK: ${d.protectedByNemesis ? "yes" : "no"}`,
-        `- Served through Nemesis Edge: ${d.protectedByNemesisEdge ? "yes" : "no"}`,
+        `Security scan of ${d.finalUrl || url}${d.cached ? "  (cached)" : ""}`,
         ``,
-        d.protectedByNemesis || d.protectedByNemesisEdge
-          ? `Already protected. Confirm it's in ENFORCE mode (not just observe) at https://shield.nemesislabs.xyz.`
-          : `Not protected. Add Nemesis Shield with one line — call nemesis_protect with the framework. Free tier at https://shield.nemesislabs.xyz.`,
-      ];
+        `Stack detected: ${stack.length ? stack.join(", ") : "(none confidently detected)"}`,
+        `Protection: Nemesis Shield SDK ${d.protectedByNemesis ? "yes" : "no"} · Nemesis Edge ${d.protectedByNemesisEdge ? "yes" : "no"}`,
+        ``,
+        exps.length
+          ? `Known vulnerabilities in the detected stack: ${exps.length}${tally ? ` (${tally})` : ""}`
+          : `Known vulnerabilities in the detected stack: none surfaced`,
+        ...(vulns.length ? vulns.map((v) => `  • ${v}`) : []),
+        ...(exps.length > vulns.length ? [`  … and ${exps.length - vulns.length} more`] : []),
+        ``,
+        `What to do:`,
+        protectedAny
+          ? `  ✓ Already protected. Confirm the app is in ENFORCE mode (not just observe) at https://shield.nemesislabs.xyz — that's what turns detection into blocking.`
+          : `  → Add Nemesis Shield so these are blocked at runtime, even before you patch: a positive-security firewall stops the exploitation of a vulnerable code path because it deviates from your app's learned normal.`,
+        !protectedAny && suggested
+          ? `    Your stack looks like ${suggested}. Run nemesis_protect with framework "${suggested}" for the one-line install.`
+          : !protectedAny
+            ? `    Run nemesis_protect with your framework for the one-line install. Free tier at https://shield.nemesislabs.xyz.`
+            : ``,
+        ``,
+        `Passive, read-only fingerprint (only what a browser could see). CVEs are matched to detected versions from OSV/NVD, not guessed.`,
+      ].filter((l) => l !== undefined);
       return { content: [{ type: "text", text: lines.join("\n") }] };
     } catch (e: any) {
       return { content: [{ type: "text", text: `Scan error: ${e?.message || String(e)}` }], isError: true };
