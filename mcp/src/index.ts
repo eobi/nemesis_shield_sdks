@@ -309,6 +309,40 @@ server.tool(
   },
 );
 
+// create_omniguard — a business-logic firewall for money & accounts, pre-loaded with sector rules.
+server.tool(
+  "nemesis_create_omniguard",
+  "Create an Omniguard business-logic firewall: a decision function pre-loaded with fraud/abuse rules " +
+    "matched to your sector and event type, to safeguard money and accounts (payment fraud, account " +
+    "takeover, velocity/geo/AML). Returns the function id and how to score transactions. Requires NEMESIS_API_KEY.",
+  {
+    name: z.string().describe("Name for the function (e.g. 'transfers')"),
+    industry: z.string().optional().describe("Sector, e.g. fintech, ecommerce, lending, general (default general)"),
+    event: z.string().optional().describe("Event type, e.g. transfer, payment, signup, withdrawal (default transfer)"),
+  },
+  async ({ name, industry, event }) => {
+    const r = await api("POST", "/api/v1/omniguard/functions", { name, industry, event });
+    if (!r.ok) return { content: [{ type: "text", text: `Could not create Omniguard function: ${r.error}` }], isError: true };
+    const d = r.data ?? {};
+    return {
+      content: [
+        {
+          type: "text",
+          text:
+            `Created Omniguard function "${name}" — ${d.rulesSeeded} starter rules for ${d.industry}/${d.event}.\n` +
+            `Function id: ${d.functionId}\n\n` +
+            `Score transactions (allow / review / block) in real time:\n` +
+            `  POST https://app.nemesislabs.xyz/api/v1/omniguard/score\n` +
+            `  Authorization: Bearer <your Omniguard ingest token — get it in the console>\n` +
+            `  { "amount": 250000, "currency": "NGN", "channel": "${d.event}", "device_id": "…", "ip": "…" }\n` +
+            `  -> { "verdict": "allow|review|block", "overall_score", "reasons": [...] }\n\n` +
+            `Add or tune rules in the console; the starter set covers the common ${d.industry} ${d.event} risks.`,
+        },
+      ],
+    };
+  },
+);
+
 const transport = new StdioServerTransport();
 await server.connect(transport);
 process.stderr.write("nemesis-shield MCP server running (stdio)\n");
