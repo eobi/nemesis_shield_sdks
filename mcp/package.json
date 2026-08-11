@@ -1,7 +1,7 @@
 {
   "name": "@nemesis-shield-autogon/mcp",
-  "version": "0.2.2",
-  "description": "Nemesis Shield MCP server: let your AI coding agent add positive-security runtime protection, scan a site, and explain attack coverage, without leaving the editor.",
+  "version": "0.2.3",
+  "description": "Nemesis Shield MCP server — add positive-security protection for apps, APIs, LLMs, the network edge, and business logic from your editor: install the SDK, learn, approve, enforce, provision edge, and score transactions.",
   "type": "module",
   "bin": {
     "nemesis-mcp": "dist/index.js"
@@ -42,5 +42,8 @@
     "@types/node": "^20.14.0",
     "typescript": "^5.5.0"
   },
-  "mcpName": "io.github.eobi/nemesis-shield"
+  "mcpName": "io.github.eobi/nemesis-shield",
+  "engines": {
+    "node": ">=18"
+  }
 }
