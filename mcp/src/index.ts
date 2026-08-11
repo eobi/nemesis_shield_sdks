@@ -342,13 +342,16 @@ server.tool(
           type: "text",
           text:
             `Created Omniguard function "${name}" — ${d.rulesSeeded} starter rules for ${d.industry}/${d.event}.\n` +
-            `Function id: ${d.functionId}\n\n` +
-            `Score transactions (allow / review / block) in real time:\n` +
-            `  POST https://app.nemesislabs.xyz/api/v1/omniguard/score\n` +
-            `  Authorization: Bearer <your Omniguard ingest token — get it in the console>\n` +
-            `  { "amount": 250000, "currency": "NGN", "channel": "${d.event}", "device_id": "…", "ip": "…" }\n` +
+            `Function id: ${d.functionId}\n` +
+            (d.ingestToken ? `Omniguard ingest token: ${d.ingestToken}\n` : `Get your Omniguard ingest token in the console.\n`) +
+            `\nScore transactions (allow / review / block). Test it now with nemesis_omniguard_score, or call directly:\n` +
+            `  POST https://shield.nemesislabs.xyz/api/v1/omniguard/score\n` +
+            `  Authorization: Bearer ${d.ingestToken || "<ingest token>"}\n` +
+            `  { "function_id": "${d.functionId}", "amount": 250000, "currency": "NGN", "channel": "${d.event}",\n` +
+            `    "country": "NG", "card_country": "NG", "device_id": "…", "ip": "…" }\n` +
             `  -> { "verdict": "allow|review|block", "overall_score", "reasons": [...] }\n\n` +
-            `Add or tune rules in the console; the starter set covers the common ${d.industry} ${d.event} risks.`,
+            `Always pass function_id, plus the risk signals the rules evaluate: amount, country vs card_country,\n` +
+            `card_type, cvv_result, three_ds_status, is_new_device, decline_count, and any id for velocity. Tune in the console.`,
         },
       ],
     };
@@ -436,6 +439,45 @@ server.tool(
         resolve({ content: [{ type: "text", text: `Could not run Nemesis Learn: ${redact(e.message)}. Is npx available on PATH?` }], isError: true });
       });
     });
+  },
+);
+
+// omniguard_score — score a transaction against a function (allow/review/block). Defaults to dry_run.
+server.tool(
+  "nemesis_omniguard_score",
+  "Score a transaction against an Omniguard function (allow / review / block) — test the business-logic " +
+    "rules end to end. Defaults to a dry_run (evaluates rules, no metering/persistence). Needs the " +
+    "Omniguard ingest token and function_id from nemesis_create_omniguard. Pass the risk signals the rules " +
+    "check (amount, country vs card_country, card_type, cvv_result, three_ds_status, is_new_device, decline_count).",
+  {
+    ingestToken: z.string().describe("Omniguard ingest token (from nemesis_create_omniguard)"),
+    functionId: z.string().describe("The Omniguard function id to score against"),
+    transaction: z.record(z.any()).describe('Transaction fields, e.g. { "amount": 900000, "currency": "NGN", "channel": "checkout", "country": "RU", "card_country": "US", "card_type": "virtual", "cvv_result": "N", "three_ds_status": "failed" }'),
+    live: z.boolean().optional().describe("true = score for real (meters against quota). Default false = dry_run test."),
+  },
+  async ({ ingestToken, functionId, transaction, live }) => {
+    try {
+      const r = await fetch("https://shield.nemesislabs.xyz/api/v1/omniguard/score", {
+        method: "POST",
+        headers: { authorization: `Bearer ${ingestToken}`, "content-type": "application/json" },
+        body: JSON.stringify({ function_id: functionId, dry_run: !live, ...(transaction as Record<string, unknown>) }),
+      });
+      const d: any = await r.json().catch(() => ({}));
+      if (r.status === 401) return { content: [{ type: "text", text: "Invalid Omniguard ingest token." }], isError: true };
+      if (r.status === 402) return { content: [{ type: "text", text: "Omniguard quota reached. Upgrade at https://shield.nemesislabs.xyz/app/omniguard/plans" }] };
+      if (!r.ok) return { content: [{ type: "text", text: `Score failed: HTTP ${r.status}` }], isError: true };
+      const reasons = (d.reasons ?? []).map((x: any) => `${x.signal} (+${x.contribution})`).join(", ") || "none";
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Verdict: ${d.verdict}  (overall ${d.overall_score}, rules ${d.rule_score}${d.ai_score != null ? `, AI ${d.ai_score}` : ""})\nSignals: ${reasons}${live ? "" : "\n(dry run — no metering)"}`,
+          },
+        ],
+      };
+    } catch (e: any) {
+      return { content: [{ type: "text", text: `Score error: ${redact(e?.message || String(e))}` }], isError: true };
+    }
   },
 );
 

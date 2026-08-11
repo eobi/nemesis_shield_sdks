@@ -32,7 +32,8 @@ management tools use a developer API key you mint in the console and keep in you
 | `nemesis_provision_edge` | Put a domain behind Nemesis Edge (Cloudflare-like) → returns nameservers, or a TXT ownership claim. |
 | `nemesis_edge_status` | List edge domains + activation status. |
 | `nemesis_omniguard_catalog` | Sector + event guidance so the agent picks the right business-logic firewall (ecommerce/checkout vs fintech/transfer …). |
-| `nemesis_create_omniguard` | Create an Omniguard business-logic firewall pre-loaded with sector/event-matched fraud rules. |
+| `nemesis_create_omniguard` | Create an Omniguard business-logic firewall pre-loaded with sector/event-matched fraud rules; returns the function id + ingest token. |
+| `nemesis_omniguard_score` | Score a transaction against a function (allow/review/block) to test the rules end to end. Dry-run by default. |
 
 ## The flow it drives
 
