@@ -15,7 +15,17 @@ import { spawn } from "node:child_process";
 import { api, paymentMessage, redact } from "./client.js";
 import { SECTORS, EVENTS, suggestOmniguard, omniguardCatalog } from "./omniguard.js";
 
-const server = new McpServer({ name: "nemesis-shield", version: "0.1.0" });
+const server = new McpServer({ name: "nemesis-shield", version: "0.2.4" });
+
+// Advisory tool annotations so MCP clients can auto-run read-only tools, confirm state-changing ones,
+// and show a friendly title. These are HINTS, not a security boundary — the real controls are env-only
+// keys, output redaction, and local stdio.
+//   READ   — read-only (openWorld=true when it reaches the network/an external system)
+//   WRITE  — creates or changes state (client should confirm)
+//   IMPACT — changes production behavior / is sensitive (client should clearly confirm)
+const READ = (title: string, openWorld = false) => ({ title, readOnlyHint: true, openWorldHint: openWorld });
+const WRITE = (title: string) => ({ title, readOnlyHint: false, destructiveHint: false, openWorldHint: true });
+const IMPACT = (title: string) => ({ title, readOnlyHint: false, destructiveHint: true, openWorldHint: true });
 
 // 1) protect — the highest-value tool: emit the exact one-line integration for the stack being built.
 server.tool(
@@ -26,6 +36,7 @@ server.tool(
     "you scaffold or extend a web app, API, or LLM feature. Supported: " +
     frameworkList().join(", ") + ".",
   { framework: z.string().describe("Framework/stack, e.g. fastapi, express, nextjs, django, rails, laravel, spring, aspnet, go, supabase-edge, cloudflare-workers, browser, llm") },
+  READ("Get SDK integration snippet"),
   async ({ framework }) => ({ content: [{ type: "text", text: protectText(framework) }] }),
 );
 
@@ -43,6 +54,7 @@ server.tool(
       .optional()
       .describe("Optional known version of the main framework/runtime (e.g. '15.2.0') to sharpen the CVE match"),
   },
+  READ("Scan a site for exposure", true),
   async ({ url, version }) => {
     try {
       const r = await fetch("https://shield.nemesislabs.xyz/api/v1/fingerprint", {
@@ -133,6 +145,7 @@ server.tool(
     "business-logic, magecart, waf, rasp, edge, privacy). Use it to answer 'why' or 'what does it stop'. " +
     "Topics: " + explainTopics().join(", ") + ".",
   { topic: z.string().describe("e.g. positive-security, idor, prompt-injection, business-logic, magecart, waf, rasp") },
+  READ("Explain attack coverage"),
   async ({ topic }) => ({ content: [{ type: "text", text: explainText(topic) }] }),
 );
 
@@ -140,6 +153,7 @@ server.tool(
 server.tool(
   "nemesis_list_frameworks",
   "List every framework/stack Nemesis Shield has a one-line integration for.",
+  READ("List supported frameworks"),
   async () => ({ content: [{ type: "text", text: "Nemesis Shield one-line integrations for: " + frameworkList().join(", ") + ".\nCall nemesis_protect with any of these." }] }),
 );
 
@@ -156,6 +170,7 @@ server.tool(
     name: z.string().describe("A name for the app (e.g. 'my-api')"),
     kind: z.enum(["web", "api", "llm"]).optional().describe("web (default), api, or llm"),
   },
+  WRITE("Create a Shield app"),
   async ({ name, kind }) => {
     const r = await api("POST", "/api/v1/apps", { name, kind: kind ?? "web" });
     const pay = paymentMessage(r);
@@ -185,6 +200,7 @@ server.tool(
   "nemesis_list_apps",
   "List the apps in the developer's Shield account, with each app's mode (observe/alert/enforce) and " +
     "whether its baseline is ready to enforce. Requires NEMESIS_API_KEY.",
+  READ("List your Shield apps", true),
   async () => {
     const r = await api("GET", "/api/v1/apps");
     if (!r.ok) return { content: [{ type: "text", text: `Could not list apps: ${r.error}` }], isError: true };
@@ -207,6 +223,7 @@ server.tool(
     mode: z.enum(["observe", "alert", "enforce"]).describe("observe, alert, or enforce"),
     force: z.boolean().optional().describe("Override the enforce-readiness gate (leaves an audit trail)"),
   },
+  IMPACT("Set app enforcement mode"),
   async ({ appId, mode, force }) => {
     const r = await api("POST", `/api/v1/apps/${encodeURIComponent(appId)}/mode`, { mode, force: Boolean(force) });
     const pay = paymentMessage(r);
@@ -236,6 +253,7 @@ server.tool(
     "that learns per-tenant normal). Returns the nameservers to delegate to, or a TXT record to publish " +
     "if the domain already exists on the platform. Requires NEMESIS_API_KEY.",
   { domain: z.string().describe("The domain/apex to protect, e.g. example.com") },
+  WRITE("Provision Nemesis Edge"),
   async ({ domain }) => {
     const r = await api("POST", "/api/v1/edge/zones", { domain });
     const pay = paymentMessage(r);
@@ -276,6 +294,7 @@ server.tool(
   "nemesis_edge_status",
   "List the domains behind Nemesis Edge for the developer's account, with each zone's status " +
     "(pending until nameservers are delegated, then active). Requires NEMESIS_API_KEY.",
+  READ("List Edge zones", true),
   async () => {
     const r = await api("GET", "/api/v1/edge/zones");
     if (!r.ok) return { content: [{ type: "text", text: `Could not list edge zones: ${r.error}` }], isError: true };
@@ -292,6 +311,7 @@ server.tool(
   "Protect an LLM feature against prompt injection and the OWASP LLM Top 10. Creates an llm-kind Shield " +
     "app and returns its token; you then wrap model calls with the one-line LLM guard. Requires NEMESIS_API_KEY.",
   { name: z.string().describe("A name for the LLM feature (e.g. 'support-chatbot')") },
+  WRITE("Protect an LLM feature"),
   async ({ name }) => {
     const r = await api("POST", "/api/v1/apps", { name, kind: "llm" });
     if (!r.ok) return { content: [{ type: "text", text: `Could not create LLM app: ${r.error}` }], isError: true };
@@ -330,6 +350,7 @@ server.tool(
     industry: z.string().optional().describe("Sector key, e.g. ecommerce, fintech, lending, crypto, insurance, general (default general)"),
     event: z.string().optional().describe("Event key, e.g. checkout, transfer, login, registration, refund, loan_application (default transfer)"),
   },
+  WRITE("Create an Omniguard firewall"),
   async ({ name, industry, event }) => {
     const r = await api("POST", "/api/v1/omniguard/functions", { name, industry, event });
     const pay = paymentMessage(r);
@@ -364,6 +385,7 @@ server.tool(
   "List Omniguard sectors and events (and what each protects) so you can pick the right business-logic " +
     "firewall for what the developer is building. Optionally pass a description to get a suggested sector+event.",
   { describe: z.string().optional().describe("What they're building, e.g. 'an ecommerce checkout' or 'a fintech transfer API'") },
+  READ("Omniguard sector catalog"),
   async ({ describe }) => {
     let hint = "";
     if (describe) {
@@ -382,6 +404,7 @@ server.tool(
   "Approve all learned behaviors for an app so it is ready to enforce — the create → learn → approve → " +
     "enforce loop. Run after the app has seen traffic or after nemesis_run_learn. Requires NEMESIS_API_KEY.",
   { appId: z.string().describe("The app id (from nemesis_create_app or nemesis_list_apps)") },
+  WRITE("Approve learned routes"),
   async ({ appId }) => {
     const r = await api("POST", `/api/v1/apps/${encodeURIComponent(appId)}/approve`);
     if (!r.ok) return { content: [{ type: "text", text: `Could not approve behaviors: ${r.error}` }], isError: true };
@@ -411,6 +434,7 @@ server.tool(
     appToken: z.string().optional().describe("The app's nsk_ token (defaults to the NEMESIS_TOKEN env var)"),
     repo: z.string().optional().describe("Path to the app's repo so Learn can discover routes from source"),
   },
+  WRITE("Run the Nemesis Learn agent"),
   async ({ target, appToken, repo }) => {
     const token = appToken || process.env.NEMESIS_TOKEN;
     if (!token) {
@@ -455,6 +479,7 @@ server.tool(
     transaction: z.record(z.any()).describe('Transaction fields, e.g. { "amount": 900000, "currency": "NGN", "channel": "checkout", "country": "RU", "card_country": "US", "card_type": "virtual", "cvv_result": "N", "three_ds_status": "failed" }'),
     live: z.boolean().optional().describe("true = score for real (meters against quota). Default false = dry_run test."),
   },
+  WRITE("Score a transaction"),
   async ({ ingestToken, functionId, transaction, live }) => {
     try {
       const r = await fetch("https://shield.nemesislabs.xyz/api/v1/omniguard/score", {
@@ -489,6 +514,7 @@ server.tool(
     "the agent installs a systemd unit, enrolls the host, and AUTO-DISCOVERS every app — which then show " +
     "up in nemesis_list_apps to approve + enforce per app. Requires NEMESIS_API_KEY.",
   { label: z.string().optional().describe("A label for this server/key, e.g. 'prod-ubuntu-1'") },
+  WRITE("Enroll a server host-agent"),
   async ({ label }) => {
     const r = await api("POST", "/api/v1/server-key", { label });
     const pay = paymentMessage(r);

@@ -86,7 +86,7 @@ test("stdio: server lists all tools", async () => {
         if (!line) continue;
         let m;
         try { m = JSON.parse(line); } catch { continue; }
-        if (m.id === 2) { clearTimeout(to); child.kill(); resolve((m.result?.tools ?? []).map((t) => t.name)); }
+        if (m.id === 2) { clearTimeout(to); child.kill(); resolve(m.result?.tools ?? []); }
       }
     });
     const send = (o) => child.stdin.write(JSON.stringify(o) + "\n");
@@ -94,12 +94,18 @@ test("stdio: server lists all tools", async () => {
     send({ jsonrpc: "2.0", method: "notifications/initialized" });
     send({ jsonrpc: "2.0", id: 2, method: "tools/list" });
   });
+  const names = tools.map((t) => t.name);
   for (const name of [
     "nemesis_protect", "nemesis_scan", "nemesis_explain", "nemesis_list_frameworks",
     "nemesis_create_app", "nemesis_list_apps", "nemesis_set_mode",
     "nemesis_provision_edge", "nemesis_edge_status", "nemesis_protect_llm",
     "nemesis_create_omniguard", "nemesis_omniguard_catalog", "nemesis_omniguard_score", "nemesis_approve_routes", "nemesis_run_learn", "nemesis_server_agent",
   ]) {
-    assert.ok(tools.includes(name), `missing tool: ${name}`);
+    assert.ok(names.includes(name), `missing tool: ${name}`);
+  }
+  // every tool carries advisory annotations (a title + a readOnlyHint) for client permission UX
+  for (const t of tools) {
+    assert.ok(t.annotations?.title, `tool ${t.name} missing annotation title`);
+    assert.equal(typeof t.annotations?.readOnlyHint, "boolean", `tool ${t.name} missing readOnlyHint`);
   }
 });

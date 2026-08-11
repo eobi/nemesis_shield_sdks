@@ -1,6 +1,6 @@
 {
   "name": "@nemesis-shield-autogon/mcp",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Nemesis Shield MCP server — add positive-security protection for apps, APIs, LLMs, the network edge, and business logic from your editor: install the SDK, learn, approve, enforce, provision edge, and score transactions.",
   "type": "module",
   "bin": {
