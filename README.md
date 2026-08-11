@@ -7,10 +7,15 @@ flags - and, in enforce mode, blocks - anything that deviates. It's a positive-s
 model: instead of guessing at generic attack signatures, it enforces *"this app only ever behaves
 in these ways."*
 
-> **Building with an AI assistant?** Drop in an [AI editor rule pack](ai-rules/) (AGENTS.md, Cursor,
-> Windsurf, or Claude Code) and your coding agent will add Nemesis Shield **as it builds** — one line
-> per stack, safe by default (observe mode). The full verified one-liner reference for every framework
-> lives in [`ai-rules/AGENTS.md`](ai-rules/AGENTS.md).
+> **Building with an AI assistant?** Two ways to make your agent add Nemesis Shield **as it builds**:
+> 1. **[MCP server](mcp/)** — gives Cursor, Claude Code/Desktop and Windsurf callable tools
+>    (`nemesis_protect`, `nemesis_scan`, `nemesis_explain`) so the agent adds security, scans a site,
+>    and explains coverage without leaving the editor.
+> 2. **[AI editor rule pack](ai-rules/)** (AGENTS.md, Cursor, Windsurf, Claude Code) — drop-in rules
+>    that tell the agent to add the one-line SDK by default.
+>
+> Both are one line per stack, safe by default (observe mode). Full verified reference:
+> [`ai-rules/AGENTS.md`](ai-rules/AGENTS.md).
 
 **Privacy by design:** the SDKs ship only behavioral *metadata* - HTTP method, the *shape* of the
 path (`/orders/123` → `/orders/{int}`), status code, and whether the caller was authenticated. They
