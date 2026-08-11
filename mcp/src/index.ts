@@ -278,6 +278,37 @@ server.tool(
   },
 );
 
+// protect_llm — stand up an LLM Guard app (OWASP LLM Top 10) and return the token + wiring.
+server.tool(
+  "nemesis_protect_llm",
+  "Protect an LLM feature against prompt injection and the OWASP LLM Top 10. Creates an llm-kind Shield " +
+    "app and returns its token; you then wrap model calls with the one-line LLM guard. Requires NEMESIS_API_KEY.",
+  { name: z.string().describe("A name for the LLM feature (e.g. 'support-chatbot')") },
+  async ({ name }) => {
+    const r = await api("POST", "/api/v1/apps", { name, kind: "llm" });
+    if (!r.ok) return { content: [{ type: "text", text: `Could not create LLM app: ${r.error}` }], isError: true };
+    const d = r.data ?? {};
+    return {
+      content: [
+        {
+          type: "text",
+          text:
+            `Created LLM Guard app "${name}" (mode: ${d.mode}).\n` +
+            `App token: ${d.token}\n\n` +
+            `Wire it up:\n` +
+            `1. Set NEMESIS_TOKEN=${d.token}\n` +
+            `2. Guard your model calls with one line (Node):\n` +
+            `     import { guardLLM } from "@nemesis-shield-autogon/sentinel/llm";\n` +
+            `     const v = guardLLM(userPrompt, true); if (v.blocked) return refuse();\n` +
+            `   (same helper in Python/.NET/Ruby/PHP — call nemesis_protect with "llm" for each.)\n` +
+            `3. It blocks prompt injection, unauthorized tool calls and data egress at the model boundary\n` +
+            `   (OWASP LLM Top 10). Starts in observe; call nemesis_set_mode "enforce" once it has learned.`,
+        },
+      ],
+    };
+  },
+);
+
 const transport = new StdioServerTransport();
 await server.connect(transport);
 process.stderr.write("nemesis-shield MCP server running (stdio)\n");
