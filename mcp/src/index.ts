@@ -223,6 +223,61 @@ server.tool(
   },
 );
 
+// provision_edge — put a domain behind Nemesis Edge (Cloudflare-like network layer).
+server.tool(
+  "nemesis_provision_edge",
+  "Put a domain behind Nemesis Edge, the positive-security network/DNS layer (a Cloudflare-like edge " +
+    "that learns per-tenant normal). Returns the nameservers to delegate to, or a TXT record to publish " +
+    "if the domain already exists on the platform. Requires NEMESIS_API_KEY.",
+  { domain: z.string().describe("The domain/apex to protect, e.g. example.com") },
+  async ({ domain }) => {
+    const r = await api("POST", "/api/v1/edge/zones", { domain });
+    if (r.status === 409 && r.data?.status === "needs_verification") {
+      const v = r.data.verify ?? {};
+      return {
+        content: [
+          {
+            type: "text",
+            text:
+              `${r.data.apex} already exists on the platform. Prove you control it:\n` +
+              `  Add a TXT record at ${v.host} with value:\n  ${v.value}\n\n` +
+              `Then complete verification in the console (https://shield.nemesislabs.xyz) to adopt the domain.`,
+          },
+        ],
+      };
+    }
+    if (!r.ok) return { content: [{ type: "text", text: `Could not provision edge: ${r.error}` }], isError: true };
+    const d = r.data ?? {};
+    const ns = Array.isArray(d.nameservers) && d.nameservers.length ? `\n  Nameservers:\n    - ${d.nameservers.join("\n    - ")}` : "";
+    return {
+      content: [
+        {
+          type: "text",
+          text:
+            `Edge zone created for ${d.apex} (status: ${d.status}).${ns}\n` +
+            `${d.next}\n` +
+            (d.recordsDiscovered ? `Imported ${d.recordsDiscovered} existing DNS record(s) so nothing breaks on cutover.` : ``),
+        },
+      ],
+    };
+  },
+);
+
+// edge_status — list edge zones and their activation status.
+server.tool(
+  "nemesis_edge_status",
+  "List the domains behind Nemesis Edge for the developer's account, with each zone's status " +
+    "(pending until nameservers are delegated, then active). Requires NEMESIS_API_KEY.",
+  async () => {
+    const r = await api("GET", "/api/v1/edge/zones");
+    if (!r.ok) return { content: [{ type: "text", text: `Could not list edge zones: ${r.error}` }], isError: true };
+    const zones: any[] = r.data?.zones ?? [];
+    if (!zones.length) return { content: [{ type: "text", text: "No edge zones yet. Add one with nemesis_provision_edge." }] };
+    const lines = zones.map((z) => `• ${z.apex} — ${z.status}  [${z.zoneId}]`);
+    return { content: [{ type: "text", text: `Edge zones:\n${lines.join("\n")}` }] };
+  },
+);
+
 const transport = new StdioServerTransport();
 await server.connect(transport);
 process.stderr.write("nemesis-shield MCP server running (stdio)\n");

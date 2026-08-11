@@ -62,7 +62,9 @@ export async function api(method: string, path: string, body?: unknown): Promise
     }
     if (!r.ok) {
       const detail = typeof data === "string" ? data : JSON.stringify(data ?? {});
-      return { ok: false, status: r.status, error: redact(detail).slice(0, 400) };
+      // Include the parsed body too: some non-2xx responses are structured (e.g. a 409 that carries a
+      // domain-verification TXT record the caller must act on), not just an error message.
+      return { ok: false, status: r.status, error: redact(detail).slice(0, 400), data };
     }
     return { ok: true, status: r.status, data };
   } catch (e: any) {
