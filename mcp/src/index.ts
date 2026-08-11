@@ -11,7 +11,9 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { protectText, frameworkList, suggestFramework } from "./frameworks.js";
 import { explainText, explainTopics } from "./explain.js";
-import { api } from "./client.js";
+import { spawn } from "node:child_process";
+import { api, paymentMessage, redact } from "./client.js";
+import { SECTORS, EVENTS, suggestOmniguard, omniguardCatalog } from "./omniguard.js";
 
 const server = new McpServer({ name: "nemesis-shield", version: "0.1.0" });
 
@@ -156,6 +158,8 @@ server.tool(
   },
   async ({ name, kind }) => {
     const r = await api("POST", "/api/v1/apps", { name, kind: kind ?? "web" });
+    const pay = paymentMessage(r);
+    if (pay) return { content: [{ type: "text", text: pay }] };
     if (!r.ok) return { content: [{ type: "text", text: `Could not create app: ${r.error}` }], isError: true };
     const d = r.data ?? {};
     return {
@@ -205,6 +209,8 @@ server.tool(
   },
   async ({ appId, mode, force }) => {
     const r = await api("POST", `/api/v1/apps/${encodeURIComponent(appId)}/mode`, { mode, force: Boolean(force) });
+    const pay = paymentMessage(r);
+    if (pay) return { content: [{ type: "text", text: pay }] };
     if (!r.ok) {
       const notReady = r.status === 409 || /enforce_not_ready/.test(r.error ?? "");
       return {
@@ -232,6 +238,8 @@ server.tool(
   { domain: z.string().describe("The domain/apex to protect, e.g. example.com") },
   async ({ domain }) => {
     const r = await api("POST", "/api/v1/edge/zones", { domain });
+    const pay = paymentMessage(r);
+    if (pay) return { content: [{ type: "text", text: pay }] };
     if (r.status === 409 && r.data?.status === "needs_verification") {
       const v = r.data.verify ?? {};
       return {
@@ -312,16 +320,20 @@ server.tool(
 // create_omniguard — a business-logic firewall for money & accounts, pre-loaded with sector rules.
 server.tool(
   "nemesis_create_omniguard",
-  "Create an Omniguard business-logic firewall: a decision function pre-loaded with fraud/abuse rules " +
-    "matched to your sector and event type, to safeguard money and accounts (payment fraud, account " +
-    "takeover, velocity/geo/AML). Returns the function id and how to score transactions. Requires NEMESIS_API_KEY.",
+  "Create an Omniguard business-logic firewall for money & accounts, pre-loaded with the fraud rules " +
+    "that fit what the developer is building — pick the sector and event so e.g. ecommerce+checkout gets " +
+    "card-fraud/chargeback/refund rules while fintech+transfer gets AML/money-mule rules. Call " +
+    "nemesis_omniguard_catalog first if unsure which to use. Sectors: " + SECTORS.map((s) => s.key).join(", ") +
+    ". Events: " + Object.keys(EVENTS).join(", ") + ". Requires NEMESIS_API_KEY.",
   {
-    name: z.string().describe("Name for the function (e.g. 'transfers')"),
-    industry: z.string().optional().describe("Sector, e.g. fintech, ecommerce, lending, general (default general)"),
-    event: z.string().optional().describe("Event type, e.g. transfer, payment, signup, withdrawal (default transfer)"),
+    name: z.string().describe("Name for the function (e.g. 'checkout' or 'transfers')"),
+    industry: z.string().optional().describe("Sector key, e.g. ecommerce, fintech, lending, crypto, insurance, general (default general)"),
+    event: z.string().optional().describe("Event key, e.g. checkout, transfer, login, registration, refund, loan_application (default transfer)"),
   },
   async ({ name, industry, event }) => {
     const r = await api("POST", "/api/v1/omniguard/functions", { name, industry, event });
+    const pay = paymentMessage(r);
+    if (pay) return { content: [{ type: "text", text: pay }] };
     if (!r.ok) return { content: [{ type: "text", text: `Could not create Omniguard function: ${r.error}` }], isError: true };
     const d = r.data ?? {};
     return {
@@ -340,6 +352,90 @@ server.tool(
         },
       ],
     };
+  },
+);
+
+// omniguard_catalog — personalized guidance: which sector+event fits what the developer is building.
+server.tool(
+  "nemesis_omniguard_catalog",
+  "List Omniguard sectors and events (and what each protects) so you can pick the right business-logic " +
+    "firewall for what the developer is building. Optionally pass a description to get a suggested sector+event.",
+  { describe: z.string().optional().describe("What they're building, e.g. 'an ecommerce checkout' or 'a fintech transfer API'") },
+  async ({ describe }) => {
+    let hint = "";
+    if (describe) {
+      const s = suggestOmniguard(describe);
+      if (s.industry || s.event) {
+        hint = `Suggested for "${describe}": industry=${s.industry ?? "general"}, event=${s.event ?? "transfer"} — then call nemesis_create_omniguard with those.\n\n`;
+      }
+    }
+    return { content: [{ type: "text", text: hint + omniguardCatalog() }] };
+  },
+);
+
+// approve_routes — approve learned behaviors so the app can enforce (create -> learn -> approve -> enforce).
+server.tool(
+  "nemesis_approve_routes",
+  "Approve all learned behaviors for an app so it is ready to enforce — the create → learn → approve → " +
+    "enforce loop. Run after the app has seen traffic or after nemesis_run_learn. Requires NEMESIS_API_KEY.",
+  { appId: z.string().describe("The app id (from nemesis_create_app or nemesis_list_apps)") },
+  async ({ appId }) => {
+    const r = await api("POST", `/api/v1/apps/${encodeURIComponent(appId)}/approve`);
+    if (!r.ok) return { content: [{ type: "text", text: `Could not approve behaviors: ${r.error}` }], isError: true };
+    const n = r.data?.approved ?? 0;
+    return {
+      content: [
+        {
+          type: "text",
+          text:
+            n > 0
+              ? `Approved ${n} learned behavior(s). The app can now enforce — call nemesis_set_mode "enforce".`
+              : `No learning behaviors to approve yet: the app needs to see traffic first. Run nemesis_run_learn to exercise its routes, then approve.`,
+        },
+      ],
+    };
+  },
+);
+
+// run_learn — drive the Nemesis Learn agent locally to capture every route fast (no waiting on traffic).
+server.tool(
+  "nemesis_run_learn",
+  "Run the Nemesis Learn agent locally to exercise every route of your app in dev/staging so the Shield " +
+    "baseline finishes in minutes instead of waiting on real traffic. Then call nemesis_approve_routes and " +
+    "nemesis_set_mode enforce. Needs the app token (nsk_) — pass appToken or set NEMESIS_TOKEN in the env.",
+  {
+    target: z.string().describe("Base URL of the running app, e.g. http://localhost:3000"),
+    appToken: z.string().optional().describe("The app's nsk_ token (defaults to the NEMESIS_TOKEN env var)"),
+    repo: z.string().optional().describe("Path to the app's repo so Learn can discover routes from source"),
+  },
+  async ({ target, appToken, repo }) => {
+    const token = appToken || process.env.NEMESIS_TOKEN;
+    if (!token) {
+      return { content: [{ type: "text", text: "No app token. Pass appToken (nsk_...) or set NEMESIS_TOKEN. Create an app first with nemesis_create_app." }], isError: true };
+    }
+    if (!/^https?:\/\//.test(target)) {
+      return { content: [{ type: "text", text: "target must be an http(s) URL, e.g. http://localhost:3000" }], isError: true };
+    }
+    // No shell: spawn with an args array so target/repo can't inject a command.
+    const args = ["-y", "@nemesis-shield-autogon/learn", "--target", target, "--app-token", token];
+    if (repo) args.push("--repo", repo);
+    return await new Promise((resolve) => {
+      let out = "";
+      const child = spawn("npx", args, { stdio: ["ignore", "pipe", "pipe"] });
+      const cap = (d: Buffer) => { out += d.toString(); if (out.length > 12000) out = out.slice(-12000); };
+      child.stdout.on("data", cap);
+      child.stderr.on("data", cap);
+      const timer = setTimeout(() => child.kill(), 300000); // 5-minute cap
+      child.on("close", (code) => {
+        clearTimeout(timer);
+        const tail = redact(out).split("\n").slice(-25).join("\n");
+        resolve({ content: [{ type: "text", text: `Nemesis Learn finished (exit ${code}).\n${tail}\n\nNext: nemesis_approve_routes with your appId, then nemesis_set_mode "enforce".` }] });
+      });
+      child.on("error", (e: Error) => {
+        clearTimeout(timer);
+        resolve({ content: [{ type: "text", text: `Could not run Nemesis Learn: ${redact(e.message)}. Is npx available on PATH?` }], isError: true });
+      });
+    });
   },
 );
 

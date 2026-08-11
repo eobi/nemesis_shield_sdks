@@ -72,6 +72,16 @@ export async function api(method: string, path: string, body?: unknown): Promise
   }
 }
 
+// When an action needs a paid plan the API returns 402. Turn that into a clear "pay in the portal"
+// message (with a checkout/billing URL if the body carries one) so the flow can resume after upgrade.
+export function paymentMessage(r: ApiResult): string | null {
+  if (r.status !== 402) return null;
+  const d = r.data ?? {};
+  const url = d.url || d.checkoutUrl || d.upgradeUrl || d.billingUrl || "https://shield.nemesislabs.xyz/app/billing";
+  const why = d.detail || d.error || "This action needs a paid plan.";
+  return `${why}\nUpgrade in the portal, then run this again:\n  ${url}`;
+}
+
 // Convenience: turn an ApiResult into MCP tool text content, redacted.
 export function resultText(r: ApiResult, okLines: (data: any) => string): string {
   if (!r.ok) return `Request failed${r.status ? ` (HTTP ${r.status})` : ""}: ${r.error || "unknown error"}`;
