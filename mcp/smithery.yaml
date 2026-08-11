@@ -1,0 +1,12 @@
+# Smithery listing config for the Nemesis Shield MCP server.
+# stdio server distributed via npm; needs no configuration (the scan tool hits a public endpoint,
+# and the SDK NEMESIS_TOKEN is only used later inside the app the developer is building, not here).
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    required: []
+    properties: {}
+  commandFunction:
+    |-
+    (config) => ({ command: 'npx', args: ['-y', '@nemesis-shield-autogon/mcp'] })
