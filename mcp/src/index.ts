@@ -11,6 +11,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { protectText, frameworkList, suggestFramework } from "./frameworks.js";
 import { explainText, explainTopics } from "./explain.js";
+import { api } from "./client.js";
 
 const server = new McpServer({ name: "nemesis-shield", version: "0.1.0" });
 
@@ -138,6 +139,88 @@ server.tool(
   "nemesis_list_frameworks",
   "List every framework/stack Nemesis Shield has a one-line integration for.",
   async () => ({ content: [{ type: "text", text: "Nemesis Shield one-line integrations for: " + frameworkList().join(", ") + ".\nCall nemesis_protect with any of these." }] }),
+);
+
+// ---- Authenticated management tools (need NEMESIS_API_KEY set in the MCP client config) -----------
+// These act on the developer's OWN Shield account. The key is read from env only, never an argument.
+
+// create_app — provision an app and return its install token: the core of "protect this app".
+server.tool(
+  "nemesis_create_app",
+  "Create a Nemesis Shield app in the developer's account and return its install token (nsk_). This is " +
+    "the first step to protect an app/API/LLM: create it, then add the one-line SDK. Requires the " +
+    "NEMESIS_API_KEY env var (a developer API key from the Shield console).",
+  {
+    name: z.string().describe("A name for the app (e.g. 'my-api')"),
+    kind: z.enum(["web", "api", "llm"]).optional().describe("web (default), api, or llm"),
+  },
+  async ({ name, kind }) => {
+    const r = await api("POST", "/api/v1/apps", { name, kind: kind ?? "web" });
+    if (!r.ok) return { content: [{ type: "text", text: `Could not create app: ${r.error}` }], isError: true };
+    const d = r.data ?? {};
+    return {
+      content: [
+        {
+          type: "text",
+          text:
+            `Created Shield app "${name}" (${d.kind}, mode: ${d.mode}).\n` +
+            `App token: ${d.token}\n\n` +
+            `Next:\n` +
+            `1. Add it to your .env:  NEMESIS_TOKEN=${d.token}\n` +
+            `2. Add the SDK — call nemesis_protect with your framework.\n` +
+            `3. It starts in OBSERVE (blocks nothing). Once it has learned a baseline, call ` +
+            `nemesis_set_mode with mode "enforce".`,
+        },
+      ],
+    };
+  },
+);
+
+// list_apps — the developer's apps with mode + readiness.
+server.tool(
+  "nemesis_list_apps",
+  "List the apps in the developer's Shield account, with each app's mode (observe/alert/enforce) and " +
+    "whether its baseline is ready to enforce. Requires NEMESIS_API_KEY.",
+  async () => {
+    const r = await api("GET", "/api/v1/apps");
+    if (!r.ok) return { content: [{ type: "text", text: `Could not list apps: ${r.error}` }], isError: true };
+    const apps: any[] = r.data?.apps ?? [];
+    if (!apps.length) return { content: [{ type: "text", text: "No apps yet. Create one with nemesis_create_app." }] };
+    const lines = apps.map(
+      (a) => `• ${a.name} (${a.kind}) — mode: ${a.mode}${a.baselineReady ? ", baseline ready" : ""}  [${a.appId}]`,
+    );
+    return { content: [{ type: "text", text: `Your Shield apps:\n${lines.join("\n")}` }] };
+  },
+);
+
+// set_mode — flip observe/alert/enforce (enforce is readiness-gated server-side).
+server.tool(
+  "nemesis_set_mode",
+  "Set a Shield app's enforcement mode: observe (learn, block nothing), alert, or enforce (block " +
+    "deviations). Enforce requires an approved baseline unless force=true. Requires NEMESIS_API_KEY.",
+  {
+    appId: z.string().describe("The app id (from nemesis_list_apps or nemesis_create_app)"),
+    mode: z.enum(["observe", "alert", "enforce"]).describe("observe, alert, or enforce"),
+    force: z.boolean().optional().describe("Override the enforce-readiness gate (leaves an audit trail)"),
+  },
+  async ({ appId, mode, force }) => {
+    const r = await api("POST", `/api/v1/apps/${encodeURIComponent(appId)}/mode`, { mode, force: Boolean(force) });
+    if (!r.ok) {
+      const notReady = r.status === 409 || /enforce_not_ready/.test(r.error ?? "");
+      return {
+        content: [
+          {
+            type: "text",
+            text: notReady
+              ? `Not ready to enforce: ${r.error}. Approve a behavior in the console (or run Nemesis Learn to finish the baseline), then retry — or pass force:true to override.`
+              : `Could not set mode: ${r.error}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+    return { content: [{ type: "text", text: `App ${appId} is now in ${r.data?.mode ?? mode} mode.` }] };
+  },
 );
 
 const transport = new StdioServerTransport();

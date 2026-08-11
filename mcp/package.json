@@ -1,6 +1,6 @@
 {
   "name": "@nemesis-shield-autogon/mcp",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "Nemesis Shield MCP server: let your AI coding agent add positive-security runtime protection, scan a site, and explain attack coverage, without leaving the editor.",
   "type": "module",
   "bin": {
