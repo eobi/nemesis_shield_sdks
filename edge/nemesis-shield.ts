@@ -282,29 +282,48 @@ export class Shield {
   /** Wrap a Web-standard `(Request) => Response` handler with inline enforcement. */
   handler(fn: (req: Request) => Response | Promise<Response>): (req: Request) => Promise<Response> {
     return async (req: Request): Promise<Response> => {
-      await this.maybeRefresh();
-      const url = new URL(req.url);
-      const query = queryToObject(url.searchParams);
-      const authed =
-        req.headers.has("authorization") ||
-        req.headers.has("cookie") ||
-        req.headers.has("apikey") ||
-        req.headers.has("x-api-key");
-      // enforce, but never block the login/auth path (break-glass)
-      if (this.enforcing() && !neverBlock(url.pathname)) {
-        const reason = this.decide(this.buildSketch(req.method, url.pathname, query, authed, 0).shape);
-        if (reason) {
-          this.record(this.buildSketch(req.method, url.pathname, query, authed, 403));
-          void this.flush();
-          return new Response(JSON.stringify({ error: "blocked_by_nemesis_shield", reason }), {
-            status: 403,
-            headers: { "content-type": "application/json" },
-          });
+      // FAIL-OPEN: the refresh + decision block is fully guarded. ANY throw in Shield internals
+      // (policy refresh, URL parse, sketch build, decide) must NEVER 500 the customer's request — on
+      // error we fall straight through to the wrapped handler. Only an explicit block returns 403.
+      let url: URL | null = null;
+      let query: Query = {};
+      let authed = false;
+      try {
+        await this.maybeRefresh();
+        url = new URL(req.url);
+        query = queryToObject(url.searchParams);
+        authed =
+          req.headers.has("authorization") ||
+          req.headers.has("cookie") ||
+          req.headers.has("apikey") ||
+          req.headers.has("x-api-key");
+        // enforce, but never block the login/auth path (break-glass)
+        if (this.enforcing() && !neverBlock(url.pathname)) {
+          const reason = this.decide(this.buildSketch(req.method, url.pathname, query, authed, 0).shape);
+          if (reason) {
+            try {
+              this.record(this.buildSketch(req.method, url.pathname, query, authed, 403));
+              void this.flush();
+            } catch {
+              /* fail-open telemetry */
+            }
+            return new Response(JSON.stringify({ error: "blocked_by_nemesis_shield", reason }), {
+              status: 403,
+              headers: { "content-type": "application/json" },
+            });
+          }
         }
+      } catch {
+        /* fail-open: swallow any internal error and let the request proceed */
       }
       const res = await fn(req);
-      this.record(this.buildSketch(req.method, url.pathname, query, authed, res.status));
-      void this.flush();
+      try {
+        const pathname = url ? url.pathname : new URL(req.url).pathname;
+        this.record(this.buildSketch(req.method, pathname, query, authed, res.status));
+        void this.flush();
+      } catch {
+        /* fail-open telemetry */
+      }
       return res;
     };
   }

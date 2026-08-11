@@ -20,20 +20,30 @@ export function sentinel(config = {}) {
   const client = new SentinelClient(config);
   const authFn = config.authed;
   return function nemesisSentinel(req, res, next) {
-    const path = req.originalUrl || req.url || "/";
-    const query = queryOf(req);
-    const authenticated = authedOf(req, authFn);
-    if (client.mode === "enforce" && !client.neverBlock(path)) {
-      const verdict = client.decide(buildSketch({ method: req.method, path, query, authenticated }));
-      if (client.shouldBlock(verdict)) {
-        client.record(buildSketch({ method: req.method, path, query, authenticated, status: 403 }));
-        res.statusCode = 403;
-        res.setHeader("content-type", "application/json");
-        res.end(JSON.stringify({ error: "blocked_by_nemesis_shield", reason: verdict.reason }));
-        return;
+    // FAIL-OPEN: the entire decision path is wrapped. ANY throw inside Shield (sketch build, policy
+    // decide, header parsing) must NEVER 500 the customer's request — on error we fall through to next().
+    // A `return` inside the try (the block case) still skips next(); a throw does not.
+    try {
+      const path = req.originalUrl || req.url || "/";
+      const query = queryOf(req);
+      const authenticated = authedOf(req, authFn);
+      if (client.mode === "enforce" && !client.neverBlock(path)) {
+        const verdict = client.decide(buildSketch({ method: req.method, path, query, authenticated }));
+        if (client.shouldBlock(verdict)) {
+          client.record(buildSketch({ method: req.method, path, query, authenticated, status: 403 }));
+          res.statusCode = 403;
+          res.setHeader("content-type", "application/json");
+          res.end(JSON.stringify({ error: "blocked_by_nemesis_shield", reason: verdict.reason }));
+          return;
+        }
       }
+      res.on("finish", () => {
+        try { client.record(buildSketch({ method: req.method, path, query, authenticated, status: res.statusCode })); }
+        catch { /* fail-open telemetry: never break the host app */ }
+      });
+    } catch {
+      /* fail-open: swallow any internal error and let the request proceed */
     }
-    res.on("finish", () => client.record(buildSketch({ method: req.method, path, query, authenticated, status: res.statusCode })));
     next();
   };
 }

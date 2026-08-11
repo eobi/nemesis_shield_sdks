@@ -87,10 +87,12 @@ export async function crawl(base, session, { maxPages = 40 } = {}) {
     endpoints.push({ method: "GET", path: pathOf(url), source: "crawl", params: [], body: null });
     if (!res.text) continue;
     const isHtml = (res.headers?.["content-type"] || "").includes("html");
-    // JS-embedded API URLs (fetch/axios/XHR/string literals) - catches SPA + AJAX endpoints.
-    for (const u of extractJsUrls(res.text)) {
+    // JS-embedded API URLs (fetch/axios/XHR/string literals) - catches SPA + AJAX endpoints. Capture the
+    // REAL verb where the call encodes it (axios.post(...), fetch(x,{method:'PUT'})) so a mutating XHR
+    // endpoint isn't learned as GET and then false-blocked on enforce.
+    for (const { method, url: u } of extractJsUrls(res.text)) {
       const abs = safeUrl(u, url);
-      if (abs && abs.startsWith(origin) && !isAsset(abs)) endpoints.push({ method: "GET", path: pathOf(abs), source: "crawl-js", params: [], body: null });
+      if (abs && abs.startsWith(origin) && !isAsset(abs)) endpoints.push({ method: normMethod(method), path: pathOf(abs), source: "crawl-js", params: [], body: null });
     }
     if (!isHtml) continue;
     for (const href of extractLinks(res.text)) {
@@ -121,14 +123,23 @@ function extractSeedUrls(text) {
 function extractJsUrls(text) {
   const out = [];
   let m;
-  // fetch("/x"), axios.get('/x'), $.ajax({url:"/x"}), url: "/x", "/api/..." string literals
-  const res = [
-    /\bfetch\s*\(\s*[`'"]([^`'"]+)[`'"]/gi,
-    /\b(?:axios|http|api)\s*\.\s*(?:get|post|put|patch|delete)\s*\(\s*[`'"]([^`'"]+)[`'"]/gi,
+  // Verb-bearing calls carry the method in the source — capture it. axios.post('/x'), http.put('/x'),
+  // api.delete('/x'), client.patch('/x').
+  const verbed = /\b(?:axios|http|api|client|instance|\$http)\s*\.\s*(get|post|put|patch|delete)\s*\(\s*[`'"]([^`'"]+)[`'"]/gi;
+  while ((m = verbed.exec(text))) if (m[2] && m[2].startsWith("/")) out.push({ method: m[1].toUpperCase(), url: m[2] });
+  // fetch('/x', { method: 'POST' }) — read the method from the options object when present (else GET).
+  const fetchRe = /\bfetch\s*\(\s*[`'"]([^`'"]+)[`'"]\s*(?:,\s*\{([^}]{0,300}?)\})?/gi;
+  while ((m = fetchRe.exec(text))) {
+    if (!m[1] || !m[1].startsWith("/")) continue;
+    const mm = m[2] && m[2].match(/\bmethod\s*:\s*[`'"]([a-z]+)[`'"]/i);
+    out.push({ method: (mm ? mm[1] : "GET").toUpperCase(), url: m[1] });
+  }
+  // $.ajax({url:"/x"}), url: "/x", and "/api/..." string literals — no verb signal, default GET.
+  const plain = [
     /\burl\s*:\s*[`'"](\/[^`'"]+)[`'"]/gi,
     /[`'"](\/(?:api|v\d|rest|graphql|ajax)\/[^`'"?\s]{1,120})[`'"]/gi,
   ];
-  for (const re of res) { while ((m = re.exec(text))) if (m[1] && m[1].startsWith("/")) out.push(m[1]); }
+  for (const re of plain) { while ((m = re.exec(text))) if (m[1] && m[1].startsWith("/")) out.push({ method: "GET", url: m[1] }); }
   return out.slice(0, 200);
 }
 function extractForms(html, pageUrl) {
@@ -180,9 +191,15 @@ const ROUTE_PATTERNS = [
   { ext: ["php"], re: /(?:@Route|#\[\s*Route)\s*\(\s*(?:path\s*[:=]\s*)?[`'"]([^`'"]+)[`'"]/g, m: null, p: 1 },
   // PHP: CakePHP router
   { ext: ["php"], re: /(?:Router::connect|\$routes\s*->\s*connect|\$routes\s*->\s*(?:get|post|put|patch|delete))\s*\(\s*[`'"](\/[^`'"]*)[`'"]/gi, m: null, p: 1 },
-  // Java: Spring MVC / WebFlux
-  { ext: ["java", "kt", "scala", "groovy"], re: /@(?:Get|Post|Put|Patch|Delete|Request)Mapping\s*\(\s*(?:value\s*=\s*|path\s*=\s*)?\{?\s*[`'"]([^`'"]+)[`'"]/g, m: null, p: 1 },
-  // Java: JAX-RS
+  // Java: Spring MVC / WebFlux — capture the REAL verb from the annotation NAME (@PostMapping→POST,
+  // @DeleteMapping→DELETE, …). @RequestMapping (no dedicated verb) → "Request" → normMethod falls back to
+  // GET. A route learned with the wrong verb is off-baseline on the real POST/PUT/DELETE = a false block.
+  { ext: ["java", "kt", "scala", "groovy"], re: /@(Get|Post|Put|Patch|Delete|Request)Mapping\s*\(\s*(?:value\s*=\s*|path\s*=\s*)?\{?\s*[`'"]([^`'"]+)[`'"]/g, m: 1, p: 2 },
+  // Java: JAX-RS — the verb is the @GET/@POST/… annotation, NOT @Path. Capture the verb + the nearest
+  // following @Path (skipping @Consumes/@Produces) so a real POST/DELETE isn't mislearned as GET.
+  { ext: ["java", "kt", "scala"], re: /@(GET|POST|PUT|PATCH|DELETE|HEAD)\b\s*(?:@(?:Consumes|Produces|RolesAllowed|PermitAll)\b[^\n]*\s*)*@Path\s*\(\s*[`'"]([^`'"]+)[`'"]/g, m: 1, p: 2 },
+  // Java: JAX-RS @Path with no adjacent verb annotation = class-level prefix or a verb-less resource
+  // (defaults GET). Kept for coverage; the verb-aware pattern above takes precedence on mutating routes.
   { ext: ["java", "kt", "scala"], re: /@Path\s*\(\s*[`'"]([^`'"]+)[`'"]/g, m: null, p: 1 },
   // Java: Servlet 3 annotation
   { ext: ["java", "kt"], re: /@WebServlet\s*\(\s*(?:value\s*=\s*|urlPatterns\s*=\s*)?\{?\s*[`'"]([^`'"]+)[`'"]/g, m: null, p: 1 },
@@ -287,6 +304,11 @@ function classPrefix(src, ext) {
     // Spring class-level @RequestMapping - the one immediately preceding the class/interface declaration.
     const m = src.match(/@RequestMapping\s*\(\s*(?:value\s*=\s*|path\s*=\s*)?\{?\s*[`'"]([^`'"]+)[`'"][\s\S]{0,500}?\b(?:public\s+|final\s+|abstract\s+)*(?:class|interface)\s/);
     if (m) return m[1];
+    // JAX-RS class-level @Path is the resource prefix; method @Path values are relative to it. Without
+    // this, @POST @Path("/place") on a @Path("/orders") class learns as /place -> the real /orders/place
+    // is off-baseline and false-blocks on enforce.
+    const jx = src.match(/@Path\s*\(\s*[`'"]([^`'"]+)[`'"][\s\S]{0,300}?\b(?:public\s+|final\s+|abstract\s+)*class\s/);
+    if (jx) return jx[1];
     return null;
   }
   return null;
@@ -296,6 +318,93 @@ function joinPrefix(prefix, path) {
   const a = String(prefix).replace(/\/+$/, "");
   const b = path === "/" ? "" : path;
   return (a + b) || "/";
+}
+
+// ── File-convention frameworks: Next.js App Router, Remix, SvelteKit ──────────────────────────────
+// These are FILE-routed (the path is the directory/filename) and VERB-routed (the HTTP method is which
+// named function the module exports). The classic file-per-route pass deliberately skips app/ and
+// src/routes/, and ROUTE_PATTERNS has no DSL for them — so without this pass whole API families are
+// invisible, and on enforce every real POST/PUT/DELETE to them false-blocks. Verb-accurate by design.
+const HTTP_VERBS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
+
+// A dir path (segments) -> URL path. Drops route groups `(marketing)` and Next parallel slots `@modal`;
+// maps `[id]`->{id}, `[...slug]`/`[[...slug]]`->{slug}.
+function dirSegsToPath(segs) {
+  const parts = [];
+  for (let s of segs) {
+    if (!s || s === ".") continue;
+    if (/^\(.*\)$/.test(s)) continue;              // route group — grouping only, no URL segment
+    if (/^@/.test(s)) continue;                    // Next.js parallel-route slot
+    s = s.replace(/^\[\[?\.\.\.([^\]]+)\]?\]$/, "{$1}")  // [...slug] / [[...slug]] (catch-all)
+      .replace(/^\[([^\]]+)\]$/, "{$1}");                // [id] (dynamic)
+    parts.push(s);
+  }
+  return "/" + parts.join("/");
+}
+
+// Which HTTP-verb functions a route module exports (Next route.ts / SvelteKit +server.ts).
+function exportedVerbs(src) {
+  const out = [];
+  for (const v of HTTP_VERBS) {
+    if (new RegExp(`export\\s+(?:async\\s+)?(?:function\\s+${v}\\b|const\\s+${v}\\s*[:=]|\\{[^}]*\\b${v}\\b[^}]*\\})`).test(src)) out.push(v);
+  }
+  return out;
+}
+
+// Remix flat filename -> URL path. `users.$id.tsx`->/users/{id}; `_index`->index; `$`->splat;
+// pathless layout segments (leading `_`) and optional `(lang)` markers are dropped.
+function remixFileToPath(fname) {
+  let n = fname.replace(/\.(t|j)sx?$/, "");
+  const segs = [];
+  for (let s of n.split(".")) {
+    if (!s || s === "_index" || s.startsWith("_")) continue;    // index + pathless layouts
+    if (/^\(.*\)$/.test(s)) { s = s.slice(1, -1); }             // optional segment (lang) -> lang
+    s = s.replace(/^\$$/, "{splat}").replace(/^\$(.+)$/, "{$1}");
+    segs.push(s);
+  }
+  return "/" + segs.join("/");
+}
+
+// Detect + parse a file-convention route module. `file` = repo-relative POSIX path; `full` = abs path.
+function parseFileConvention(file, full) {
+  const eps = [];
+  const read = () => { try { return readFileSync(full, "utf8"); } catch { return ""; } };
+  const push = (method, rawPath, src) => { const p = normPath(rawPath || "/"); if (p) eps.push({ method: normMethod(method), path: p, source: `repo-fileconv:${file}`, params: [], body: null }); };
+
+  // Remix: app/routes/<name>.tsx (flat) or app/routes/<name>/route.tsx (folder). loader->GET, action->mutating.
+  let mx = file.match(/(?:^|\/)app\/routes\/(.+)\.(?:t|j)sx?$/);
+  if (mx) {
+    let name = mx[1];
+    if (name.endsWith("/route")) name = name.slice(0, -"/route".length).split("/").pop();
+    const routePath = remixFileToPath(name.split("/").pop());
+    const src = read();
+    if (/export\s+(?:async\s+)?(?:function\s+loader\b|const\s+loader\s*[:=])/.test(src) || !/export\s+(?:async\s+)?(?:function|const)\s+action\b/.test(src)) push("GET", routePath, src);
+    if (/export\s+(?:async\s+)?(?:function\s+action\b|const\s+action\s*[:=])/.test(src)) for (const v of ["POST", "PUT", "PATCH", "DELETE"]) push(v, routePath, src);  // action handles any non-GET
+    return eps;
+  }
+
+  // Next.js App Router: (src/)?app/**/route.{ts,js} exporting named verbs; (src/)?app/**/page.* -> GET page.
+  let nx = file.match(/(?:^|\/)(?:src\/)?app\/(.*?)\/?(route|page)\.(?:t|j)sx?$/);
+  if (nx && !/(?:^|\/)app\/routes\//.test(file)) {   // exclude Remix's app/routes/
+    const routePath = dirSegsToPath((nx[1] || "").split("/"));
+    if (nx[2] === "route") { const verbs = exportedVerbs(read()); for (const v of (verbs.length ? verbs : ["GET"])) push(v, routePath); }
+    else push("GET", routePath);   // page.tsx = a rendered GET route
+    return eps;
+  }
+
+  // SvelteKit: (src/)?routes/**/+server.{ts,js} exporting verbs; +page(.server).* -> GET (+ actions POST).
+  let sk = file.match(/(?:^|\/)(?:src\/)?routes\/(.*?)\/?\+(server|page(?:\.server)?)\.(?:t|j)s$/);
+  if (sk) {
+    const routePath = dirSegsToPath((sk[1] || "").split("/"));
+    if (sk[2] === "server") { const verbs = exportedVerbs(read()); for (const v of (verbs.length ? verbs : ["GET"])) push(v, routePath); }
+    else { push("GET", routePath); if (/export\s+const\s+actions\b/.test(read())) push("POST", routePath); }  // form actions
+    return eps;
+  }
+  // SvelteKit page component (no module to read) -> GET route.
+  let skp = file.match(/(?:^|\/)(?:src\/)?routes\/(.*?)\/?\+page\.svelte$/);
+  if (skp) { push("GET", dirSegsToPath((skp[1] || "").split("/"))); return eps; }
+
+  return eps;
 }
 
 const SKIP_DIRS = new Set(["node_modules", ".git", "dist", "build", ".next", "vendor", "__pycache__", "target", ".venv", "venv", "out", "coverage", "bower_components", ".svn"]);
@@ -342,6 +451,10 @@ export function discoverRepo(dir, { maxFiles = 8000 } = {}) {
       if (SERVE_EXT.test(e.name) && full.startsWith(webRoot) && !NONSERVE_SEG.test(file)) {
         endpoints.push(fileToRoute(full, webRoot, file));
       }
+
+      // (a2) File-convention frameworks (Next App Router / Remix / SvelteKit). Runs before the CODE_EXT
+      //      gate so `+page.svelte` is caught by name, and independent of NONSERVE_SEG (which skips these dirs).
+      for (const ep of parseFileConvention(file, full)) endpoints.push(ep);
 
       if (!CODE_EXT.test(e.name)) continue;
       scanned++;

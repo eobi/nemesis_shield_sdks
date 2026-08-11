@@ -13,16 +13,24 @@ export async function sentinelFastify(fastify, opts) {
   const client = new SentinelClient(opts);
 
   fastify.addHook("onRequest", async (req, reply) => {
-    if (client.mode !== "enforce" || client.neverBlock(req.url)) return;
-    const verdict = client.decide(buildSketch({ method: req.method, path: req.url, query: req.query, authenticated: authed(req) }));
-    if (client.shouldBlock(verdict)) {
-      client.record(buildSketch({ method: req.method, path: req.url, query: req.query, authenticated: authed(req), status: 403 }));
-      reply.code(403).send({ error: "blocked_by_nemesis_shield", reason: verdict.reason }); // sending short-circuits
+    // FAIL-OPEN: any throw in the decision path must not surface as a 500 — swallow it and let the
+    // request run. Only an explicit shouldBlock reply short-circuits.
+    try {
+      if (client.mode !== "enforce" || client.neverBlock(req.url)) return;
+      const verdict = client.decide(buildSketch({ method: req.method, path: req.url, query: req.query, authenticated: authed(req) }));
+      if (client.shouldBlock(verdict)) {
+        client.record(buildSketch({ method: req.method, path: req.url, query: req.query, authenticated: authed(req), status: 403 }));
+        reply.code(403).send({ error: "blocked_by_nemesis_shield", reason: verdict.reason }); // sending short-circuits
+      }
+    } catch {
+      /* fail-open */
     }
   });
 
   fastify.addHook("onResponse", async (req, reply) => {
-    client.record(buildSketch({ method: req.method, path: req.url, query: req.query, authenticated: authed(req), status: reply.statusCode }));
+    try {
+      client.record(buildSketch({ method: req.method, path: req.url, query: req.query, authenticated: authed(req), status: reply.statusCode }));
+    } catch { /* fail-open telemetry */ }
   });
 }
 // Break encapsulation so the hooks apply to the whole app, not just this plugin's context

@@ -378,18 +378,35 @@ func (r *statusRecorder) WriteHeader(code int) { r.status = code; r.ResponseWrit
 func (c *Client) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authed := authedFrom(r)
-		if c.Enforcing() && !NeverBlock(r.URL.Path) {
-			s := c.BuildSketch(r.Method, r.URL.Path, r.URL.Query(), authed, 0)
-			if block, reason := c.Decide(s); block {
-				c.Record(c.BuildSketch(r.Method, r.URL.Path, r.URL.Query(), authed, 403))
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusForbidden)
-				json.NewEncoder(w).Encode(map[string]string{"error": "blocked_by_nemesis_shield", "reason": reason})
-				return
+		// FAIL-OPEN: a panic in the decision path (sketch build / decide) must not abort the
+		// customer's request. Recover and, if the handler hasn't run yet, run it now.
+		blocked := false
+		func() {
+			defer func() { _ = recover() }()
+			if c.Enforcing() && !NeverBlock(r.URL.Path) {
+				s := c.BuildSketch(r.Method, r.URL.Path, r.URL.Query(), authed, 0)
+				if block, reason := c.Decide(s); block {
+					blocked = decideBlock(c, w, r, authed, reason)
+				}
 			}
+		}()
+		if blocked {
+			return
 		}
 		rec := &statusRecorder{ResponseWriter: w, status: 200}
 		next.ServeHTTP(rec, r)
-		c.Record(c.BuildSketch(r.Method, r.URL.Path, r.URL.Query(), authed, rec.status))
+		func() {
+			defer func() { _ = recover() }()
+			c.Record(c.BuildSketch(r.Method, r.URL.Path, r.URL.Query(), authed, rec.status))
+		}()
 	})
+}
+
+// decideBlock writes the 403 block response and records it; returns true (request handled).
+func decideBlock(c *Client, w http.ResponseWriter, r *http.Request, authed bool, reason string) bool {
+	c.Record(c.BuildSketch(r.Method, r.URL.Path, r.URL.Query(), authed, 403))
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusForbidden)
+	json.NewEncoder(w).Encode(map[string]string{"error": "blocked_by_nemesis_shield", "reason": reason})
+	return true
 }

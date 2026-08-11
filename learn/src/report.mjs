@@ -17,7 +17,20 @@ export function buildReport({ target, discovered, results, startedAt, finishedAt
   for (const e of discovered) { const s = e.source.split(":")[0]; bySource[s] = (bySource[s] || 0) + 1; }
 
   const reached = byClass["2xx"] + byClass["3xx"] + byClass["4xx"]; // server responded (traffic learned)
-  const coverage = results.length ? Math.round((reached / results.length) * 100) : 0;
+
+  // Baseline READINESS — how complete is the learned baseline vs everything discovery says exists?
+  // The denominator is the independent discovered-route universe (repo/source scan + crawl + OpenAPI)
+  // UNIONed with anything we actually exercised — NOT just the exercised count. Before, coverage was
+  // reached/results.length, so a whole route family discovered from source but never exercised (capped
+  // out, unreachable, or the crawl missed it) was invisible and readiness falsely read 100%. Now those
+  // routes sit in the denominator and correctly drag readiness DOWN until the baseline covers them.
+  const reachedKeys = new Set(results.filter((r) => r.status && r.status < 500).map((r) => `${r.method} ${r.path}`));
+  const universe = new Set([...discoveredKeys, ...exercisedKeys]);
+  const notReached = [...universe].filter((k) => !reachedKeys.has(k));
+  const coverage = universe.size ? Math.round((reachedKeys.size / universe.size) * 100) : 0;
+  // Legacy request-level figure (of the requests we sent, how many the server answered) — kept for the
+  // "traffic learned" line so we don't lose that signal.
+  const reachedRate = results.length ? Math.round((reached / results.length) * 100) : 0;
 
   return {
     target,
@@ -25,9 +38,12 @@ export function buildReport({ target, discovered, results, startedAt, finishedAt
     durationMs: Date.parse(finishedAt) - Date.parse(startedAt),
     discovered: { total: discovered.length, bySource },
     exercised: { total: results.length, byMethod, byStatus: byClass, uploads: uploads.length },
-    coveragePct: coverage,
+    coveragePct: coverage,          // readiness over the discovered universe (the enforce-gate signal)
+    readinessBasis: { reachedRoutes: reachedKeys.size, universe: universe.size },
     reachedServer: reached,
+    reachedRatePct: reachedRate,    // of requests sent, how many got a response
     notExercised,
+    notReached: notReached.slice(0, 200),
     errors: errors.slice(0, 50),
     uploads: uploads.slice(0, 50),
     requests: results,
@@ -47,7 +63,12 @@ export function printSummary(rep, out) {
   line(`  Responses     ${s["2xx"]} × 2xx · ${s["3xx"]} × 3xx · ${s["4xx"]} × 4xx · ${s["5xx"]} × 5xx · ${s.err} failed`);
   line(`  Methods       ${Object.entries(rep.exercised.byMethod).map(([k, v]) => `${k}:${v}`).join("  ")}`);
   line(`  Uploads       ${rep.exercised.uploads} file upload${rep.exercised.uploads === 1 ? "" : "s"} exercised`);
-  line(`  Server reached ${rep.reachedServer}/${rep.exercised.total} (${rep.coveragePct}%) - this is the traffic Shield learned`);
+  line(`  Server reached ${rep.reachedServer}/${rep.exercised.total} (${rep.reachedRatePct}%) - this is the traffic Shield learned`);
+  const rb = rep.readinessBasis || { reachedRoutes: rep.reachedServer, universe: rep.exercised.total };
+  line(`  Readiness      ${rep.coveragePct}%  (${rb.reachedRoutes}/${rb.universe} discovered routes reached)`);
+  if (rep.notReached && rep.notReached.length) {
+    line(`  ${rep.notReached.length} discovered route(s) NOT reached - baseline incomplete; enforcing now would false-block them.`);
+  }
   if (rep.errors.length) {
     line("");
     line(`  ⚠ ${rep.errors.length} route(s) errored (5xx / unreachable) - worth a look before enforce:`);
