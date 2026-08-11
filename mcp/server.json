@@ -6,12 +6,12 @@
     "url": "https://github.com/eobi/nemesis_shield_sdks",
     "source": "github"
   },
-  "version": "0.2.1",
+  "version": "0.2.2",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@nemesis-shield-autogon/mcp",
-      "version": "0.2.1",
+      "version": "0.2.2",
       "transport": {
         "type": "stdio"
       }

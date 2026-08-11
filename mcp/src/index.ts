@@ -481,6 +481,39 @@ server.tool(
   },
 );
 
+// server_agent — protect a whole server (many apps) with the Nemesis host agent.
+server.tool(
+  "nemesis_server_agent",
+  "Protect a whole server (e.g. an Ubuntu box running several apps) with the Nemesis host agent. Mints " +
+    "an account enrollment key and returns the one-line install command. Run it ON the server (root) and " +
+    "the agent installs a systemd unit, enrolls the host, and AUTO-DISCOVERS every app — which then show " +
+    "up in nemesis_list_apps to approve + enforce per app. Requires NEMESIS_API_KEY.",
+  { label: z.string().optional().describe("A label for this server/key, e.g. 'prod-ubuntu-1'") },
+  async ({ label }) => {
+    const r = await api("POST", "/api/v1/server-key", { label });
+    const pay = paymentMessage(r);
+    if (pay) return { content: [{ type: "text", text: pay }] };
+    if (!r.ok) return { content: [{ type: "text", text: `Could not mint a server enrollment key: ${r.error}` }], isError: true };
+    const d = r.data ?? {};
+    return {
+      content: [
+        {
+          type: "text",
+          text:
+            `Server host-agent enrollment key (ashk_): ${d.enrollKey}\n\n` +
+            `Install on your Ubuntu/Linux server (as root):\n  ${d.installCommand}\n\n` +
+            `It installs the agent + a systemd unit, enrolls the host, and AUTO-DISCOVERS every app on it.\n` +
+            `Then, from your editor:\n` +
+            `  1. nemesis_list_apps — see the discovered apps\n` +
+            `  2. nemesis_run_learn (optional) — exercise an app's routes to finish its baseline fast\n` +
+            `  3. nemesis_approve_routes <appId> → nemesis_set_mode <appId> "enforce"\n` +
+            `Keep the key secret — it enrolls agents into your account.`,
+        },
+      ],
+    };
+  },
+);
+
 const transport = new StdioServerTransport();
 await server.connect(transport);
 process.stderr.write("nemesis-shield MCP server running (stdio)\n");

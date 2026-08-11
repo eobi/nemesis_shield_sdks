@@ -31,6 +31,7 @@ management tools use a developer API key you mint in the console and keep in you
 | `nemesis_protect_llm` | Stand up an LLM Guard app (OWASP LLM Top 10 / prompt injection). |
 | `nemesis_provision_edge` | Put a domain behind Nemesis Edge (Cloudflare-like) → returns nameservers, or a TXT ownership claim. |
 | `nemesis_edge_status` | List edge domains + activation status. |
+| `nemesis_server_agent` | Protect a whole server (Ubuntu box, many apps): mints the host-agent enrollment key + one-line install; the agent auto-discovers apps. |
 | `nemesis_omniguard_catalog` | Sector + event guidance so the agent picks the right business-logic firewall (ecommerce/checkout vs fintech/transfer …). |
 | `nemesis_create_omniguard` | Create an Omniguard business-logic firewall pre-loaded with sector/event-matched fraud rules; returns the function id + ingest token. |
 | `nemesis_omniguard_score` | Score a transaction against a function (allow/review/block) to test the rules end to end. Dry-run by default. |

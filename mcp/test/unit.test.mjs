@@ -98,7 +98,7 @@ test("stdio: server lists all tools", async () => {
     "nemesis_protect", "nemesis_scan", "nemesis_explain", "nemesis_list_frameworks",
     "nemesis_create_app", "nemesis_list_apps", "nemesis_set_mode",
     "nemesis_provision_edge", "nemesis_edge_status", "nemesis_protect_llm",
-    "nemesis_create_omniguard", "nemesis_omniguard_catalog", "nemesis_omniguard_score", "nemesis_approve_routes", "nemesis_run_learn",
+    "nemesis_create_omniguard", "nemesis_omniguard_catalog", "nemesis_omniguard_score", "nemesis_approve_routes", "nemesis_run_learn", "nemesis_server_agent",
   ]) {
     assert.ok(tools.includes(name), `missing tool: ${name}`);
   }
