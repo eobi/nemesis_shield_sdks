@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.eobi/nemesis-shield",
-  "description": "Add Nemesis Shield positive-security runtime protection while you build: one-line SDK integration per stack, passive site fingerprint with real CVEs, and attack-coverage explanations.",
+  "description": "Add Nemesis Shield security as you build: one-line SDK per stack, plus a site+CVE scan.",
   "repository": {
     "url": "https://github.com/eobi/nemesis_shield_sdks",
     "source": "github"
