@@ -7,6 +7,11 @@ flags - and, in enforce mode, blocks - anything that deviates. It's a positive-s
 model: instead of guessing at generic attack signatures, it enforces *"this app only ever behaves
 in these ways."*
 
+> **Building with an AI assistant?** Drop in an [AI editor rule pack](ai-rules/) (AGENTS.md, Cursor,
+> Windsurf, or Claude Code) and your coding agent will add Nemesis Shield **as it builds** — one line
+> per stack, safe by default (observe mode). The full verified one-liner reference for every framework
+> lives in [`ai-rules/AGENTS.md`](ai-rules/AGENTS.md).
+
 **Privacy by design:** the SDKs ship only behavioral *metadata* - HTTP method, the *shape* of the
 path (`/orders/123` → `/orders/{int}`), status code, and whether the caller was authenticated. They
 never send your request bodies, responses, secrets, or source code. Every SDK is **fail-open**: if
