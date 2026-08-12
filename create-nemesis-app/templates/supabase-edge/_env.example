@@ -1,0 +1,3 @@
+# Set as a Supabase secret, not a committed file:
+#   supabase secrets set NEMESIS_TOKEN=nsk_your_app_token
+NEMESIS_TOKEN=nsk_your_app_token

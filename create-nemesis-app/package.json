@@ -1,0 +1,40 @@
+{
+  "name": "create-nemesis-app",
+  "version": "0.1.0",
+  "description": "Scaffold a web app or API with a positive-security WAF (Nemesis Shield) already wired in. One command, safe by default (observe mode).",
+  "bin": {
+    "create-nemesis-app": "index.js"
+  },
+  "type": "commonjs",
+  "files": [
+    "index.js",
+    "templates"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "nemesis",
+    "nemesis-shield",
+    "security",
+    "waf",
+    "positive-security",
+    "application-security",
+    "api-security",
+    "scaffold",
+    "create",
+    "starter",
+    "fastapi",
+    "express",
+    "nextjs",
+    "supabase"
+  ],
+  "author": "Nemesis Labs",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eobi/nemesis_shield_sdks.git",
+    "directory": "create-nemesis-app"
+  },
+  "homepage": "https://nemesislabs.xyz/shield"
+}
