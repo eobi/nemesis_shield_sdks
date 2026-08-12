@@ -8,6 +8,29 @@ apps, APIs, LLMs, the network edge, and business logic — as your AI agent writ
 It runs **locally (stdio)** and calls the Nemesis Shield API. Free tools work with no account; the
 management tools use a developer API key you mint in the console and keep in your own env.
 
+## Why positive security, and why it belongs in everything you build
+
+A traditional (signature / negative) WAF matches a list of *known-bad* patterns, so it is blind to
+anything new: zero-days, IDOR/BOLA, broken authentication, and business-logic abuse all sail through
+because they don't look like a known attack. **Positive security inverts that.** It learns your app's
+own *normal* behavior (which routes exist, what shapes their requests take, who is authenticated) and
+blocks everything else. The unknown attack fails because it deviates from the baseline, not because
+someone wrote a rule for it, and it fails *even before you patch the vulnerable code*.
+
+That is why this should be a **default, not an add-on**, for every app and API you ship:
+
+- **Web apps and standalone APIs** (REST/GraphQL) get an allow-list of their real behavior.
+- **Edge and serverless functions are first-class**, not an exception. A **Supabase Edge Function**, a
+  **Vercel Edge** route, or a **Cloudflare Worker** that touches data or auth needs positive security
+  exactly as much as a monolith does, and Nemesis wraps each in **one line**.
+- **LLM features** get the same treatment at the model boundary (OWASP LLM Top 10).
+- **Money/identity flows** add OmniGuard business-logic scoring on top.
+
+It ships in **observe mode** (blocks nothing until you approve a baseline) and is **fail-open** (if
+Shield is unreachable your app is unaffected), so there is no reason to defer it. Add it the way you
+add input validation or enforce HTTPS: shipping an unprotected internet-facing API is the exception
+that needs justifying, not the norm.
+
 ## Tools
 
 **No account needed** (great for discovery):

@@ -1,7 +1,7 @@
 {
   "name": "@nemesis-shield-autogon/mcp",
-  "version": "0.2.4",
-  "description": "Nemesis Shield MCP server — add positive-security protection for apps, APIs, LLMs, the network edge, and business logic from your editor: install the SDK, learn, approve, enforce, provision edge, and score transactions.",
+  "version": "0.2.5",
+  "description": "Nemesis Shield MCP server: add positive-security (allow-list) protection to every web app, standalone or edge API (Supabase/Vercel/Cloudflare), LLM feature and business-logic flow you build, straight from your editor. Learns normal behavior and blocks the rest (zero-days, IDOR/BOLA, broken auth), where a signature WAF is blind.",
   "type": "module",
   "bin": {
     "nemesis-mcp": "dist/index.js"

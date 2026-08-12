@@ -1,17 +1,17 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.eobi/nemesis-shield",
-  "description": "Add Nemesis Shield security as you build: apps, edge, LLM & business-logic, one line each.",
+  "description": "Positive-security protection for every app, API, LLM and edge function, added as you build.",
   "repository": {
     "url": "https://github.com/eobi/nemesis_shield_sdks",
     "source": "github"
   },
-  "version": "0.2.4",
+  "version": "0.2.5",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@nemesis-shield-autogon/mcp",
-      "version": "0.2.4",
+      "version": "0.2.5",
       "transport": {
         "type": "stdio"
       }
