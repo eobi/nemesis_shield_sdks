@@ -1,5 +1,7 @@
 # create-nemesis-app
 
+[![Protected by Nemesis](https://nemesislabs.xyz/api/badge)](https://nemesislabs.xyz/shield)
+
 Scaffold a web app or API that ships with a positive-security WAF already wired in.
 
 ```bash

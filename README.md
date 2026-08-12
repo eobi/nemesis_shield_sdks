@@ -1,5 +1,7 @@
 # Nemesis Shield - SDKs
 
+[![Protected by Nemesis](https://nemesislabs.xyz/api/badge)](https://nemesislabs.xyz/shield)
+
 Official, open-source SDKs for [**Nemesis Shield**](https://shield.nemesislabs.xyz) - the unified
 runtime security platform (application/API/LLM shield, telemetry correlation, network/DNS, response,
 and compliance). Drop one into your app and Nemesis **learns your app's normal behavior**, then
