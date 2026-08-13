@@ -52,6 +52,8 @@ export function suggestOmniguard(text: string): { industry?: string; event?: str
 export function omniguardCatalog(): string {
   return (
     "Sectors: " + SECTORS.map((s) => s.key).join(", ") + "\n" +
-    "Events:\n" + Object.entries(EVENTS).map(([e, d]) => `  ${e} — ${d}`).join("\n")
+    "Events:\n" + Object.entries(EVENTS).map(([e, d]) => `  ${e} — ${d}`).join("\n") + "\n\n" +
+    "Standalone checks (NO function needed — use nemesis_omniguard_verify): identity (bvn, nin, passport), " +
+    "sanctions_pep, adverse_media, breach (email/domain), kyb."
   );
 }

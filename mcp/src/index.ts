@@ -37,11 +37,14 @@ const INSTRUCTIONS = [
   "(build the baseline from real or test traffic) -> nemesis_approve_routes -> nemesis_set_mode enforce. It ships",
   "in observe mode (blocks nothing) and is fail-open (if Shield is unreachable the app is unaffected), so adding",
   "it is safe by default and there is no reason to defer it. For APIs handling money or identity, also add",
-  "OmniGuard business-logic scoring; for anything internet-facing, put the domain behind Nemesis Edge.",
+  "OmniGuard: business-logic scoring for transactions (nemesis_create_omniguard -> nemesis_omniguard_score),",
+  "plus one-call verification/screening with NO function required (nemesis_omniguard_verify) — verify an",
+  "identity (BVN/NIN/Passport), screen a name against sanctions & PEP lists, run an adverse-media check, or",
+  "check an email/domain for breach exposure. For anything internet-facing, put the domain behind Nemesis Edge.",
 ].join(" ").replace(/\s+/g, " ").trim();
 
 const server = new McpServer(
-  { name: "nemesis-shield", version: "0.2.5" },
+  { name: "nemesis-shield", version: "0.2.6" },
   { instructions: INSTRUCTIONS },
 );
 
@@ -535,6 +538,61 @@ server.tool(
       };
     } catch (e: any) {
       return { content: [{ type: "text", text: `Score error: ${redact(e?.message || String(e))}` }], isError: true };
+    }
+  },
+);
+
+// omniguard_verify — STANDALONE verification/screening, NO function required. Uses the same Omniguard
+// ingest token as scoring. One call for identity (BVN/NIN/Passport), sanctions/PEP, adverse-media, or breach.
+server.tool(
+  "nemesis_omniguard_verify",
+  "Run a standalone Omniguard verification/screening check — NO Omniguard function required — using the " +
+    "same ingest token as scoring. One call to verify an identity (BVN / NIN / Passport), screen a name " +
+    "against sanctions & PEP watchlists, run an adverse-media check, or check an email/domain for breach " +
+    "exposure. Use it wherever you onboard a customer or move money: verify a BVN at signup, screen a payee " +
+    "before a transfer, KYB a business. Honest by construction — a check with no provider connected returns " +
+    "pending/failed with a reason, never a fabricated pass. Needs the Omniguard ingest token (from " +
+    "nemesis_create_omniguard or the Knowledge API panel in the console).",
+  {
+    ingestToken: z.string().describe("Omniguard ingest token (used as a Bearer token) — from nemesis_create_omniguard or the console"),
+    check: z
+      .enum(["sanctions_pep", "adverse_media", "bvn", "nin", "passport", "kyb", "breach", "breach_email", "breach_domain"])
+      .describe("Which check: sanctions_pep | adverse_media | bvn | nin | passport | kyb | breach (email) | breach_domain"),
+    subject: z.string().describe("What to check: a person/entity name (sanctions_pep/adverse_media), an id number (bvn/nin/passport), or an email/domain (breach)"),
+    lastName: z.string().optional().describe("Last name — for identity checks (bvn/nin/passport) that require it"),
+  },
+  WRITE("Run an Omniguard verification"),
+  async ({ ingestToken, check, subject, lastName }) => {
+    try {
+      const r = await fetch("https://shield.nemesislabs.xyz/api/v1/omniguard/verify", {
+        method: "POST",
+        headers: { authorization: `Bearer ${ingestToken}`, "content-type": "application/json" },
+        body: JSON.stringify({ check, subject, ...(lastName ? { last_name: lastName } : {}) }),
+      });
+      const d: any = await r.json().catch(() => ({}));
+      if (r.status === 401) return { content: [{ type: "text", text: "Invalid Omniguard ingest token." }], isError: true };
+      if (r.status === 402) {
+        const need = d.requires_plan_name || d.reason || "an active plan or remaining verification allowance";
+        return { content: [{ type: "text", text: `Verification unavailable: needs ${need}. Manage at https://shield.nemesislabs.xyz/app/omniguard/plans` }] };
+      }
+      if (r.status === 400) return { content: [{ type: "text", text: `Invalid request: ${d.error ?? "check the 'check' and 'subject' fields"}.` }], isError: true };
+      if (!r.ok) return { content: [{ type: "text", text: `Verification failed: HTTP ${r.status}` }], isError: true };
+      const verdict = d.verdict ?? d.risk;
+      const usage = d.usage ? `  (${d.usage.used}/${d.usage.limit ?? "∞"} used)` : "";
+      return {
+        content: [
+          {
+            type: "text",
+            text:
+              `${check} of "${d.subject ?? subject}" — ${d.status ?? "?"}${verdict ? ` / ${verdict}` : ""}${usage}\n` +
+              `Provider: ${d.provider ?? "Nemesis"}\n` +
+              (d.summary ? `Summary: ${d.summary}\n` : "") +
+              (d.data ? `Detail: ${JSON.stringify(d.data)}` : ""),
+          },
+        ],
+      };
+    } catch (e: any) {
+      return { content: [{ type: "text", text: `Verify error: ${redact(e?.message || String(e))}` }], isError: true };
     }
   },
 );

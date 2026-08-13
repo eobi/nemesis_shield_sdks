@@ -10,9 +10,10 @@ model: instead of guessing at generic attack signatures, it enforces *"this app 
 in these ways."*
 
 > **Building with an AI assistant?** Two ways to make your agent add Nemesis Shield **as it builds**:
-> 1. **[MCP server](mcp/)** — gives Cursor, Claude Code/Desktop and Windsurf callable tools
->    (`nemesis_protect`, `nemesis_scan`, `nemesis_explain`) so the agent adds security, scans a site,
->    and explains coverage without leaving the editor.
+> 1. **[MCP server](mcp/)** — gives Cursor, Claude Code/Desktop and Windsurf 17 callable tools
+>    (`nemesis_protect`, `nemesis_scan`, `nemesis_explain`, plus Omniguard fraud scoring and standalone
+>    identity/AML screening via `nemesis_omniguard_verify`) so the agent adds security, scans a site,
+>    screens identities, and explains coverage without leaving the editor.
 > 2. **[AI editor rule pack](ai-rules/)** (AGENTS.md, Cursor, Windsurf, Claude Code) — drop-in rules
 >    that tell the agent to add the one-line SDK by default.
 >

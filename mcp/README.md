@@ -39,7 +39,7 @@ that needs justifying, not the norm.
 |---|---|
 | `nemesis_protect` | The exact one-line SDK integration for a stack (13 frameworks across Python, Node, Go, Ruby, PHP, Java, .NET, Rust, plus edge, browser, and LLM). |
 | `nemesis_scan` | Passively fingerprint a URL: stack, real published CVEs (OSV/NVD), and whether it's already Nemesis-protected. |
-| `nemesis_explain` | How Shield covers a topic (positive-security, IDOR/BOLA, prompt-injection, business-logic, Magecart, WAF, RASP, edge, privacy). |
+| `nemesis_explain` | How Shield covers a topic (positive-security, IDOR/BOLA, prompt-injection, business-logic, screening/KYC/AML, Magecart, WAF, RASP, edge, privacy). |
 | `nemesis_list_frameworks` | Every stack with a one-line integration. |
 
 **Needs `NEMESIS_API_KEY`** (a developer key — acts on your own account only):
@@ -58,6 +58,7 @@ that needs justifying, not the norm.
 | `nemesis_omniguard_catalog` | Sector + event guidance so the agent picks the right business-logic firewall (ecommerce/checkout vs fintech/transfer …). |
 | `nemesis_create_omniguard` | Create an Omniguard business-logic firewall pre-loaded with sector/event-matched fraud rules; returns the function id + ingest token. |
 | `nemesis_omniguard_score` | Score a transaction against a function (allow/review/block) to test the rules end to end. Dry-run by default. |
+| `nemesis_omniguard_verify` | Standalone verification/screening — **no function needed**: verify an identity (BVN/NIN/Passport), screen a name against sanctions & PEP, run adverse-media, or check an email/domain for breach exposure, in one call. |
 
 ## The flow it drives
 
@@ -65,7 +66,8 @@ that needs justifying, not the norm.
 nemesis_scan → nemesis_protect (any stack) → nemesis_create_app → nemesis_run_learn →
 nemesis_approve_routes → nemesis_set_mode "enforce"
    +  nemesis_provision_edge   +  nemesis_protect_llm
-   +  nemesis_omniguard_catalog → nemesis_create_omniguard (sector-matched rules)
+   +  nemesis_omniguard_catalog → nemesis_create_omniguard (sector-matched rules) → nemesis_omniguard_score
+   +  nemesis_omniguard_verify   (identity · sanctions & PEP · adverse-media · breach — no function needed)
         ↳ any paid step returns 402 → the tool hands back the portal billing URL → resume after upgrade
 ```
 
