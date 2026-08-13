@@ -49,6 +49,9 @@ test("omniguard: catalog + sector/event suggestion is personalized", () => {
   assert.equal(ft.event, "transfer");
   assert.match(omniguardCatalog(), /checkout/);
   assert.match(omniguardCatalog(), /transfer/);
+  // the catalog now advertises the standalone verify/screening checks (0.2.6)
+  assert.match(omniguardCatalog(), /nemesis_omniguard_verify/);
+  assert.match(omniguardCatalog(), /sanctions_pep|bvn/);
 });
 
 test("client: redact scrubs tokens; paymentMessage handles 402", () => {
@@ -67,6 +70,11 @@ test("explain: known topics answer; unknown lists topics", () => {
   assert.match(explainText("idor"), /IDOR|BOLA/);
   assert.match(explainText("prompt-injection"), /prompt injection/i);
   assert.match(explainText("business-logic"), /Omniguard/);
+  // new screening/KYC/AML topics (0.2.6)
+  assert.match(explainText("screening"), /sanctions|BVN|verification/i);
+  assert.match(explainText("kyc"), /identity|BVN|NIN|Passport/i);
+  assert.match(explainText("aml"), /sanctions|screening|structuring|goAML/i);
+  assert.ok(explainTopics().includes("screening"));
   assert.ok(explainTopics().includes("positive-security"));
   assert.match(explainText("totally-unknown-topic"), /Topics I can explain/);
 });
@@ -99,10 +107,16 @@ test("stdio: server lists all tools", async () => {
     "nemesis_protect", "nemesis_scan", "nemesis_explain", "nemesis_list_frameworks",
     "nemesis_create_app", "nemesis_list_apps", "nemesis_set_mode",
     "nemesis_provision_edge", "nemesis_edge_status", "nemesis_protect_llm",
-    "nemesis_create_omniguard", "nemesis_omniguard_catalog", "nemesis_omniguard_score", "nemesis_approve_routes", "nemesis_run_learn", "nemesis_server_agent",
+    "nemesis_create_omniguard", "nemesis_omniguard_catalog", "nemesis_omniguard_score", "nemesis_omniguard_verify", "nemesis_approve_routes", "nemesis_run_learn", "nemesis_server_agent",
   ]) {
     assert.ok(names.includes(name), `missing tool: ${name}`);
   }
+  assert.equal(names.length, 17, `expected 17 tools, got ${names.length}`);
+  // the new verify tool exposes the right input schema (check + subject + ingestToken)
+  const verify = tools.find((t) => t.name === "nemesis_omniguard_verify");
+  assert.ok(verify, "nemesis_omniguard_verify not registered");
+  const props = Object.keys(verify.inputSchema?.properties ?? {});
+  for (const p of ["ingestToken", "check", "subject"]) assert.ok(props.includes(p), `verify missing param: ${p}`);
   // every tool carries advisory annotations (a title + a readOnlyHint) for client permission UX
   for (const t of tools) {
     assert.ok(t.annotations?.title, `tool ${t.name} missing annotation title`);
