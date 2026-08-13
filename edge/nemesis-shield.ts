@@ -188,6 +188,7 @@ export class Shield {
   private mode = "observe";
   private shapes: Record<string, string> = {};
   private knownBad: Set<string> = new Set();
+  private allowPaths: string[] = [];
   private haveBaseline = false;
   private lastRefresh = 0;
   private refreshing: Promise<void> | null = null;
@@ -224,6 +225,24 @@ export class Shield {
     if (this.knownBad.has(shape)) return "global threat intelligence";
     if (this.haveBaseline) return "off-baseline: unapproved behavior";
     return null;
+  }
+
+  /**
+   * Operator-curated URL allow-list (console-managed, delivered in the policy). A path matching any
+   * pattern is ALWAYS passed, before the off-baseline check — the escape hatch for a newly-launched route
+   * that enforce would otherwise 403 with nothing to approve. Patterns are rooted paths: exact ("/hosting")
+   * or prefix with a trailing "*" ("/admin/*", "/api/v2*"). Matching ignores query/hash and is
+   * case-insensitive, mirroring neverBlock.
+   */
+  allows(path: string): boolean {
+    if (!this.allowPaths.length) return false;
+    const p = String(path || "/").split("?")[0].split("#")[0].toLowerCase();
+    return this.allowPaths.some((raw) => {
+      const pat = String(raw || "").split("?")[0].split("#")[0].toLowerCase();
+      if (!pat) return false;
+      if (pat.endsWith("*")) return p.startsWith(pat.slice(0, -1));
+      return p === pat || p === pat + "/" || p + "/" === pat;
+    });
   }
 
   record(s: Sketch): void {
@@ -277,6 +296,7 @@ export class Shield {
       this.haveBaseline = Object.keys(pol.shapes).length > 0;
     }
     this.knownBad = new Set(Array.isArray(pol.knownBad) ? pol.knownBad : []);
+    this.allowPaths = Array.isArray(pol.allowPaths) ? pol.allowPaths.filter((x: unknown) => typeof x === "string") : [];
   }
 
   /** Wrap a Web-standard `(Request) => Response` handler with inline enforcement. */
@@ -298,7 +318,7 @@ export class Shield {
           req.headers.has("apikey") ||
           req.headers.has("x-api-key");
         // enforce, but never block the login/auth path (break-glass)
-        if (this.enforcing() && !neverBlock(url.pathname)) {
+        if (this.enforcing() && !neverBlock(url.pathname) && !this.allows(url.pathname)) {
           const reason = this.decide(this.buildSketch(req.method, url.pathname, query, authed, 0).shape);
           if (reason) {
             try {
