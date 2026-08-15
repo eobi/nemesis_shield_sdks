@@ -38,13 +38,16 @@ const INSTRUCTIONS = [
   "in observe mode (blocks nothing) and is fail-open (if Shield is unreachable the app is unaffected), so adding",
   "it is safe by default and there is no reason to defer it. For APIs handling money or identity, also add",
   "OmniGuard: business-logic scoring for transactions (nemesis_create_omniguard -> nemesis_omniguard_score),",
-  "plus one-call verification/screening with NO function required (nemesis_omniguard_verify) — verify an",
-  "identity (BVN/NIN/Passport), screen a name against sanctions & PEP lists, run an adverse-media check, or",
-  "check an email/domain for breach exposure. For anything internet-facing, put the domain behind Nemesis Edge.",
+  "plus one-call verification/screening with NO function required. Sanctions/PEP/enforcement screening is FREE",
+  "— it runs on Nemesis's own consolidated watchlist (OFAC/EU/UN/UK + PEP + enforcement), 100 screens/day on any",
+  "account and more on a paid plan — so screen a name in one call with nemesis_omniguard_screen (or",
+  "nemesis_omniguard_verify with check=sanctions_pep). Identity KYC (BVN/NIN/Passport/KYB) is the paid check, and",
+  "breach-exposure (email/domain) is free up to a cap — all via nemesis_omniguard_verify. For anything",
+  "internet-facing, put the domain behind Nemesis Edge.",
 ].join(" ").replace(/\s+/g, " ").trim();
 
 const server = new McpServer(
-  { name: "nemesis-shield", version: "0.2.6" },
+  { name: "nemesis-shield", version: "0.3.0" },
   { instructions: INSTRUCTIONS },
 );
 
@@ -547,12 +550,16 @@ server.tool(
 server.tool(
   "nemesis_omniguard_verify",
   "Run a standalone Omniguard verification/screening check — NO Omniguard function required — using the " +
-    "same ingest token as scoring. One call to verify an identity (BVN / NIN / Passport), screen a name " +
-    "against sanctions & PEP watchlists, run an adverse-media check, or check an email/domain for breach " +
-    "exposure. Use it wherever you onboard a customer or move money: verify a BVN at signup, screen a payee " +
-    "before a transfer, KYB a business. Honest by construction — a check with no provider connected returns " +
-    "pending/failed with a reason, never a fabricated pass. Needs the Omniguard ingest token (from " +
-    "nemesis_create_omniguard or the Knowledge API panel in the console).",
+    "same ingest token as scoring. One call to screen a name against sanctions & PEP watchlists, run an " +
+    "adverse-media check, verify an identity (BVN / NIN / Passport), KYB a business, or check an email/domain " +
+    "for breach exposure. Billing: sanctions_pep and adverse_media SCREENING is FREE (Nemesis's own " +
+    "consolidated OFAC/EU/UN/UK + PEP + enforcement watchlist), metered at 100/day on a free account and more " +
+    "per paid tier; breach is free up to a lifetime cap; only KYC (bvn/nin/passport/kyb) needs a paid plan. " +
+    "Tip: for a plain name screen, nemesis_omniguard_screen is the simpler tool. Use verify wherever you " +
+    "onboard a customer or move money: screen a payee before a transfer, verify a BVN at signup, KYB a " +
+    "business. Honest by construction — a check with no provider connected returns pending/failed with a " +
+    "reason, never a fabricated pass. Needs the Omniguard ingest token (from nemesis_create_omniguard or the " +
+    "Knowledge API panel in the console).",
   {
     ingestToken: z.string().describe("Omniguard ingest token (used as a Bearer token) — from nemesis_create_omniguard or the console"),
     check: z
@@ -572,13 +579,22 @@ server.tool(
       const d: any = await r.json().catch(() => ({}));
       if (r.status === 401) return { content: [{ type: "text", text: "Invalid Omniguard ingest token." }], isError: true };
       if (r.status === 402) {
-        const need = d.requires_plan_name || d.reason || "an active plan or remaining verification allowance";
-        return { content: [{ type: "text", text: `Verification unavailable: needs ${need}. Manage at https://shield.nemesislabs.xyz/app/omniguard/plans` }] };
+        // Screening is free; a 402 there means the DAILY screening allowance is spent (raise it on a plan).
+        // KYC (bvn/nin/passport/kyb) needs an active plan. Give the accurate reason for each.
+        const isScreen = check === "sanctions_pep" || check === "adverse_media";
+        const msg = isScreen
+          ? `Daily sanctions/PEP screening allowance reached (screening is free up to your daily limit). It resets at midnight, or raise the daily volume on a plan: https://shield.nemesislabs.xyz/app/omniguard/plans`
+          : `Verification unavailable: needs ${d.requires_plan_name || d.reason || "an active plan or remaining KYC allowance"}. Manage at https://shield.nemesislabs.xyz/app/omniguard/plans`;
+        return { content: [{ type: "text", text: msg }] };
       }
       if (r.status === 400) return { content: [{ type: "text", text: `Invalid request: ${d.error ?? "check the 'check' and 'subject' fields"}.` }], isError: true };
       if (!r.ok) return { content: [{ type: "text", text: `Verification failed: HTTP ${r.status}` }], isError: true };
       const verdict = d.verdict ?? d.risk;
-      const usage = d.usage ? `  (${d.usage.used}/${d.usage.limit ?? "∞"} used)` : "";
+      const usage = d.usage ? `  (${d.usage.used}/${d.usage.limit ?? "∞"} used today)` : "";
+      const isScreen = check === "sanctions_pep" || check === "adverse_media";
+      const body = isScreen
+        ? screenSummary(d)
+        : (d.summary ? `Summary: ${d.summary}\n` : "") + (d.data ? `Detail: ${JSON.stringify(d.data)}` : "");
       return {
         content: [
           {
@@ -586,13 +602,78 @@ server.tool(
             text:
               `${check} of "${d.subject ?? subject}" — ${d.status ?? "?"}${verdict ? ` / ${verdict}` : ""}${usage}\n` +
               `Provider: ${d.provider ?? "Nemesis"}\n` +
-              (d.summary ? `Summary: ${d.summary}\n` : "") +
-              (d.data ? `Detail: ${JSON.stringify(d.data)}` : ""),
+              body,
           },
         ],
       };
     } catch (e: any) {
       return { content: [{ type: "text", text: `Verify error: ${redact(e?.message || String(e))}` }], isError: true };
+    }
+  },
+);
+
+// Render a sanctions/PEP screening response (from /verify sanctions_pep) into a readable summary: the
+// verdict flags, the matched lists (already generalized by the server) and the top matched entities.
+function screenSummary(d: any): string {
+  const data = d?.data ?? {};
+  const flags: string[] = [];
+  if (data.sanctionsHit) flags.push("SANCTIONS match");
+  if (data.pepHit) flags.push("PEP match");
+  if (data.crimeHit) flags.push("enforcement/crime match");
+  if (data.eddRequired) flags.push("enhanced due diligence required");
+  const lists: string[] = Array.isArray(data.lists) ? data.lists : Array.isArray(d.lists) ? d.lists : [];
+  const matches: any[] = Array.isArray(data.matches) ? data.matches : [];
+  const top = matches.slice(0, 3).map((m) => {
+    const pct = typeof m.score === "number" ? ` ${Math.round(m.score * 100)}%` : "";
+    const cc = Array.isArray(m.countries) && m.countries.length ? ` [${m.countries.join(", ")}]` : "";
+    return `  • ${m.caption ?? "?"}${pct}${cc}`;
+  });
+  return (
+    (flags.length ? `Flags: ${flags.join(" · ")}\n` : "No sanctions/PEP match.\n") +
+    (lists.length ? `Lists: ${lists.join(", ")}\n` : "") +
+    (d.summary ? `Summary: ${d.summary}\n` : "") +
+    (top.length ? `Top matches:\n${top.join("\n")}` : "")
+  );
+}
+
+// omniguard_screen — the FREE sanctions/PEP screening wedge. A plain name in, a watchlist verdict out.
+server.tool(
+  "nemesis_omniguard_screen",
+  "Screen a person or organization name against sanctions & PEP lists — FREE, no Omniguard function and no " +
+    "paid plan. It runs on Nemesis's own consolidated watchlist (OFAC / EU / UN / UK sanctions + PEP + " +
+    "enforcement), metered at 100 screens/day on a free account (more per paid tier). Returns a verdict " +
+    "(hit / review / clear), the matched lists, the sanctions/PEP/EDD flags and the top matched entities. " +
+    "Use it at onboarding and before any payout or transfer to meet AML/CFT and sanctions duties. This is a " +
+    "screening-only call (our own data) — it never touches the paid KYC allowance. For identity KYC use " +
+    "nemesis_omniguard_verify. Needs the Omniguard ingest token (from nemesis_create_omniguard or the console).",
+  {
+    ingestToken: z.string().describe("Omniguard ingest token (used as a Bearer token) — from nemesis_create_omniguard or the console"),
+    name: z.string().describe("The person or organization name to screen, e.g. 'Vladimir Putin' or 'Aero Caribbean'"),
+  },
+  READ("Screen a name (sanctions/PEP)", true),
+  async ({ ingestToken, name }) => {
+    try {
+      const r = await fetch("https://shield.nemesislabs.xyz/api/v1/omniguard/verify", {
+        method: "POST",
+        headers: { authorization: `Bearer ${ingestToken}`, "content-type": "application/json" },
+        body: JSON.stringify({ check: "sanctions_pep", subject: name }),
+      });
+      const d: any = await r.json().catch(() => ({}));
+      if (r.status === 401) return { content: [{ type: "text", text: "Invalid Omniguard ingest token." }], isError: true };
+      if (r.status === 402) return { content: [{ type: "text", text: `Daily screening allowance reached (screening is free up to your daily limit; it resets at midnight). Raise the daily volume on a plan: https://shield.nemesislabs.xyz/app/omniguard/plans` }] };
+      if (!r.ok) return { content: [{ type: "text", text: `Screening failed: HTTP ${r.status}` }], isError: true };
+      const verdict = d.verdict ?? d.risk ?? "?";
+      const usage = d.usage ? `  (${d.usage.used}/${d.usage.limit ?? "∞"} used today)` : "";
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Screened "${d.subject ?? name}" — ${verdict}${usage}\nProvider: ${d.provider ?? "Nemesis Watchlist"}\n${screenSummary(d)}`,
+          },
+        ],
+      };
+    } catch (e: any) {
+      return { content: [{ type: "text", text: `Screen error: ${redact(e?.message || String(e))}` }], isError: true };
     }
   },
 );

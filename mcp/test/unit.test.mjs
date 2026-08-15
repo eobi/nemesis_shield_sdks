@@ -107,16 +107,24 @@ test("stdio: server lists all tools", async () => {
     "nemesis_protect", "nemesis_scan", "nemesis_explain", "nemesis_list_frameworks",
     "nemesis_create_app", "nemesis_list_apps", "nemesis_set_mode",
     "nemesis_provision_edge", "nemesis_edge_status", "nemesis_protect_llm",
-    "nemesis_create_omniguard", "nemesis_omniguard_catalog", "nemesis_omniguard_score", "nemesis_omniguard_verify", "nemesis_approve_routes", "nemesis_run_learn", "nemesis_server_agent",
+    "nemesis_create_omniguard", "nemesis_omniguard_catalog", "nemesis_omniguard_score", "nemesis_omniguard_verify", "nemesis_omniguard_screen", "nemesis_approve_routes", "nemesis_run_learn", "nemesis_server_agent",
   ]) {
     assert.ok(names.includes(name), `missing tool: ${name}`);
   }
-  assert.equal(names.length, 17, `expected 17 tools, got ${names.length}`);
+  assert.equal(names.length, 18, `expected 18 tools, got ${names.length}`);
   // the new verify tool exposes the right input schema (check + subject + ingestToken)
   const verify = tools.find((t) => t.name === "nemesis_omniguard_verify");
   assert.ok(verify, "nemesis_omniguard_verify not registered");
   const props = Object.keys(verify.inputSchema?.properties ?? {});
   for (const p of ["ingestToken", "check", "subject"]) assert.ok(props.includes(p), `verify missing param: ${p}`);
+  // the FREE sanctions/PEP screening tool: a plain {ingestToken, name} call, read-only, framed as free
+  const screen = tools.find((t) => t.name === "nemesis_omniguard_screen");
+  assert.ok(screen, "nemesis_omniguard_screen not registered");
+  const sprops = Object.keys(screen.inputSchema?.properties ?? {});
+  for (const p of ["ingestToken", "name"]) assert.ok(sprops.includes(p), `screen missing param: ${p}`);
+  assert.ok(!sprops.includes("check"), "screen must not expose a check selector (screening-only)");
+  assert.equal(screen.annotations?.readOnlyHint, true, "screen should be read-only (safe to auto-run)");
+  assert.match(screen.description, /FREE/, "screen description should state it is FREE");
   // every tool carries advisory annotations (a title + a readOnlyHint) for client permission UX
   for (const t of tools) {
     assert.ok(t.annotations?.title, `tool ${t.name} missing annotation title`);

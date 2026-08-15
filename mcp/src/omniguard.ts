@@ -53,7 +53,12 @@ export function omniguardCatalog(): string {
   return (
     "Sectors: " + SECTORS.map((s) => s.key).join(", ") + "\n" +
     "Events:\n" + Object.entries(EVENTS).map(([e, d]) => `  ${e} — ${d}`).join("\n") + "\n\n" +
-    "Standalone checks (NO function needed — use nemesis_omniguard_verify): identity (bvn, nin, passport), " +
-    "sanctions_pep, adverse_media, breach (email/domain), kyb."
+    "Standalone checks (NO function needed):\n" +
+    "  FREE sanctions/PEP/enforcement screening — nemesis_omniguard_screen (or nemesis_omniguard_verify check=sanctions_pep / adverse_media).\n" +
+    "    Runs on Nemesis's own consolidated watchlist (OFAC/EU/UN/UK sanctions + PEP + enforcement); 100 screens/day free,\n" +
+    "    more per paid tier; decoupled from KYC (screening is our own data, never billed per check). Powers the public\n" +
+    "    Nemesis Watchlist at nemesislabs.xyz/watchlist.\n" +
+    "  PAID identity KYC — nemesis_omniguard_verify check=bvn | nin | passport | kyb (needs an active plan; billed per check).\n" +
+    "  FREE breach exposure — nemesis_omniguard_verify check=breach (email) / breach_domain (free up to a lifetime cap)."
   );
 }

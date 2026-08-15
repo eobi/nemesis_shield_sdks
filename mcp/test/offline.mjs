@@ -42,7 +42,7 @@ try {
   const tools = result.tools ?? [];
   const names = tools.map((t) => t.name);
   console.log(`Tools exposed (${names.length}): ${names.map((n) => n.replace(/^nemesis_/, "")).join(", ")}\n`);
-  check("17 tools registered", () => assert.equal(names.length, 17));
+  check("18 tools registered", () => assert.equal(names.length, 18));
   check("nemesis_omniguard_verify is registered", () => assert.ok(names.includes("nemesis_omniguard_verify")));
   const verify = tools.find((t) => t.name === "nemesis_omniguard_verify");
   check("verify schema has ingestToken + check + subject", () => {
@@ -57,6 +57,29 @@ try {
     assert.equal(verify.annotations?.readOnlyHint, false);
     assert.ok(verify.annotations?.title);
   });
+  check("verify description frames sanctions/PEP screening as FREE (not plan-gated)", () => {
+    assert.match(verify.description, /FREE/);
+    assert.match(verify.description, /sanctions_pep/);
+    assert.match(verify.description, /only KYC .*needs a paid plan|KYC \(bvn/i);
+  });
+
+  // 1b) the new FREE screening tool — registration, schema, read-only annotation, framing
+  check("nemesis_omniguard_screen is registered", () => assert.ok(names.includes("nemesis_omniguard_screen")));
+  const screen = tools.find((t) => t.name === "nemesis_omniguard_screen");
+  check("screen schema is a plain {ingestToken, name} call", () => {
+    const p = Object.keys(screen.inputSchema?.properties ?? {});
+    for (const k of ["ingestToken", "name"]) assert.ok(p.includes(k), `missing ${k}`);
+    assert.ok(!p.includes("check"), "screen must not expose a 'check' selector — it is screening-only");
+  });
+  check("screen is annotated READ-only (safe to auto-run)", () => {
+    assert.equal(screen.annotations?.readOnlyHint, true);
+    assert.ok(screen.annotations?.title);
+  });
+  check("screen description says FREE, cites the watchlist, and decouples from KYC", () => {
+    assert.match(screen.description, /FREE/);
+    assert.match(screen.description, /OFAC.*EU.*UN.*UK|consolidated watchlist/);
+    assert.match(screen.description, /never touches the paid KYC allowance|screening-only/i);
+  });
 
   // 2) offline tool calls — real responses, no network
   const cat = await callText("nemesis_omniguard_catalog");
@@ -64,10 +87,21 @@ try {
     assert.match(cat, /nemesis_omniguard_verify/);
     assert.match(cat, /sanctions_pep|bvn/);
   });
+  check("omniguard_catalog advertises FREE screening + the screen tool", () => {
+    assert.match(cat, /FREE sanctions\/PEP/);
+    assert.match(cat, /nemesis_omniguard_screen/);
+    assert.match(cat, /100 screens\/day|watchlist/);
+  });
 
   const scr = await callText("nemesis_explain", { topic: "screening" });
   console.log(`\n  explain "screening" →\n    ${scr.slice(0, 160)}…\n`);
   check("explain 'screening' returns identity/sanctions guidance", () => assert.match(scr, /sanctions|BVN|verification/i));
+  check("explain 'screening' now surfaces the FREE tier + the screen tool", () => {
+    assert.match(scr, /FREE/);
+    assert.match(scr, /nemesis_omniguard_screen/);
+  });
+  const amlTopic = await callText("nemesis_explain", { topic: "aml" });
+  check("explain 'aml' points at the free screening tool", () => assert.match(amlTopic, /nemesis_omniguard_screen|FREE/));
 
   const kyc = await callText("nemesis_explain", { topic: "kyc" });
   check("explain 'kyc' returns identity guidance", () => assert.match(kyc, /identity|BVN|NIN|Passport/i));

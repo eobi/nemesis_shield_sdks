@@ -36,5 +36,30 @@ check("GET /api/v1/omniguard/functions returns 200 + list", og.status === 200 &&
 const bad = await get("/api/v1/apps", "dak_this_is_not_a_real_key");
 check("bad key is rejected with 401", bad.status === 401, `status ${bad.status}`);
 
+// Live FREE sanctions/PEP screening (the nemesis_omniguard_screen path) — needs an Omniguard INGEST token
+// (not the dak_ API key). Guarded so npm test stays green without it. Proves screening is free + metered.
+const OG = process.env.OMNIGUARD_INGEST_TOKEN;
+if (!OG) {
+  console.log("skip - set OMNIGUARD_INGEST_TOKEN=... to exercise the live free screening check.");
+} else {
+  const post = async (body, key = OG) => {
+    const r = await fetch(BASE + "/api/v1/omniguard/verify", {
+      method: "POST",
+      headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    let d; try { d = await r.json(); } catch { d = {}; }
+    return { status: r.status, d };
+  };
+  const hit = await post({ check: "sanctions_pep", subject: "Vladimir Putin" });
+  check("free screening: sanctioned name returns 200 + a hit", hit.status === 200 && (hit.d.risk === "hit" || hit.d.data?.sanctionsHit === true), `status ${hit.status}, risk ${hit.d.risk}`);
+  check("free screening: provider is the Nemesis Watchlist (our own data)", /nemesis|watchlist/i.test(String(hit.d.provider ?? "")), `provider ${hit.d.provider}`);
+  check("free screening: returns matched lists", Array.isArray(hit.d.data?.lists) && hit.d.data.lists.length > 0, `${hit.d.data?.lists?.length ?? 0} lists`);
+  const clean = await post({ check: "sanctions_pep", subject: "Zzqxwv Nomatch Nobody" });
+  check("free screening: a clean name does not hit", clean.status === 200 && clean.d.risk !== "hit", `risk ${clean.d.risk}`);
+  const badTok = await post({ check: "sanctions_pep", subject: "x" }, "not_a_real_ingest_token");
+  check("screening rejects a bad ingest token with 401", badTok.status === 401, `status ${badTok.status}`);
+}
+
 console.log(failed ? `\n${failed} check(s) failed` : "\nAll live checks passed");
 process.exit(failed ? 1 : 0);
