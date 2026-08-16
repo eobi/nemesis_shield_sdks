@@ -107,11 +107,12 @@ test("stdio: server lists all tools", async () => {
     "nemesis_protect", "nemesis_scan", "nemesis_explain", "nemesis_list_frameworks",
     "nemesis_create_app", "nemesis_list_apps", "nemesis_set_mode",
     "nemesis_provision_edge", "nemesis_edge_status", "nemesis_protect_llm",
-    "nemesis_create_omniguard", "nemesis_omniguard_catalog", "nemesis_omniguard_score", "nemesis_omniguard_verify", "nemesis_omniguard_screen", "nemesis_approve_routes", "nemesis_run_learn", "nemesis_server_agent",
+    "nemesis_create_omniguard", "nemesis_omniguard_catalog", "nemesis_omniguard_score", "nemesis_omniguard_verify", "nemesis_omniguard_screen",
+    "nemesis_omniguard_outcome", "nemesis_omniguard_flag", "nemesis_approve_routes", "nemesis_run_learn", "nemesis_server_agent",
   ]) {
     assert.ok(names.includes(name), `missing tool: ${name}`);
   }
-  assert.equal(names.length, 18, `expected 18 tools, got ${names.length}`);
+  assert.equal(names.length, 20, `expected 20 tools, got ${names.length}`);
   // the new verify tool exposes the right input schema (check + subject + ingestToken)
   const verify = tools.find((t) => t.name === "nemesis_omniguard_verify");
   assert.ok(verify, "nemesis_omniguard_verify not registered");
@@ -125,6 +126,18 @@ test("stdio: server lists all tools", async () => {
   assert.ok(!sprops.includes("check"), "screen must not expose a check selector (screening-only)");
   assert.equal(screen.annotations?.readOnlyHint, true, "screen should be read-only (safe to auto-run)");
   assert.match(screen.description, /FREE/, "screen description should state it is FREE");
+  // outcome: report a scored transaction's true label (fraud/chargeback/legit) — a write, not read-only
+  const outcome = tools.find((t) => t.name === "nemesis_omniguard_outcome");
+  assert.ok(outcome, "nemesis_omniguard_outcome not registered");
+  const oprops = Object.keys(outcome.inputSchema?.properties ?? {});
+  for (const p of ["ingestToken", "outcome"]) assert.ok(oprops.includes(p), `outcome missing param: ${p}`);
+  assert.equal(outcome.annotations?.readOnlyHint, false, "outcome writes data — not read-only");
+  // flag: entity risk-flag (recon -> cash-out) — a write with entityType + flag
+  const flag = tools.find((t) => t.name === "nemesis_omniguard_flag");
+  assert.ok(flag, "nemesis_omniguard_flag not registered");
+  const fprops = Object.keys(flag.inputSchema?.properties ?? {});
+  for (const p of ["ingestToken", "entityType", "entityValue", "flag"]) assert.ok(fprops.includes(p), `flag missing param: ${p}`);
+  assert.equal(flag.annotations?.readOnlyHint, false, "flag writes data — not read-only");
   // every tool carries advisory annotations (a title + a readOnlyHint) for client permission UX
   for (const t of tools) {
     assert.ok(t.annotations?.title, `tool ${t.name} missing annotation title`);

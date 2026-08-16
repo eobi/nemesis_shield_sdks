@@ -59,6 +59,10 @@ export function omniguardCatalog(): string {
     "    more per paid tier; decoupled from KYC (screening is our own data, never billed per check). Powers the public\n" +
     "    Nemesis Watchlist at nemesislabs.xyz/watchlist.\n" +
     "  PAID identity KYC — nemesis_omniguard_verify check=bvn | nin | passport | kyb (needs an active plan; billed per check).\n" +
-    "  FREE breach exposure — nemesis_omniguard_verify check=breach (email) / breach_domain (free up to a lifetime cap)."
+    "  FREE breach exposure — nemesis_omniguard_verify check=breach (email) / breach_domain (free up to a lifetime cap).\n\n" +
+    "Close the loop (same ingest token as scoring):\n" +
+    "  REPORT OUTCOMES — nemesis_omniguard_outcome (fraud | chargeback | legit) so the supervised model learns from real labels.\n" +
+    "  FLAG BAD ACTORS — nemesis_omniguard_flag an ip/device/account/customer/wallet/email (recon, stuffing, card_testing,\n" +
+    "    bola_probe, fraud, ato); later money-movement from that entity is then elevated (the recon -> cash-out linkage)."
   );
 }

@@ -678,6 +678,78 @@ server.tool(
   },
 );
 
+// omniguard_outcome — report the TRUE outcome of a scored transaction so the supervised model learns from
+// real labels (fraud/chargeback/legit), not the rule engine's own verdict. Same ingest token as score.
+server.tool(
+  "nemesis_omniguard_outcome",
+  "Report the TRUE outcome of a previously scored transaction (fraud | chargeback | legit) so Omniguard's " +
+    "supervised model learns from real labels, not just the rule verdict. Outcomes usually arrive days later " +
+    "(a chargeback lands, a manual review confirms fraud). Target the transaction by its id, or by customer_ref " +
+    "(the most recent transaction for that customer). Call this from your chargeback/fraud webhook. Same " +
+    "Omniguard ingest token as scoring.",
+  {
+    ingestToken: z.string().describe("Omniguard ingest token (used as a Bearer token) — from nemesis_create_omniguard or the console"),
+    outcome: z.enum(["fraud", "chargeback", "legit"]).describe("The confirmed outcome: fraud | chargeback | legit"),
+    transactionId: z.string().optional().describe("The scored transaction's id (UUID). Provide this OR customerRef."),
+    customerRef: z.string().optional().describe("Customer reference — targets that customer's most recent transaction. Used when transactionId is omitted."),
+  },
+  WRITE("Report a transaction outcome"),
+  async ({ ingestToken, outcome, transactionId, customerRef }) => {
+    try {
+      const r = await fetch("https://shield.nemesislabs.xyz/api/v1/omniguard/outcome", {
+        method: "POST",
+        headers: { authorization: `Bearer ${ingestToken}`, "content-type": "application/json" },
+        body: JSON.stringify({ outcome, ...(transactionId ? { transaction_id: transactionId } : {}), ...(customerRef ? { customer_ref: customerRef } : {}) }),
+      });
+      const d: any = await r.json().catch(() => ({}));
+      if (r.status === 401) return { content: [{ type: "text", text: "Invalid Omniguard ingest token." }], isError: true };
+      if (r.status === 400) return { content: [{ type: "text", text: `Invalid request: ${d.detail ?? d.error ?? "provide outcome + transactionId or customerRef"}.` }], isError: true };
+      if (r.status === 404) return { content: [{ type: "text", text: "No matching transaction found for that id / customer_ref." }], isError: true };
+      if (!r.ok) return { content: [{ type: "text", text: `Outcome report failed: HTTP ${r.status}` }], isError: true };
+      return { content: [{ type: "text", text: `Recorded outcome "${d.outcome ?? outcome}" for transaction ${d.transaction_id ?? transactionId ?? "(latest for customer)"}. The supervised model will learn from this label.` }] };
+    } catch (e: any) {
+      return { content: [{ type: "text", text: `Outcome error: ${redact(e?.message || String(e))}` }], isError: true };
+    }
+  },
+);
+
+// omniguard_flag — write an entity risk-flag (the recon -> cash-out linkage). An SDK/agent/webhook flags a bad
+// actor the moment it's seen; the entity_risk_flag built-in then elevates ANY later money-movement from that
+// same IP / device / customer / account / wallet / email. Same ingest token as score.
+server.tool(
+  "nemesis_omniguard_flag",
+  "Flag a bad actor (IP, device, account, customer, wallet or email) the moment your app detects it — a " +
+    "credential-stuffing source, a BOLA/enumeration probe, card-testing, or confirmed fraud. Omniguard's " +
+    "entity_risk_flag rule then elevates ANY later money-movement from that same entity, turning reconnaissance " +
+    "into a cash-out block. The flag carries a TTL (default 12h, max 30d); re-flagging the same entity extends it. " +
+    "Call this from your WAF, agent or fraud webhook. Same Omniguard ingest token as scoring.",
+  {
+    ingestToken: z.string().describe("Omniguard ingest token (used as a Bearer token) — from nemesis_create_omniguard or the console"),
+    entityType: z.enum(["ip", "device", "account", "customer", "wallet", "email"]).describe("What kind of identifier is being flagged"),
+    entityValue: z.string().describe("The identifier value, e.g. an IP, device id, customer_ref, account id, wallet address or email"),
+    flag: z.enum(["recon", "enum", "stuffing", "card_testing", "bola_probe", "fraud", "ato"]).describe("Why it's flagged: recon | enum | stuffing | card_testing | bola_probe | fraud | ato"),
+    note: z.string().optional().describe("Optional free-text note for the audit trail"),
+    ttlMinutes: z.number().optional().describe("How long the flag lasts, in minutes (default 720 = 12h, max 43200 = 30d)"),
+  },
+  WRITE("Flag a risky entity"),
+  async ({ ingestToken, entityType, entityValue, flag, note, ttlMinutes }) => {
+    try {
+      const r = await fetch("https://shield.nemesislabs.xyz/api/v1/omniguard/entity-flag", {
+        method: "POST",
+        headers: { authorization: `Bearer ${ingestToken}`, "content-type": "application/json" },
+        body: JSON.stringify({ entity_type: entityType, entity_value: entityValue, flag, ...(note ? { note } : {}), ...(ttlMinutes ? { ttl_minutes: ttlMinutes } : {}) }),
+      });
+      const d: any = await r.json().catch(() => ({}));
+      if (r.status === 401) return { content: [{ type: "text", text: "Invalid Omniguard ingest token." }], isError: true };
+      if (r.status === 400) return { content: [{ type: "text", text: `Invalid request: ${d.error ?? "check entityType, entityValue and flag"}${Array.isArray(d.allowed) ? ` (allowed: ${d.allowed.join(", ")})` : ""}.` }], isError: true };
+      if (!r.ok) return { content: [{ type: "text", text: `Flag failed: HTTP ${r.status}` }], isError: true };
+      return { content: [{ type: "text", text: `Flagged ${d.entity_type ?? entityType} "${d.entity_value_norm ?? entityValue}" as ${d.flag ?? flag}. Later money-movement from it will be elevated until ${d.expires_at ?? "the TTL expires"}.` }] };
+    } catch (e: any) {
+      return { content: [{ type: "text", text: `Flag error: ${redact(e?.message || String(e))}` }], isError: true };
+    }
+  },
+);
+
 // server_agent — protect a whole server (many apps) with the Nemesis host agent.
 server.tool(
   "nemesis_server_agent",
