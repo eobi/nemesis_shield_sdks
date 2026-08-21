@@ -174,6 +174,92 @@ import { reportLLM } from "@nemesis-shield-autogon/sentinel";
 await reportLLM(token, { prompt, system, response, tools, allowedTools: ["search"] });
 ```
 
+---
+
+# Repository guide (for maintainers)
+
+Everything above is for developers **consuming** the SDKs. This section is for developers **working
+on this repo** after the transfer. Each language SDK is self-contained and hand-written to be
+byte-identical in behavior (same request shape, same policy model, same embedded LLM-Guard weights),
+so there is no shared build step across languages: you develop, test and publish each one from its
+own directory using that ecosystem's native tooling.
+
+## Repository layout
+
+```
+node/        Node/JS SDK  -> npm  @nemesis-shield-autogon/sentinel  (Express/Fastify/Koa + /llm)
+python/      Python SDK   -> PyPI nemesis-shield                    (ASGI/WSGI + provider wrappers)
+go/          Go SDK       -> go   github.com/eobi/nemesis_shield_sdks/go
+ruby/        Ruby SDK     -> gem  nemesis-shield
+php/         PHP SDK      -> Packagist nemesislabs/sentinel         (Laravel auto-discovery)
+java/        Java SDK     -> Maven Central io.github.eobi:sentinel
+dotnet/      .NET SDK     -> NuGet NemesisShield
+rust/        Rust SDK     -> crates.io nemesis-shield
+edge/        Edge/Deno TS -> npm @nemesis-shield-autogon/edge · JSR @nemesis-shield/edge
+browser/     Browser SDK  -> npm @nemesis-shield-autogon/browser   (Page Shield / anti-Magecart)
+wordpress/   WordPress plugin (drop-in)
+cloudflare-supabase-proxy/  Worker that guards supabase.from() / PostgREST
+
+mcp/         MCP server (17 tools: nemesis_protect, nemesis_scan, nemesis_omniguard_verify, ...)
+learn/       @nemesis-shield-autogon/learn - the baseline traffic driver
+ai-rules/    Editor rule packs (AGENTS.md, Cursor, Windsurf, Claude Code)
+create-nemesis-app/  scaffolder
+demo/ examples/       runnable samples
+e2e/         live over-the-wire tests (learn -> enforce -> attack) across every language
+```
+
+Each language directory has its **own README** with framework-specific setup. Start there for any
+one SDK.
+
+## Prerequisites
+
+Only install the toolchain for the SDK you are touching: Node 18+ (node/edge/browser/mcp/learn),
+Python 3.9+ (python), Go 1.21+ (go), Ruby 2.7+ (ruby), PHP 7.2+ and Composer (php), JDK 11+ and
+Maven (java), .NET 8 SDK (dotnet), Rust stable (rust).
+
+## Develop, test, publish
+
+Work inside the SDK's directory with its native commands. The common shape:
+
+| SDK | Install / build | Test | Publish |
+|---|---|---|---|
+| Node · Edge · Browser | `npm install` | `npm test` | `npm publish --access public` |
+| Python | `python -m build` | `pytest` | `twine upload dist/*` |
+| Go | `go build ./...` | `go test ./...` | `git tag` (module is consumed by tag) |
+| Ruby | `gem build *.gemspec` | `rake test` | `gem push *.gem` |
+| PHP | `composer install` | `composer test` | tag -> Packagist auto-syncs |
+| Java | `mvn package` | `mvn test` | `mvn deploy` (Central) |
+| .NET | `dotnet build` | `dotnet test` | `dotnet pack` + `dotnet nuget push` |
+| Rust | `cargo build` | `cargo test` | `cargo publish` |
+
+Publishing is credentialed. Get the registry tokens (npm, PyPI, Maven Central, NuGet, crates.io,
+RubyGems) from the team secrets store, never from this repo. The `mcp/` server has its own publish
+flow (npm + the MCP registry + Smithery); see `mcp/README.md`.
+
+## Cross-language contract (do not drift)
+
+Any change to behavior must land in **every** SDK identically. The invariants:
+
+- Default ingest: `POST https://shield.nemesislabs.xyz/api/v1/sketches` (LLM: `/api/v1/llm`),
+  overridable via `NEMESIS_ENDPOINT` / an `endpoint` option.
+- Auth: `Authorization: Bearer nsk_…`.
+- Modes: `observe` (default) -> `enforce`, flipped in the console; the SDK background-refreshes the
+  compiled policy with no redeploy.
+- Blocked request: HTTP `403` with `{"error":"blocked_by_nemesis_shield", ...}`.
+- Break-glass allow-list (never blocked): `/login /signin /sign-in /auth /oauth /session
+  /wp-login.php /wp-admin`, overridable via `NEMESIS_SHIELD_BOOTSTRAP`.
+- Request shape only: method, normalized path (`/orders/123` -> `/orders/{int}`), query-param
+  structure (names + kinds, never values), auth flag, status. Never bodies or secrets.
+- LLM-Guard weights (`ml_weights.json`) are embedded byte-identically and Ed25519-signed;
+  hot-swappable via `refreshModel()` against the pinned public key.
+
+Every SDK is **fail-open**: if the service is unreachable, the app is unaffected. Keep it that way.
+
+## After you change any SDK
+
+Run the language's tests, then the relevant `e2e/` scenario (real learn -> enforce -> attack over
+the wire). Do not ship an SDK that has not passed its e2e run.
+
 ## License
 
 [MIT](LICENSE) © Autogon Inc. - use them freely, in any project.
