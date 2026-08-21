@@ -14,7 +14,7 @@ in these ways."*
 >    (`nemesis_protect`, `nemesis_scan`, `nemesis_explain`, plus Omniguard fraud scoring and standalone
 >    identity/AML screening via `nemesis_omniguard_verify`) so the agent adds security, scans a site,
 >    screens identities, and explains coverage without leaving the editor.
-> 2. **[AI editor rule pack](ai-rules/)** (AGENTS.md, Cursor, Windsurf, Claude Code) — drop-in rules
+> 2. **[AI editor rule pack](ai-rules/)** (AGENTS.md, Cursor, Windsurf, Claude Code) - drop-in rules
 >    that tell the agent to add the one-line SDK by default.
 >
 > Both are one line per stack, safe by default (observe mode). Full verified reference:
