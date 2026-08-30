@@ -170,7 +170,16 @@ export interface ShieldOptions {
   endpoint?: string;
   /** How long a cached policy is considered fresh, in ms (default 3000). */
   ttlMs?: number;
+  /** Max time a partial batch of sketches waits before shipping, in ms (default 5000). */
+  flushIntervalMs?: number;
 }
+
+/** Ship a batch once this many sketches are buffered (or `flushIntervalMs` elapses, whichever first). */
+const BATCH = 25;
+/** Hard ceiling on buffered sketches - while backing off from a 429 nothing drains the buffer. */
+const MAX_BUFFER = 1000;
+const DEFAULT_BACKOFF_MS = 30_000;   // throttled with no usable Retry-After
+const MAX_BACKOFF_MS = 300_000;      // never honor an absurd Retry-After
 
 interface Sketch {
   route: string;
@@ -193,11 +202,16 @@ export class Shield {
   private lastRefresh = 0;
   private refreshing: Promise<void> | null = null;
   private buffer: string[] = [];
+  private flushIntervalMs: number;
+  private lastFlush = 0;
+  /** Epoch ms until which shipping is muted because the server asked us to back off (429/503). */
+  private mutedUntil = 0;
 
   constructor(opts: ShieldOptions = {}) {
     this.token = opts.token ?? "";
     this.endpoint = opts.endpoint ?? DEFAULT_ENDPOINT;
     this.ttlMs = opts.ttlMs ?? 3000;
+    this.flushIntervalMs = opts.flushIntervalMs ?? 5000;
   }
 
   enforcing(): boolean {
@@ -247,13 +261,35 @@ export class Shield {
 
   record(s: Sketch): void {
     this.buffer.push(JSON.stringify(s)); // includes params (names + kinds, never values)
-    if (this.buffer.length >= 25) void this.flush();
+    // Bounded: while backing off from a 429 the buffer isn't drained, so drop the oldest.
+    if (this.buffer.length > MAX_BUFFER) this.buffer.splice(0, this.buffer.length - MAX_BUFFER);
+    void this.maybeFlush();
+  }
+
+  /**
+   * Ship only when the batch is full or the flush interval has elapsed.
+   *
+   * `handler()` calls this once per request. It used to call `flush()` unconditionally there, which made
+   * `record()`'s BATCH threshold dead code: the buffer always held the sketch just recorded, so every
+   * inbound request produced its own ingest POST. On a busy app that is a 1:1 amplification of the app's
+   * own traffic (it produced a 9.65x edge-request anomaly on our portal) and it defeats the rate limit
+   * the ingest endpoint applies per app token. Batching is the whole point of a buffer.
+   */
+  private maybeFlush(): Promise<void> {
+    if (!this.buffer.length) return Promise.resolve();
+    if (this.buffer.length < BATCH && Date.now() - this.lastFlush < this.flushIntervalMs) return Promise.resolve();
+    return this.flush();
   }
 
   async flush(): Promise<void> {
     if (!this.buffer.length) return;
+    // The server told us to back off. Hold the (bounded) buffer rather than burn a request we know will
+    // be rejected - a throttled client that keeps sending at full rate is what turns a rate limit into a
+    // sustained flood, since every 429 still costs the receiver an edge request.
+    if (Date.now() < this.mutedUntil) return;
     const batch = this.buffer;
     this.buffer = [];
+    this.lastFlush = Date.now();
     await this.send(`[${batch.join(",")}]`);
   }
 
@@ -281,7 +317,19 @@ export class Shield {
         body: `{"sketches":${sketchesJson}}`,
         signal: AbortSignal.timeout(3000),
       });
-      if (res.ok) this.applyPolicy(await res.json());
+      if (res.ok) {
+        this.mutedUntil = 0; // a good response clears any prior backoff
+        this.applyPolicy(await res.json());
+        return;
+      }
+      // 429 (rate limited) / 503 (shedding) are explicit "slow down" signals - honor Retry-After and go
+      // quiet until it elapses. Note we deliberately do NOT clear the cached policy on a failed refresh:
+      // the last known-good allow-list keeps enforcing, so a throttle can never silently fail the WAF open.
+      if (res.status === 429 || res.status === 503) {
+        const secs = Number(res.headers.get("retry-after"));
+        const ms = Number.isFinite(secs) && secs > 0 ? secs * 1000 : DEFAULT_BACKOFF_MS;
+        this.mutedUntil = Date.now() + Math.min(ms, MAX_BACKOFF_MS);
+      }
     } catch {
       /* fail open */
     }
@@ -339,8 +387,10 @@ export class Shield {
       const res = await fn(req);
       try {
         const pathname = url ? url.pathname : new URL(req.url).pathname;
+        // record() batches (BATCH sketches, or flushIntervalMs) - do NOT force a flush here, or every
+        // inbound request becomes its own ingest POST. A BLOCK still ships immediately (above): a
+        // security event is worth a request of its own, ordinary traffic is not.
         this.record(this.buildSketch(req.method, pathname, query, authed, res.status));
-        void this.flush();
       } catch {
         /* fail-open telemetry */
       }
