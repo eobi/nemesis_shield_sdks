@@ -84,6 +84,13 @@ class NemesisShield
     {
         if ($v === null || $v === '') return 'empty';
         if (is_bool($v)) return 'bool';
+        // Doubly-nested query params (e.g. ?filters[0][field]=x) mean $v can still be an
+        // array here even after buildSketch()'s one-level unwrap. Casting an array to
+        // string is an E_WARNING that Laravel's error handler turns into a fatal
+        // ErrorException, defeating the SDK's fail-open guarantee. Treat it as the
+        // taxonomy's existing generic bucket rather than inventing a new category, so
+        // the shape hash stays byte-for-byte identical with every other language SDK.
+        if (is_array($v)) return 'string';
         $s = (string)$v;
         if ($s === '') return 'empty';
         if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $s)) return 'uuid';
