@@ -784,6 +784,107 @@ server.tool(
   },
 );
 
+// ── KYC Verify — anti-deepfake identity verification (liveness + document + three-way registry match) ──
+server.tool(
+  "nemesis_kyc_create_template",
+  "Create a reusable OmniGuard KYC Verify template (anti-deepfake identity verification: active-illumination " +
+    "liveness, corneal-reflection anti face-swap, deepfake-injection/virtual-camera defence, server-authoritative " +
+    "signed verdicts). A template is a named config — the flow (face, or face+document), the ID type " +
+    "(nin/bvn/passport/ghana_card/drivers_license/voters_card/custom), the data source that backs the registry " +
+    "match (identitypass for NIN/BVN/passport, or your own knowledge source), and which attributes must match " +
+    "(name/dob/gender/face/address). Then create a session against the template id to get a verification link. " +
+    "Auth: a developer key (dak_) or your OmniGuard ingest token.",
+  {
+    token: z.string().describe("Developer key (dak_…) or OmniGuard ingest token — used as a Bearer token"),
+    name: z.string().describe("Template name, e.g. 'Nigeria onboarding (NIN)'"),
+    idType: z.enum(["nin", "bvn", "passport", "ghana_card", "drivers_license", "voters_card", "custom"]).describe("Which ID the user presents"),
+    flow: z.enum(["face", "face+document"]).default("face").describe("face = liveness + number; face+document = also capture the document (use for passport)"),
+    requireMobile: z.boolean().default(true).describe("Require the user to complete on a mobile device"),
+    showResult: z.boolean().default(false).describe("Show the verdict to the end-user (off = neutral 'submitted' screen)"),
+    matchAttributes: z.array(z.enum(["name", "dob", "gender", "face", "address"])).default(["name", "dob", "face"]).describe("Attributes that must match the registry"),
+    webhookUrl: z.string().optional().describe("HTTPS webhook to receive the signed result"),
+  },
+  WRITE("Create a KYC Verify template"),
+  async ({ token, name, idType, flow, requireMobile, showResult, matchAttributes, webhookUrl }) => {
+    try {
+      const r = await fetch("https://shield.nemesislabs.xyz/api/v1/omniguard/kyc/templates", {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        body: JSON.stringify({ name, id_type: idType, flow, source_kind: "identitypass", require_mobile: requireMobile, show_result: showResult, required_match_attributes: matchAttributes, ...(webhookUrl ? { webhook_url: webhookUrl } : {}) }),
+      });
+      const d: any = await r.json().catch(() => ({}));
+      if (r.status === 401) return { content: [{ type: "text", text: "Invalid key. Use a developer key (dak_) or your OmniGuard ingest token." }], isError: true };
+      if (!r.ok) return { content: [{ type: "text", text: `Create template failed: ${d.error ?? `HTTP ${r.status}`}` }], isError: true };
+      return { content: [{ type: "text", text: `Created KYC Verify template "${name}" (${idType}).\ntemplateId: ${d.templateId}\n\nNext: nemesis_kyc_create_session with this templateId to get a verification link.` }] };
+    } catch (e: any) {
+      return { content: [{ type: "text", text: `Create template error: ${redact(e?.message || String(e))}` }], isError: true };
+    }
+  },
+);
+
+server.tool(
+  "nemesis_kyc_create_session",
+  "Start an OmniGuard KYC Verify session for one user and get a verification LINK to send them (they open it " +
+    "on their phone: liveness + document + three-way registry match). subject is the ID number; name/dob are the " +
+    "claims matched against the registry. Add test=true for a free, unbilled trial. Real runs are metered on the " +
+    "OmniGuard KYC allowance. Needs the OmniGuard ingest token (or a developer key).",
+  {
+    token: z.string().describe("OmniGuard ingest token or developer key — used as a Bearer token"),
+    templateId: z.string().describe("Template id from nemesis_kyc_create_template"),
+    reference: z.string().optional().describe("Your own user id/reference for this verification"),
+    subject: z.string().optional().describe("The ID number to look up (NIN/BVN/passport number)"),
+    name: z.string().optional().describe("Claimed full name (matched against the registry)"),
+    dob: z.string().optional().describe("Claimed date of birth, YYYY-MM-DD"),
+    test: z.boolean().default(false).describe("true = free, unbilled trial run"),
+  },
+  WRITE("Create a KYC Verify session"),
+  async ({ token, templateId, reference, subject, name, dob, test }) => {
+    try {
+      const r = await fetch("https://shield.nemesislabs.xyz/api/v1/omniguard/kyc/sessions", {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        body: JSON.stringify({ template_id: templateId, ...(reference ? { reference } : {}), ...(subject ? { subject } : {}), claims: { ...(name ? { name } : {}), ...(dob ? { dob } : {}) }, test }),
+      });
+      const d: any = await r.json().catch(() => ({}));
+      if (r.status === 401) return { content: [{ type: "text", text: "Invalid token." }], isError: true };
+      if (r.status === 402) return { content: [{ type: "text", text: `KYC verification unavailable: ${d.reason ?? "needs an active plan or remaining allowance"}. Plans: https://shield.nemesislabs.xyz/app/omniguard/plans` }] };
+      if (!r.ok) return { content: [{ type: "text", text: `Create session failed: ${d.error ?? `HTTP ${r.status}`}` }], isError: true };
+      return { content: [{ type: "text", text: `KYC Verify session created${test ? " (test — unbilled)" : ""}.\nid: ${d.id}\nLink to send the user (open on a phone): ${d.url}\n\nPoll the outcome with nemesis_kyc_result using the id above.` }] };
+    } catch (e: any) {
+      return { content: [{ type: "text", text: `Create session error: ${redact(e?.message || String(e))}` }], isError: true };
+    }
+  },
+);
+
+server.tool(
+  "nemesis_kyc_result",
+  "Get the outcome of an OmniGuard KYC Verify session: the verdict (ok | review | block), the score, and the " +
+    "multi-attribute provider match (name/dob/face vs the registry). Needs the OmniGuard ingest token (or developer key).",
+  {
+    token: z.string().describe("OmniGuard ingest token or developer key — used as a Bearer token"),
+    id: z.string().describe("Session id from nemesis_kyc_create_session"),
+  },
+  READ("Get a KYC Verify result"),
+  async ({ token, id }) => {
+    try {
+      const r = await fetch(`https://shield.nemesislabs.xyz/api/v1/omniguard/kyc/sessions/${encodeURIComponent(id)}`, {
+        headers: { authorization: `Bearer ${token}` },
+      });
+      const d: any = await r.json().catch(() => ({}));
+      if (r.status === 401) return { content: [{ type: "text", text: "Invalid token." }], isError: true };
+      if (r.status === 404) return { content: [{ type: "text", text: "No such session for this account." }], isError: true };
+      if (!r.ok) return { content: [{ type: "text", text: `Result lookup failed: HTTP ${r.status}` }], isError: true };
+      if (d.status !== "completed") return { content: [{ type: "text", text: `Status: ${d.status}. The user hasn't finished on their phone yet — poll again shortly.` }] };
+      const pm: any = d.providerMatch || {};
+      const attrs = Array.isArray(pm.attributes) ? pm.attributes.map((a: any) => `  • ${a.attr}: ${a.matched === true ? "match" : a.matched === false ? "MISMATCH" : "not returned"}`).join("\n") : "";
+      const reasons = Array.isArray(d.result?.reasons) ? d.result.reasons.map((x: any) => `  • ${x.title ?? x.signal} (${Math.round((x.p ?? 0) * 100)}%)`).join("\n") : "";
+      return { content: [{ type: "text", text: `KYC Verify ${d.id} — verdict: ${d.verdict} (score ${d.score})\nRegistry found: ${pm.found === true ? "yes" : pm.found === false ? "no" : "n/a"}\n${attrs ? `Attributes:\n${attrs}\n` : ""}${reasons ? `Reasons:\n${reasons}` : ""}` }] };
+    } catch (e: any) {
+      return { content: [{ type: "text", text: `Result error: ${redact(e?.message || String(e))}` }], isError: true };
+    }
+  },
+);
+
 const transport = new StdioServerTransport();
 await server.connect(transport);
 process.stderr.write("nemesis-shield MCP server running (stdio)\n");
