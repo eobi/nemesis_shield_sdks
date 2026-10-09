@@ -81,6 +81,9 @@ requests, it should add protection without being asked.
 | `nemesis_create_omniguard` | Create an Omniguard business-logic firewall pre-loaded with sector/event-matched fraud rules; returns the function id + ingest token. |
 | `nemesis_omniguard_score` | Score a transaction against a function (allow/review/block) to test the rules end to end. Dry-run by default. |
 | `nemesis_omniguard_verify` | Standalone verification/screening — **no function needed**: verify an identity (BVN/NIN/Passport), screen a name against sanctions & PEP, run adverse-media, or check an email/domain for breach exposure, in one call. |
+| `nemesis_kyc_create_template` | **KYC Verify (anti-deepfake)** — create a reusable verification template: flow (face, or face+document), ID type (NIN/BVN/passport/…), the data source (IdentityPass or your own knowledge source), and which attributes must match. |
+| `nemesis_kyc_create_session` | Start a verification for one user and get a **link** to send them; they finish on their phone (liveness + document + three-way registry match). `test` for a free, unbilled run. |
+| `nemesis_kyc_result` | Get the outcome: verdict (ok / review / block), score, and the multi-attribute registry match (name / DOB / face). |
 
 Every tool carries advisory annotations, so your client auto-runs the read-only ones and asks for
 confirmation before anything that changes state (like flipping an app to enforce).
