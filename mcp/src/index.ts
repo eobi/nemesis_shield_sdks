@@ -791,7 +791,7 @@ server.tool(
     "liveness, corneal-reflection anti face-swap, deepfake-injection/virtual-camera defence, server-authoritative " +
     "signed verdicts). A template is a named config — the flow (face, or face+document), the ID type " +
     "(nin/bvn/passport/ghana_card/drivers_license/voters_card/custom), the data source that backs the registry " +
-    "match (identitypass for NIN/BVN/passport, or your own knowledge source), and which attributes must match " +
+    "match (a Nemesis built-in source for NIN/BVN/passport/sanctions, or your own knowledge source), and which attributes must match " +
     "(name/dob/gender/face/address). Then create a session against the template id to get a verification link. " +
     "Auth: a developer key (dak_) or your OmniGuard ingest token.",
   {
@@ -810,7 +810,7 @@ server.tool(
       const r = await fetch("https://shield.nemesislabs.xyz/api/v1/omniguard/kyc/templates", {
         method: "POST",
         headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-        body: JSON.stringify({ name, id_type: idType, flow, source_kind: "identitypass", require_mobile: requireMobile, show_result: showResult, required_match_attributes: matchAttributes, ...(webhookUrl ? { webhook_url: webhookUrl } : {}) }),
+        body: JSON.stringify({ name, id_type: idType, flow, ...(["nin", "bvn", "passport"].includes(idType) ? { source_kind: "builtin", builtin_check: idType } : { source_kind: "none" }), require_mobile: requireMobile, show_result: showResult, required_match_attributes: matchAttributes, ...(webhookUrl ? { webhook_url: webhookUrl } : {}) }),
       });
       const d: any = await r.json().catch(() => ({}));
       if (r.status === 401) return { content: [{ type: "text", text: "Invalid key. Use a developer key (dak_) or your OmniGuard ingest token." }], isError: true };
